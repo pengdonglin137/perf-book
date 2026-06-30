@@ -1,9 +1,9 @@
-## Exercises {#sec:chapter1Exercises}
+## 练习 {#sec:chapter1Exercises}
 
-\markright{Exercises}
+\markright{练习}
 
-As supplemental material for this book, I developed "Performance Ninja", a free online course where you can practice low-level performance analysis and tuning. It is available at the following URL: [https://github.com/dendibakh/perf-ninja](https://github.com/dendibakh/perf-ninja). It has a collection of lab assignments that focus on a specific performance problem. Each lab assignment can take anywhere from 30 minutes up to 4 hours depending on your background and the complexity of the lab assignment itself.
+作为本书的补充材料，我开发了"Performance Ninja"，一个免费的在线课程，你可以在其中练习低级性能分析和调优。它可在以下 URL 获取：[https://github.com/dendibakh/perf-ninja](https://github.com/dendibakh/perf-ninja)。它包含一系列专注于特定性能问题的实验室作业。每个实验室作业可能需要 30 分钟到 4 小时，具体取决于你的背景和实验室作业本身的复杂性。
 
-Following the name of the GitHub repository, we will use `perf-ninja` to refer to the online course. In the "Questions and Exercises" section at the end of each chapter, you may find assignments from `perf-ninja`. For example, when you see `perf-ninja::warmup`, this corresponds to the lab assignment with the name "Warmup" in the GitHub repository. We encourage you to solve these puzzles to solidify your knowledge.
+按照 GitHub 仓库的名称，我们将使用 `perf-ninja` 来指代在线课程。在每章末尾的"问题和练习"部分，你可能会找到来自 `perf-ninja` 的作业。例如，当你看到 `perf-ninja::warmup` 时，它对应于 GitHub 仓库中名为"Warmup"的实验室作业。我们鼓励你解决这些谜题以巩固你的知识。
 
-You can solve assignments on your local machine or submit your code changes to GitHub for automated verification and benchmarking. If you choose the latter, follow the instructions on the "Get Started" page of the repository. We also use examples from `perf-ninja` throughout the book. This enables you to reproduce a specific performance problem on your own machine and experiment with it.
+你可以在本地机器上解决作业，也可以将代码更改提交到 GitHub 进行自动验证和基准测试。如果你选择后者，请按照仓库的"Get Started"页面上的说明操作。我们还在本书中使用了 `perf-ninja` 的示例。这使你可以在自己的机器上重现特定的性能问题并进行实验。
