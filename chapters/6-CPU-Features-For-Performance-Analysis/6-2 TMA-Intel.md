@@ -1,28 +1,28 @@
-### TMA on Intel Platforms {#sec:secTMA_Intel}
+### Intel 平台上的 TMA {#sec:secTMA_Intel}
 
-The TMA methodology was first proposed by Intel in 2014 and is supported starting from the Sandy Bridge family of processors. Intel's implementation supports nested categories for each high-level bucket that give a better understanding of the CPU performance bottlenecks in the program (see Figure @fig:TMA).
+TMA 方法由 Intel 于 2014 年首次提出，从 Sandy Bridge 系列处理器开始支持。Intel 的实现支持每个高级桶的嵌套类别，可以更好地理解程序中的 CPU 性能瓶颈（参见图 @fig:TMA）。
 
-The workflow is designed to "drill down" to lower levels of the TMA hierarchy until we get to the very specific classification of a performance bottleneck. First, we collect metrics for the main four buckets: `Frontend Bound`, `Backend Bound`, `Retiring`, and `Bad Speculation`. Say, we found out that a big portion of the program execution was stalled by memory accesses (which is a `Backend Bound` bucket, see Figure @fig:TMA). The next step is to run the workload again and collect metrics specific to the `Memory Bound` bucket only. The process is repeated until we know the exact root cause, for example, `L3 Bound`.
+工作流程旨在"深入"到 TMA 层次结构的较低级别，直到我们获得性能瓶颈的非常具体的分类。首先，我们收集四个主要桶的指标：`前端绑定`、`后端绑定`、`退休`和`错误推测`。假设我们发现程序执行的很大一部分被内存访问阻塞（这是`后端绑定`桶，参见图 @fig:TMA）。下一步是再次运行工作负载，仅收集`内存绑定`桶的特定指标。重复此过程，直到我们确切知道根本原因，例如 `L3 绑定`。
 
-![The TMA hierarchy of performance bottlenecks. *© Image by Ahmad Yasin.*](../../img/pmu-features/TMAM.png){#fig:TMA width=90%}
+![性能瓶颈的 TMA 层次结构。*© 图片由 Ahmad Yasin 提供。*](../../img/pmu-features/TMAM.png){#fig:TMA width=90%}
 
-It is fine to run the workload several times, each time drilling down and focusing on specific metrics. But usually, it is sufficient to run the workload once and collect all the metrics required for all levels of TMA. Profiling tools achieve that by multiplexing (see [@sec:secMultiplex]) between different performance events during a single run. Also, in a real-world application, performance could be limited by several factors. For example, it can experience a large number of branch mispredictions (`Bad Speculation`) and cache misses (`Backend Bound`) at the same time. In this case, TMA will drill down into multiple buckets simultaneously and will identify the impact that each type of bottleneck makes on the performance of a program. Analysis tools such as Intel's VTune Profiler, AMD's uProf, and Linux `perf` can calculate all the TMA metrics with a single benchmark run. However, this only is acceptable if the workload is steady. Otherwise, you would better fall back to the original strategy of multiple runs and drilling down with each run.
+多次运行工作负载是可以的，每次深入并专注于特定指标。但通常，运行一次工作负载并收集所有 TMA 级别所需的所有指标就足够了。分析工具通过在单次运行中在不同性能事件之间进行多路复用（参见 [@sec:secMultiplex]）来实现这一点。此外，在实际应用程序中，性能可能受多个因素限制。例如，它可能同时经历大量的分支预测错误（`错误推测`）和缓存未命中（`后端绑定`）。在这种情况下，TMA 将同时深入多个桶，并识别每种类型的瓶颈对程序性能的影响。Intel VTune Profiler、AMD uProf 和 Linux `perf` 等分析工具可以通过单次基准测试运行计算所有 TMA 指标。但是，这仅在工作负载稳定时才可接受。否则，你最好回到原始策略，进行多次运行并在每次运行中深入研究。
 
-The top two levels of TMA metrics are expressed in the percentage of all pipeline slots (see [@sec:PipelineSlot]) that were available during the execution of a program. It allows TMA to give an accurate representation of CPU microarchitecture utilization, taking into account the full bandwidth of a processor. Up to this point, everything should sum up nicely to 100%. However, starting from Level 3, buckets may be expressed in a different count domain, e.g., clocks and stalls. So they are not necessarily directly comparable with other TMA buckets.
+TMA 指标的前两个级别表示为程序执行期间可用的所有流水线槽（参见 [@sec:PipelineSlot]）的百分比。这允许 TMA 在考虑处理器完整带宽的情况下，给出 CPU 微架构利用率的准确表示。到目前为止，一切应该很好地加起来达到 100%。但是，从第 3 级开始，桶可能以不同的计数域表示，例如时钟和停顿。因此，它们不一定与其他 TMA 桶直接可比。
 
-Once we identify the performance bottleneck, we need to know where exactly in the code it is happening. The second step in TMA is to locate the source of the problem down to the exact line of code and corresponding assembly instructions. The analysis methodology provides performance events that you should use for each category of the performance problem. Then you can sample on this event to find the line in the source code that contributes to the performance bottleneck identified by the first stage. Don't worry if this process sounds complicated to you; everything will become clear once you read through the case study.
+一旦我们识别出性能瓶颈，我们需要知道它在代码中的确切位置。TMA 的第二步是将问题源定位到确切的代码行和相应的汇编指令。分析方法为每个类别的性能问题提供了你应该使用的性能事件。然后你可以对该事件进行采样，以找到源代码中导致第一阶段识别的性能瓶颈的行。如果这个过程对你来说听起来很复杂，请不要担心；一旦你通读案例研究，一切都会变得清楚。
 
-### Case Study: Reduce The Number of Cache Misses with TMA {.unlisted .unnumbered}
+### 案例研究：使用 TMA 减少缓存未命中数 {.unlisted .unnumbered}
 
-As an example for this case study, I took a very simple benchmark, such that it is easy to understand and change. It is not representative of real-world applications, but it is good enough to demonstrate the workflow of TMA. I have a lot more practical examples in the second part of the book.
+作为本案例研究的示例，我采用了一个非常简单的基准测试，这样它易于理解和更改。它不能代表真实世界的应用程序，但它足以演示 TMA 的工作流程。我在本书的第二部分中有更多实际示例。
 
-Most readers of this book will likely apply TMA to their own applications, with which they are familiar. But TMA is very effective even if you see the application for the first time. For this reason, I don't start by showing you the source code of the benchmark. But here is a short description: the benchmark allocates a 200 MB array on the heap, then enters a loop of 100M iterations. On every iteration of the loop, it generates a random index into the allocated array, performs some dummy work, and then reads the value from that index.
+本书的大多数读者可能会将 TMA 应用于他们熟悉的应用程序。但即使你第一次看到该应用程序，TMA 也非常有效。因此，我不从展示基准测试的源代码开始。但这里有一个简短的描述：基准测试在堆上分配一个 200 MB 的数组，然后进入 1 亿次迭代的循环。在循环的每次迭代中，它生成一个随机索引到已分配的数组中，执行一些虚拟工作，然后从该索引读取值。
 
-I ran the experiments on the machine equipped with an Intel Core i5-8259U CPU (Skylake-based) and 16GB of DRAM (DDR4 2400 MT/s), running 64-bit Ubuntu 20.04 (kernel version 5.13.0-27).
+我在配备 Intel Core i5-8259U CPU（基于 Skylake）和 16GB DRAM（DDR4 2400 MT/s）的机器上运行了实验，运行 64 位 Ubuntu 20.04（内核版本 5.13.0-27）。
 
-### Step 1: Identify the Bottleneck {.unlisted .unnumbered}
+### 第 1 步：识别瓶颈 {.unlisted .unnumbered}
 
-As a first step, we run our microbenchmark and collect a limited set of events that will help us calculate Level 1 metrics. Here, we try to identify high-level performance bottlenecks of our application by attributing them to the four L1 buckets: `Frontend Bound`, `Backend Bound`, `Retiring`, and `Bad Speculation`. It is possible to collect Level 1 metrics using the Linux `perf` tool. The `perf stat` command has a dedicated `--topdown` option. In more recent versions it will output these metrics by default. Below is the breakdown for our benchmark. The output of all commands in this section is trimmed to save space.
+作为第一步，我们运行微基准测试并收集一组有限的事件，这些事件将帮助我们计算第 1 级指标。在这里，我们尝试通过将高级性能瓶颈归因于四个 L1 桶来识别应用程序的高级性能瓶颈：`前端绑定`、`后端绑定`、`退休`和`错误推测`。可以使用 Linux `perf` 工具收集第 1 级指标。`perf stat` 命令有一个专用的 `--topdown` 选项。在更新的版本中，它将默认输出这些指标。以下是我们基准测试的细分。本节中所有命令的输出都经过修剪以节省空间。
 
 ```bash
 $ perf stat -- ./benchmark.exe
@@ -34,146 +34,8 @@ $ perf stat -- ./benchmark.exe
 ...
 ```
 
-By looking at the output, we can tell that the performance of the application is bound by the CPU backend. Let's drill one level down. To obtain TMA metrics Level 2, 3, and further, I will use the `toplev` tool that is a part of [pmu-tools](https://github.com/andikleen/pmu-tools)[^7] written by Andi Kleen. It is implemented in `Python` and uses Linux `perf` under the hood. Specific Linux kernel settings must be enabled to use `toplev`; check the documentation for more details.
+通过查看输出，我们可以判断应用程序的性能受 CPU 后端限制。让我们深入一层。为了获得 TMA 指标第 2 级、第 3 级和更高级别，我将使用 `toplev` 工具，它是 [pmu-tools](https://github.com/andikleen/pmu-tools)[^7] 的一部分，由 Andi Kleen 编写。它在 Python 中实现，并在底层使用 Linux `perf`。必须启用特定的 Linux 内核设置才能使用 `toplev`；有关更多详细信息，请检查文档。
 
 ```bash
 $ ~/pmu-tools/toplev.py --core S0-C0 -l2 -v --no-desc taskset -c 0 ./benchmark.exe
-...
-# Level 1
-S0-C0  Frontend_Bound:                13.92 % Slots
-S0-C0  Bad_Speculation:                0.23 % Slots
-S0-C0  Backend_Bound:                 53.39 % Slots
-S0-C0  Retiring:                      32.49 % Slots
-# Level 2
-S0-C0  Frontend_Bound.FE_Latency:     12.11 % Slots
-S0-C0  Frontend_Bound.FE_Bandwidth:    1.84 % Slots
-S0-C0  Bad_Speculation.Branch_Mispred: 0.22 % Slots
-S0-C0  Bad_Speculation.Machine_Clears: 0.01 % Slots
-S0-C0  Backend_Bound.Memory_Bound:    44.59 % Slots <==
-S0-C0  Backend_Bound.Core_Bound:       8.80 % Slots
-S0-C0  Retiring.Base:                 24.83 % Slots
-S0-C0  Retiring.Microcode_Sequencer:   7.65 % Slots
 ```
-
-In this command, we pinned the process to CPU0 (using `taskset -c 0`) and limited the output of `toplev` to this core only (`--core S0-C0`). The option `-l2` tells the tool to collect Level 2 metrics. The option `--no-desc` disables the description of each metric.
-
-We can see that the application’s performance is bound by memory accesses (`Backend_Bound.Memory_Bound`). Almost half of the CPU execution resources were wasted waiting for memory requests to complete. Now let us dig one level deeper: [^17]
-
-```bash
-$ ~/pmu-tools/toplev.py --core S0-C0 -l3 -v --no-desc taskset -c 0 ./benchmark.exe
-...
-# Level 1
-S0-C0    Frontend_Bound:                 13.91 % Slots
-S0-C0    Bad_Speculation:                 0.24 % Slots
-S0-C0    Backend_Bound:                  53.36 % Slots
-S0-C0    Retiring:                       32.41 % Slots
-# Level 2
-S0-C0    FE_Bound.FE_Latency:            12.10 % Slots
-S0-C0    FE_Bound.FE_Bandwidth:           1.85 % Slots
-S0-C0    BE_Bound.Memory_Bound:          44.58 % Slots
-S0-C0    BE_Bound.Core_Bound:             8.78 % Slots
-# Level 3
-S0-C0-T0 BE_Bound.Mem_Bound.L1_Bound:     4.39 % Stalls
-S0-C0-T0 BE_Bound.Mem_Bound.L2_Bound:     2.42 % Stalls
-S0-C0-T0 BE_Bound.Mem_Bound.L3_Bound:     5.75 % Stalls
-S0-C0-T0 BE_Bound.Mem_Bound.DRAM_Bound:  47.11 % Stalls <==
-S0-C0-T0 BE_Bound.Mem_Bound.Store_Bound:  0.69 % Stalls
-S0-C0-T0 BE_Bound.Core_Bound.Divider:     8.56 % Clocks
-S0-C0-T0 BE_Bound.Core_Bound.Ports_Util: 11.31 % Clocks
-```
-
-We found the bottleneck to be in `DRAM_Bound`. This tells us that many memory accesses miss in all levels of caches and go all the way down to the main memory. We can also confirm this if we collect the absolute number of L3 cache misses for the program. For the Skylake architecture, the `DRAM_Bound` metric is calculated using the `CYCLE_ACTIVITY.STALLS_L3_MISS` performance event. Let’s collect it manually:
-
-```bash
-$ perf stat -e cycles,cycle_activity.stalls_l3_miss -- ./benchmark.exe
-  32226253316  cycles
-  19764641315  cycle_activity.stalls_l3_miss
-```
-
-The `CYCLE_ACTIVITY.STALLS_L3_MISS` event counts cycles when execution stalls, while the L3 cache miss demand load is outstanding. We can see that there are ~60% of such cycles, which is pretty bad.
-
-### Step 2: Locate the Place in the Code {.unlisted .unnumbered}
-
-The second step in the TMA process is to locate the place in the code where the identified performance event occurs most frequently. To do so, you should sample the workload using an event that corresponds to the type of bottleneck that was identified during Step 1.
-
-A recommended way to find such an event is to run `toplev` tool with the `--show-sample` option that will suggest the `perf record` command line that can be used to locate the issue. To understand the mechanics of TMA, we also present the manual way to find an event associated with a particular performance bottleneck. Correspondence between performance bottlenecks and performance events that should be used for determining the location of bottlenecks in source code can be found with the help of the [TMA metrics](https://github.com/intel/perfmon/blob/main/TMA_Metrics.xlsx)[^2] table. The `Locate-with` column denotes a performance event that should be used to locate the exact place in the code where the issue occurs. In our case, to find memory accesses that contribute to such a high value of the `DRAM_Bound` metric (miss in the L3 cache), we should sample on `MEM_LOAD_RETIRED.L3_MISS_PS` precise event. Here is the example command:
-
-```bash
-$ perf record -e cpu/event=0xd1,umask=0x20,name=MEM_LOAD_RETIRED.L3_MISS/ppp -- ./benchmark.exe
-$ perf report -n --stdio
-...
-# Samples: 33K of event ‘MEM_LOAD_RETIRED.L3_MISS’
-# Event count (approx.): 71363893
-# Overhead   Samples  Shared Object   Symbol
-# ........  ......... ..............  .................
-#
-    99.95%    33811   benchmark.exe   [.] foo
-     0.03%       52   [kernel]        [k] get_page_from_freelist
-     0.01%        3   [kernel]        [k] free_pages_prepare
-     0.00%        1   [kernel]        [k] free_pcppages_bulk
-```
-
-Almost all L3 misses are caused by memory accesses in function `foo` inside executable `benchmark.exe`. Now it's time to look at the source code of the benchmark, which can be found on [GitHub](https://github.com/dendibakh/dendibakh.github.io/tree/master/_posts/code/TMAM).[^8]
-
-To avoid compiler optimizations, function `foo` is implemented in assembly language, which is presented in [@lst:TMA_asm]. The “driver” portion of the benchmark is implemented in the `main` function, as shown in [@lst:TMA_cpp]. We allocate a big enough array `a` to make it not fit in the 6MB L3 cache. The benchmark generates a random index into array `a` and passes this index to the `foo` function along with the address of array `a`. Later the `foo` function reads this random memory location.[^11]
-
-Listing: Assembly code of function foo.
-
-~~~~ {#lst:TMA_asm .bash}
-$ perf annotate --stdio -M intel foo
-Percent |  Disassembly of benchmark.exe for MEM_LOAD_RETIRED.L3_MISS
-------------------------------------------------------------
-        :  Disassembly of section .text:
-        :
-        :  0000000000400a00 <foo>:
-        :  foo():
-   0.00 :    400a00:  nop  DWORD PTR [rax+rax*1+0x0]
-   0.00 :    400a08:  nop  DWORD PTR [rax+rax*1+0x0]
-                 ...  # more NOPs
- 100.00 :    400e07:  mov  rax,QWORD PTR [rdi+rsi*1] <==
-                 ...
-   0.00 :    400e13:  xor  rax,rax
-   0.00 :    400e16:  ret
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Listing: Source code of function main.
-
-~~~~ {#lst:TMA_cpp .cpp}
-extern "C" { void foo(char* a, int n); }
-const int _200MB = 1024*1024*200;
-int main() {
-  char* a = new char[_200MB]; // 200 MB buffer
-  ...
-  for (int i = 0; i < 100000000; i++) {
-    int random_int = distribution(generator);
-    foo(a, random_int);
-  }
-  ...
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-By looking at [@lst:TMA_asm], we can see that all L3 cache misses in function `foo` are tagged to a single instruction. Now that we know which instruction caused so many L3 misses, let’s fix it.
-
-### Step 3: Fix the Issue {.unlisted .unnumbered}
-
-There is dummy work emulated with NOPs at the beginning of the `foo` function. This creates a time window between the moment when we get the next address that will be accessed and the actual load instruction. The presence of the time window allows us to start prefetching the memory location in parallel with the dummy work. [@lst:TMA_prefetch] shows this idea in action. More information about the explicit memory prefetching technique can be found in [@sec:memPrefetch].
-
-Listing: Inserting memory prefetch into main.
-
-~~~~ {#lst:TMA_prefetch .cpp}
-  for (int i = 0; i < 100000000; i++) {
-    int random_int = distribution(generator);
-+   __builtin_prefetch ( a + random_int, 0, 1);
-    foo(a, random_int);
-  }
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This explicit memory prefetching hint decreases execution time from 8.5 seconds to 6.5 seconds. Also, the number of `CYCLE_ACTIVITY.STALLS_L3_MISS` events becomes almost ten times less: it goes from 19 billion down to 2 billion.
-
-TMA is an iterative process, so once we fix one problem, we need to repeat the process starting from Step 1. Likely it will move the bottleneck into another bucket, in this case, `Retiring`. This was an easy example demonstrating the workflow of TMA methodology. Analyzing real-world applications is unlikely to be that easy. Chapters in the second part of the book are organized to make them convenient for use with the TMA process. In particular, Chapter 8 covers the `Memory Bound` category, Chapter 9 covers `Core Bound`, Chapter 10 covers `Bad Speculation`, and Chapter 11 covers `Frontend Bound`. Such a structure is intended to form a checklist that you can use to drive code changes when you encounter a certain performance bottleneck.
-
-[^2]: TMA metrics - [https://github.com/intel/perfmon/blob/main/TMA_Metrics.xlsx](https://github.com/intel/perfmon/blob/main/TMA_Metrics.xlsx).
-[^7]: PMU tools - [https://github.com/andikleen/pmu-tools](https://github.com/andikleen/pmu-tools).
-[^8]: Case study example - [https://github.com/dendibakh/dendibakh.github.io/tree/master/_posts/code/TMAM](https://github.com/dendibakh/dendibakh.github.io/tree/master/_posts/code/TMAM).
-[^11]: According to x86 Linux calling conventions ([https://en.wikipedia.org/wiki/X86_calling_conventions](https://en.wikipedia.org/wiki/X86_calling_conventions)), the first 2 arguments land in `rdi` and `rsi` registers respectively.
-[^17]: Alternatively, we could use the `-l2 --nodes L1_Bound,L2_Bound,L3_Bound,DRAM_Bound,Store_Bound` option instead of `-l3` to limit the collection since we know the application is bound by memory.
