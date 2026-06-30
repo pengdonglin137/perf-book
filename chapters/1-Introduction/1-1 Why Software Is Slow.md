@@ -1,12 +1,11 @@
-## Why Is Software Slow?
+## 为什么软件很慢？
 
-If all the software in the world utilized all available hardware resources efficiently, then this book would not exist. We would not need any changes on the software side and would rely on what existing processors have to offer. But you already know that the reality is different, right? The reality is that modern software is *massively* inefficient. A regular server system in a public cloud typically runs poorly optimized code, consuming more power than it could have consumed (increasing carbon emissions and contributing to other environmental issues). If we could make all software run two times faster, we would potentially reduce the carbon footprint of computing by a factor of two.
+如果世界上所有的软件都高效地利用了所有可用的硬件资源，那么这本书就不会存在。我们不需要对软件做任何改变，而是依赖现有处理器提供的能力。但你已经知道现实并非如此，对吧？现实是现代软件*极其*低效。公共云中的典型服务器系统通常运行着优化不佳的代码，消耗的电力比它本可以消耗的更多（增加碳排放并加剧其他环境问题）。如果我们能让所有软件运行速度提高两倍，我们就有可能将计算的碳足迹减少一半。
 
-The authors of the paper [@Leisersoneaam9744] provide an excellent example that illustrates the performance gap between "default" and highly optimized software. Table @tbl:PlentyOfRoom summarizes speedups from performance engineering a program that multiplies two 4096-by-4096 matrices. The end result of applying several optimizations is a program that runs over 60,000 times faster. The reason for providing this example is not to pick on Python or Java (which are great languages), but rather to break beliefs that software has "good enough" performance by default. The majority of programs are within rows 1--5. The potential for source-code-level improvements is significant.
+论文 [@Leisersoneaam9744] 的作者提供了一个很好的例子，说明了"默认"软件和高度优化软件之间的性能差距。表 @tbl:PlentyOfRoom 总结了对两个 4096×4096 矩阵相乘程序进行性能工程后的加速比。应用多项优化后的最终结果是一个运行速度快 60,000 多倍的程序。提供这个例子的目的不是批评 Python 或 Java（它们都是很好的语言），而是打破软件默认性能"足够好"的信念。大多数程序都在第 1-5 行之间。源代码级别的改进潜力是巨大的。
 
 -------------------------------------------------------------
-Version   Implementation                 Absolute    Relative 
-                                         speedup     speedup
+版本   实现                         绝对加速比  相对加速比
 
 -------   ----------------------------   --------    --------
    1         Python                         1            —
@@ -15,26 +14,26 @@ Version   Implementation                 Absolute    Relative
 
    3           C                           47           4.4
 
-   4      Parallel loops                   366          7.8
+   4      并行循环                        366          7.8
 
-   5      Parallel divide and conquer     6,727        18.4
+   5      并行分治                       6,727        18.4
             
-   6       plus vectorization            23,224         3.5
+   6       加向量化                     23,224         3.5
            
-   7       plus AVX intrinsics           62,806         2.7
+   7       加 AVX 内置函数             62,806         2.7
 
 --------------------------------------------------------------
 
-Table: Speedups from performance engineering a program that multiplies two 4096-by-4096 matrices running on a dual-socket Intel Xeon E5-2666 v3 system with a total of 60 GB of memory. From [@Leisersoneaam9744]. {#tbl:PlentyOfRoom}
+表：对两个 4096×4096 矩阵相乘程序进行性能工程后的加速比，运行在配备总共 60 GB 内存的双路 Intel Xeon E5-2666 v3 系统上。来自 [@Leisersoneaam9744]。 {#tbl:PlentyOfRoom}
 
-So, let's talk about what prevents systems from achieving optimal performance by default. Here are some of the most important factors:
+那么，让我们谈谈是什么阻止了系统默认达到最佳性能。以下是一些最重要的因素：
 
-1. **CPU limitations**: It's so tempting to ask: "*Why doesn't hardware solve all our problems?*" Modern CPUs execute instructions incredibly quickly, and are getting better with every generation. But still, they cannot do much if instructions that are used to perform the job are not optimal or even redundant. Processors cannot magically transform suboptimal code into something that performs better. For example, if we implement a bubble sort, a CPU will not make any attempts to recognize it and use better alternatives (e.g. quicksort). It will blindly execute whatever it was told to do.
-2. **Compiler limitations**: "*But isn't that what compilers are supposed to do? Why don't compilers solve all our problems?*" Indeed, compilers are amazingly smart nowadays, but can still generate suboptimal code. Compilers are great at eliminating redundant work, but when it comes to making more complex decisions like vectorization, they may not generate the best possible code. Performance experts often can come up with clever ways to vectorize loops beyond the capabilities of compilers. When compilers have to make a decision whether to perform a code transformation or not, they rely on complex cost models and heuristics, which may not work for every possible scenario. For example, there is no binary "yes" or "no" answer to the question of whether a compiler should always inline a function into the place where it's called. It usually depends on many factors which a compiler should take into account. Additionally, compilers cannot perform optimizations unless they are absolutely certain it is safe to do so. It may be very difficult for a compiler to prove that an optimization is correct under all possible circumstances, disallowing some transformations. Finally, compilers generally do not attempt "heroic" optimizations, like transforming data structures used by a program.
-3. **Algorithmic complexity analysis limitations**: Some developers are overly obsessed with algorithmic complexity analysis, which leads them to choose a popular algorithm with the optimal algorithmic complexity, even though it may not be the most efficient for a given problem. Considering two sorting algorithms, insertion sort and quicksort, the latter clearly wins in terms of Big O notation for the average case: insertion sort is O(N^2^) while quickSort is only O(N log N). Yet for relatively small sizes of `N` (up to 50 elements), insertion sort outperforms quickSort. Complexity analysis cannot account for all the low-level performance effects of various algorithms, so people just encapsulate them in an implicit constant `C`, which sometimes can make a large impact on performance. Only counting comparisons and swaps that are used for sorting, ignores cache misses and branch mispredictions, which, today, are actually very costly. Blindly trusting Big O notation without testing on the target workload could lead developers down an incorrect path. So, the best-known algorithm for a certain problem is not necessarily the most performant in practice for every possible input.
+1. **CPU 限制**：人们很容易问："*为什么硬件不能解决我们所有的问题？*" 现代 CPU 执行指令的速度令人难以置信，并且每一代都在变得更好。但是，如果用于执行任务的指令不是最优的甚至是冗余的，它们仍然做不了太多。处理器不能神奇地将次优代码转化为性能更好的代码。例如，如果我们实现冒泡排序，CPU 不会尝试识别它并使用更好的替代方案（如快速排序）。它会盲目地执行被告知要做的任何事情。
+2. **编译器限制**："*但这不正是编译器应该做的吗？为什么编译器不能解决我们所有的问题？*" 的确，如今的编译器非常智能，但仍然可能生成次优代码。编译器在消除冗余工作方面很出色，但在做出更复杂的决策（如向量化）时，它们可能无法生成最佳代码。性能专家通常能想出比编译器能力更聪明的向量化循环方法。当编译器必须决定是否执行代码转换时，它们依赖于复杂的成本模型和启发式方法，这些可能不适用于所有可能的情况。例如，对于编译器是否应该总是将函数内联到调用位置这个问题，没有二元的"是"或"否"答案。这通常取决于编译器应该考虑的许多因素。此外，除非编译器绝对确定安全，否则它们不能执行优化。编译器可能很难证明优化在所有可能的情况下都是正确的，从而禁止某些转换。最后，编译器通常不会尝试"英雄式"优化，比如转换程序使用的数据结构。
+3. **算法复杂度分析限制**：一些开发者过度迷恋算法复杂度分析，这导致他们选择具有最优算法复杂度的流行算法，即使它可能不是给定问题最有效的算法。考虑两种排序算法，插入排序和快速排序，后者在平均情况下的大 O 表示法中明显胜出：插入排序是 O(N^2^)，而快速排序只有 O(N log N)。然而，对于相对较小的 `N`（最多 50 个元素），插入排序的性能优于快速排序。复杂度分析无法考虑各种算法的所有低级性能影响，因此人们只是将它们封装在隐式常数 `C` 中，这有时会对性能产生很大影响。仅计算用于排序的比较和交换次数，忽略了缓存未命中和分支预测错误，而这些在今天实际上是非常昂贵的。盲目信任大 O 表示法而不对目标工作负载进行测试可能会引导开发者走上错误的道路。因此，对于某个问题的最知名算法不一定在实践中对每个可能的输入都是性能最高的。
 
-In addition to the limitations described above, there are overheads created by programming paradigms. Coding practices that prioritize code clarity, readability, and maintainability can reduce performance. Highly generalized and reusable code can introduce unnecessary copies, runtime checks, function calls, memory allocations, etc. For instance, polymorphism in object-oriented programming is usually implemented using virtual functions, which introduce a performance overhead.[^1]
+除了上述限制之外，编程范式也会产生开销。优先考虑代码清晰度、可读性和可维护性的编码实践可能会降低性能。高度通用和可重用的代码可能会引入不必要的复制、运行时检查、函数调用、内存分配等。例如，面向对象编程中的多态通常使用虚函数实现，这会引入性能开销。[^1]
 
-All the factors mentioned above assess a "performance tax" on the software. There are very often substantial opportunities for tuning the performance of our software to reach its full potential.
+上述所有因素都对软件征收了"性能税"。通常有很大的机会来调整我们软件的性能，以发挥其全部潜力。
 
-[^1]: I do not dismiss design patterns and clean code principles, but I encourage a more nuanced approach where performance is also a key consideration in the development process.
+[^1]: 我不否定设计模式和整洁代码原则，但我鼓励一种更细致的方法，其中性能也是开发过程中的关键考虑因素。

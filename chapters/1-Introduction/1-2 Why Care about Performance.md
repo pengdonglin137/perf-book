@@ -1,71 +1,49 @@
-## Why Care about Performance?
+## 为什么关心性能？
 
-In addition to the slowing growth of hardware single-threaded performance, there are a couple of other business reasons to care about performance. During the PC era,[^12] the costs of slow software were paid by the users, as inefficient software was running on user computers. Software vendors were not directly incentivized to optimize the code of their applications. With the advent of SaaS (software as a service) and cloud computing, the costs of slow software are put back on the software providers, not their users. If you're a SaaS company like Meta or Netflix,[^4] it doesn't matter if you run your service on-premise hardware or you use the public cloud, you pay for the electricity your servers consume. Inefficient software cuts right into your margins and market valuation. According to Synergy Research Group,[^5] worldwide spending on cloud services topped $100 billion in 2020, and according to Gartner,[^6] it will surpass $675 billion in 2024.
+除了硬件单线程性能增长放缓之外，还有一些其他业务原因需要关心性能。在 PC 时代，[^12] 慢速软件的成本由用户承担，因为低效软件运行在用户计算机上。软件供应商没有直接的动力去优化其应用程序的代码。随着 SaaS（软件即服务）和云计算的出现，慢速软件的成本又回到了软件提供商身上，而不是他们的用户。如果你是像 Meta 或 Netflix 这样的 SaaS 公司，[^4] 无论你在本地硬件上运行服务还是使用公共云，你都要为服务器消耗的电力付费。低效软件直接侵蚀你的利润率和市场估值。根据 Synergy Research Group，[^5] 2020 年全球云服务支出超过 1000 亿美元，根据 Gartner，[^6] 到 2024 年将超过 6750 亿美元。
 
-For many years performance engineering was a nerdy niche, but now it's becoming mainstream. Many companies have already realized the importance of performance engineering and are willing to pay well for this work.
+多年来，性能工程一直是一个小众领域，但现在它正在成为主流。许多公司已经意识到性能工程的重要性，并愿意为此支付高昂的报酬。
 
-It is fairly easy to reach performance level 4 in Table @tbl:PlentyOfRoom. In fact, you don't need this book to get there. Write your program in one of the native programming languages, distribute work among multiple threads, pick a good optimizing compiler and you'll get there. Unfortunately, the performance of your program will be about 200 times slower than the optimal target.
+达到表 @tbl:PlentyOfRoom 中的性能级别 4 相当容易。事实上，你不需要这本书就能达到。用原生编程语言之一编写程序，将工作分配给多个线程，选择一个好的优化编译器，你就能达到。不幸的是，你的程序的性能将比最优目标慢大约 200 倍。
 
-The methodologies in this book focus on squeezing out the last bit of performance from your application. Such transformations can be attributed along rows 6 and 7 in Table @tbl:PlentyOfRoom. The types of improvements that will be discussed are usually not big and often do not exceed 10%. However, do not underestimate the importance of a 10% speedup. SQLite is commonplace today not because its developers one day made it 50% faster, but because they meticulously made hundreds of 0.1% improvements over the years. The cumulative effect of these small improvements is what makes the difference.
+本书中的方法侧重于从应用程序中榨取最后一丝性能。这种改进可以归因于表 @tbl:PlentyOfRoom 中的第 6 和第 7 行。将要讨论的改进类型通常不大，通常不超过 10%。但是，不要低估 10% 加速的重要性。SQLite 如今无处不在，不是因为它的开发者有一天让它快了 50%，而是因为他们多年来一丝不苟地做了数百个 0.1% 的改进。这些小改进的累积效应才是造成差异的原因。
 
-The impact of small improvements is very relevant for large distributed applications running in the cloud. According to [@HennessyGoogleIO], in the year 2018, Google spent roughly the same amount of money on actual computing servers that run the cloud as it spent on power and cooling infrastructure. Energy efficiency is a very important problem, which can be improved by optimizing software.
+小改进的影响对于在云中运行的大型分布式应用程序非常相关。根据 [@HennessyGoogleIO]，在 2018 年，Google 在运行云的实际计算服务器上花费的金额与其在电力和冷却基础设施上花费的金额大致相同。能源效率是一个非常重要的问题，可以通过优化软件来改善。
 
->  "At such [Google] scale, understanding performance characteristics becomes critical---even small improvements in performance or utilization can translate into immense cost savings." [@GoogleProfiling]
+> "在这样的 [Google] 规模下，理解性能特性变得至关重要——即使是性能或利用率的微小改进也能转化为巨大的成本节约。"[@GoogleProfiling]
 
-In addition to cloud costs, there is another factor at play: how people perceive slow software. Google reported that a 500-millisecond delay in search caused a 20% reduction in traffic.[^3] For Yahoo! 400 milliseconds faster page load caused 5-9% more traffic.[^8] In the game of big numbers, small improvements can make a significant impact. Such examples prove that the slower a service works, the fewer people will use it. 
+除了云成本之外，还有另一个因素在起作用：人们对慢速软件的看法。Google 报告说，搜索延迟 500 毫秒会导致流量减少 20%。[^3] 对于 Yahoo!，页面加载快 400 毫秒会导致流量增加 5-9%。[^8] 在大数字的游戏中，小改进可以产生重大影响。这些例子证明，服务运行得越慢，使用它的人就越少。
 
-Outside cloud services, there are many other performance-critical industries where performance engineering does not need to be justified, such as Artificial Intelligence (AI), High-Performance Computing (HPC), High-Frequency Trading (HFT), game development, etc. Moreover, performance is not only required in highly specialized areas, it is also relevant for general-purpose applications and services. Many tools that we use every day simply would not exist if they failed to meet their performance requirements. For example, Visual C++ IntelliSense[^2] features that are integrated into Microsoft Visual Studio IDE have very tight performance constraints. For the IntelliSense autocomplete feature to work, it must parse the entire source codebase in milliseconds.[^9] Nobody will use a source code editor if it takes several seconds to suggest autocomplete options. Such a feature has to be very responsive and provide valid continuations as the user types new code.
+在云服务之外，还有许多其他性能关键行业，性能工程不需要证明其合理性，例如人工智能（AI）、高性能计算（HPC）、高频交易（HFT）、游戏开发等。此外，性能不仅在高度专业化的领域需要，它也与通用应用程序和服务相关。我们每天使用的许多工具如果无法满足其性能要求，根本就不会存在。例如，集成到 Microsoft Visual Studio IDE 中的 Visual C++ IntelliSense[^2] 功能具有非常严格的性能约束。为了让 IntelliSense 自动补全功能工作，它必须在毫秒内解析整个源代码库。[^9] 如果源代码编辑器需要几秒钟才能建议自动补全选项，没有人会使用它。这样的功能必须非常响应，并在用户输入新代码时提供有效的延续。
 
-> "Not all fast software is world-class, but all world-class software is fast. Performance is _the_ killer feature." ---Tobi Lutke, CEO of Shopify.
+> "不是所有快速的软件都是世界级的，但所有世界级的软件都是快速的。性能是_杀手级_特性。" ---Shopify CEO Tobi Lutke。
 
-I hope it goes without saying that people hate using slow software, especially when their productivity goes down because of it. Table 1.2 shows that most people consider a delay of 2 seconds or more to be a "long wait," and would switch to something else after 10 seconds of waiting (I think much sooner). If you want to keep users' attention, your application must react quickly. 
+我希望不言而喻的是，人们讨厌使用慢速软件，尤其是当他们的生产力因此下降时。表 1.2 显示，大多数人认为 2 秒或更长的延迟是"长时间等待"，并在等待 10 秒后切换到其他东西（我认为会更快）。如果你想保持用户的注意力，你的应用程序必须快速响应。
 
 \small
 
 -----------------------------------------------------------------------------
-Interaction   Human Perception                                 Response Time
-Class                           
-
+交互类别        人类感知                                      响应时间
+                           
 ------------- -----------------------------------------------  --------------
-Fast          Minimally noticeable delay                       100ms--200ms
+快              最小可察觉延迟                                100ms--200ms
 
-Interactive   Quick, but too slow to be described as Fast      300ms--500ms
+交互式          快，但太慢无法描述为快                         300ms--500ms
                 
-Pause         Not quick but still feels responsive             500ms--1 sec
+停顿            不快但仍然感觉响应                             500ms--1 秒
                
-Wait          Not quick due to amount of work for scenario     1 sec--3 sec
+等待            由于场景工作量大而不快                         1 秒--3 秒
                
-Long Wait     No longer feels responsive                       2 sec--5 sec
+长时间等待      不再感觉响应                                   2 秒--5 秒
 
-Captive       Reserved for unavoidably long/complex scenarios  5 sec--10 sec
-               
-Long-running  User will probably switch away during operation  10 sec--30 sec
+强制等待        保留给不可避免的长/复杂场景                     5 秒--10 秒
+                
+长时间运行      用户可能会在操作期间切换                       10 秒--30 秒
 
 ------------------------------------------------------------------------------
 
-Table: Human-software interaction classes. *Source: Microsoft Windows Blogs*.[^11] {#tbl:WindowsResponsiveness}
+表：人-软件交互类别。*来源：Microsoft Windows 博客*。[^11] {#tbl:WindowsResponsiveness}
 
 \normalsize
 
-Application performance can drive your customers to a competitor's product. By emphasizing performance, you can give your product a competitive advantage.
-
-Sometimes fast tools find applications for which they were not initially designed. For example, game engines like Unreal and Unity are used in architecture, 3D visualization, filmmaking, and other areas. Because game engines are so performant, they are a natural choice for applications that require 2D and 3D rendering, physics simulation, collision detection, sound, animation, etc.
-
-> “Fast tools don’t just allow users to accomplish tasks faster; they allow users to accomplish entirely new types of tasks, in entirely new ways.” - Nelson Elhage wrote in his blog.[^1]
-
-Before starting performance-related work, make sure you have a strong reason to do so. Optimization just for optimization’s sake is useless if it doesn’t add value to your product.[^10] Mindful performance engineering starts with clearly defined performance goals. Understand clearly what you are trying to achieve, and justify the work. Establish metrics that you will use to measure success.
-
-Now that we've talked about the value of performance engineering, let's uncover what it consists of. When you're trying to improve the performance of a program, you need to find problems (performance analysis) and then improve them (tuning), a task very similar to a regular debugging activity. This is what we will discuss next.
-
-[^12]: The late 1990s and early 2000s, a time when personal computers dominated the market of computing devices.
-[^4]: In 2024, Meta uses mostly on-premise cloud, while Netflix uses AWS public cloud.
-[^5]: Worldwide spending on cloud services in 2020 - [https://www.srgresearch.com/articles/2020-the-year-that-cloud-service-revenues-finally-dwarfed-enterprise-spending-on-data-centers](https://www.srgresearch.com/articles/2020-the-year-that-cloud-service-revenues-finally-dwarfed-enterprise-spending-on-data-centers)
-[^6]: Worldwide spending on cloud services in 2024 - [https://www.gartner.com/en/newsroom/press-releases/2024-05-20-gartner-forecasts-worldwide-public-cloud-end-user-spending-to-surpass-675-billion-in-2024](https://www.gartner.com/en/newsroom/press-releases/2024-05-20-gartner-forecasts-worldwide-public-cloud-end-user-spending-to-surpass-675-billion-in-2024)
-
-[^1]: Reflections on software performance by N. Elhage - [https://blog.nelhage.com/post/reflections-on-performance/](https://blog.nelhage.com/post/reflections-on-performance/)
-[^2]: Visual C++ IntelliSense - [https://docs.microsoft.com/en-us/visualstudio/ide/visual-cpp-intellisense](https://docs.microsoft.com/en-us/visualstudio/ide/visual-cpp-intellisense)
-[^3]: Google I/O '08 Keynote by Marissa Mayer - [https://www.youtube.com/watch?v=6x0cAzQ7PVs](https://www.youtube.com/watch?v=6x0cAzQ7PVs)
-[^8]: Slides by Stoyan Stefanov - [https://www.slideshare.net/stoyan/dont-make-me-wait-or-building-highperformance-web-applications](https://www.slideshare.net/stoyan/dont-make-me-wait-or-building-highperformance-web-applications)
-[^9]: In fact, it's not possible to parse the entire codebase in the order of milliseconds. Instead, IntelliSense only reconstructs the portions of AST that have been changed. Watch more details on how the Microsoft team achieves this in the video: [https://channel9.msdn.com/Blogs/Seth-Juarez/Anders-Hejlsberg-on-Modern-Compiler-Construction](https://channel9.msdn.com/Blogs/Seth-Juarez/Anders-Hejlsberg-on-Modern-Compiler-Construction)
-[^10]: Unless you just want to practice performance optimizations, which is fine too.
-[^11]: Microsoft Windows Blogs - [https://blogs.windows.com/windowsdeveloper/2023/05/26/delivering-delightful-performance-for-more-than-one-billion-users-worldwide/](https://blogs.windows.com/windowsdeveloper/2023/05/26/delivering-delightful-performance-for-more-than-one-billion-users-worldwide/)
+应用程序性能可能会驱使你的客户转向竞争对手的产品。通过强调性能，你可以为你的产品提供竞争优势。
