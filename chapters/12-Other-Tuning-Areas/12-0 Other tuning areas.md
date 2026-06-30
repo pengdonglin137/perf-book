@@ -1,5 +1,5 @@
-# Other Tuning Areas {#sec:ChapterOtherTuning}
+# 其他调优领域 {#sec:ChapterOtherTuning}
 
-In this chapter, we will take a look at some of the optimization topics not specifically related to any of the categories covered in the previous three chapters, but still important enough to find their place in this book.
+在本章中，我们将研究一些与前三章涵盖的任何类别没有特别关系的优化主题，但仍然重要到足以在本书中找到它们的位置。
 
-We will start by discussing how to introduce CPU-specific optimizations in your code. Then we will cover some of the corner case situations that can have a measurable impact on the performance of your application. Next, we move on to exploring low-latency tuning techniques, which are essential for applications that require fast response times. Finally, we will provide advice for tuning the system settings.
+我们将首先讨论如何在代码中引入 CPU 特定的优化。然后，我们将介绍一些可能对应用程序性能产生可衡量影响的边缘情况。接下来，我们继续探索低延迟调优技术，这些技术对于需要快速响应时间的应用程序至关重要。最后，我们将提供有关调整系统设置的建议。
