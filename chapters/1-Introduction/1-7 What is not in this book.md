@@ -1,14 +1,13 @@
-## What Is Not Discussed in this Book?
+## 本书不讨论什么？
 
-System performance depends on different components: CPU, DRAM, I/O, and network devices, etc. Applications may benefit from tuning various components of the system, depending on where a bottleneck is. In general, engineers should analyze the performance of the whole system. However, the biggest factor in a system's performance is its heart, the CPU. This is why this book primarily focuses on performance analysis from a CPU perspective. We also discuss the memory subsystem quite extensively, but we don't explore I/O and network performance.
+系统性能取决于不同的组件：CPU、DRAM、I/O 和网络设备等。应用程序可能受益于调整系统的各种组件，具体取决于瓶颈在哪里。通常，工程师应该分析整个系统的性能。然而，系统性能的最大因素是其核心，CPU。这就是为什么本书主要从 CPU 的角度关注性能分析。我们还相当广泛地讨论了内存子系统，但我们不探讨 I/O 和网络性能。
 
-Likewise, the software stack includes many layers, e.g., firmware, BIOS, OS, libraries, and the source code of an application. However, since most of the lower layers are not under our direct control, the primary focus will be on the source code level.
+同样，软件栈包括许多层，例如固件、BIOS、操作系统、库和应用程序的源代码。然而，由于大多数底层不在我们的直接控制之下，主要关注点将是源代码级别。
 
-The scope of the book does not go beyond a single CPU socket, so we will not discuss optimization techniques for distributed, NUMA, and heterogeneous systems. Offloading computations to accelerators (GPU, FPGA, etc.) using solutions like OpenCL and openMP is not discussed in this book. 
+本书的范围不超过单个 CPU 插槽，因此我们不会讨论分布式、NUMA 和异构系统的优化技术。本书不讨论使用 OpenCL 和 openMP 等解决方案将计算卸载到加速器（GPU、FPGA 等）。
 
-I tried to make this book to be applicable to most modern CPUs, including Intel, AMD, Apple, and other ARM-based processors. I'm sorry if it doesn't cover your favorite architecture. Nevertheless, many of the principles discussed in this book apply well to other processors. Similarly, most examples in this book were run on Linux, but again, most of the time it doesn't matter since the same techniques benefit applications that run on Windows and macOS operating systems.
+我试图使本书适用于大多数现代 CPU，包括 Intel、AMD、Apple 和其他基于 ARM 的处理器。如果它没有涵盖你喜欢的架构，我很抱歉。尽管如此，本书中讨论的许多原则也很好地适用于其他处理器。同样，本书中的大多数示例都在 Linux 上运行，但大多数时候这并不重要，因为相同的技术也适用于在 Windows 和 macOS 操作系统上运行的应用程序。
 
-Code snippets in this book are written in C or C++, but to a large degree, ideas from this book can be applied to other languages that are compiled to native code like Rust, Go, and even Fortran. Since this book targets user-mode applications that run close to the hardware, we will not discuss managed environments, e.g., Java. 
+本书中的代码片段用 C 或 C++ 编写，但在很大程度上，本书中的想法可以应用于其他编译为本机代码的语言，如 Rust、Go，甚至 Fortran。由于本书针对接近硬件运行的用户模式应用程序，我们不会讨论托管环境，例如 Java。
 
-Finally, I assume that readers have full control over the software that they develop, including the choice of libraries and compilers they use. Hence, this book is not about tuning purchased commercial packages, e.g., tuning SQL database queries.
-
+最后，我假设读者对他们开发的软件拥有完全控制权，包括他们使用的库和编译器的选择。因此，本书不是关于调整购买的商业软件包，例如调整 SQL 数据库查询。
