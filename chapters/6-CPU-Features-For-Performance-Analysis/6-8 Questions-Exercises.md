@@ -1,8 +1,8 @@
-## Questions and Exercises {.unlisted .unnumbered}
+## 问题和练习 {.unlisted .unnumbered}
 
-\markright{Questions and Exercises}
+\markright{问题和练习}
 
-1. Name the four level-1 categories in the TMA performance methodology.
-2. What are the benefits of hardware event-based sampling?
-3. What is a performance event skid?
-4. Study performance analysis features available on the CPU inside the machine you use for development/benchmarking.
+1. 命名 TMA 性能方法中的四个第 1 级类别。
+2. 基于硬件事件的采样有什么好处？
+3. 什么是性能事件滑移？
+4. 研究你用于开发/基准测试的机器中 CPU 上可用的性能分析功能。
