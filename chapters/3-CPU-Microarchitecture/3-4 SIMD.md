@@ -1,10 +1,10 @@
-## SIMD Multiprocessors {#sec:SIMD}
+## SIMD 多处理器 {#sec:SIMD}
 
-Another technique to facilitate parallel processing is called Single Instruction Multiple Data (SIMD), which is used in nearly all high-performance processors. As the name indicates, in a SIMD processor, a single instruction operates on many data elements in a single cycle using many independent functional units. Operations on vectors and matrices lend themselves well to SIMD architectures as every element of a vector or matrix can be processed using the same instruction. A SIMD architecture enables more efficient processing of a large amount of data and works best for data-parallel applications that involve vector operations.
+另一种促进并行处理的技术称为单指令多数据（SIMD），它在几乎所有高性能处理器中都有使用。顾名思义，在 SIMD 处理器中，单条指令在单个周期内使用多个独立的功能单元对多个数据元素进行操作。向量和矩阵上的操作非常适合 SIMD 架构，因为向量或矩阵的每个元素都可以使用相同的指令进行处理。SIMD 架构能够更高效地处理大量数据，最适合涉及向量操作的数据并行应用程序。
 
-Figure @fig:SIMD shows scalar and SIMD execution modes for the code in @lst:SIMD. In a traditional Single Instruction Single Data (SISD) mode, also known as *scalar* mode, the addition operation is separately applied to each element of arrays `a` and `b`. However, in SIMD mode, addition is applied to multiple elements at the same time. If we target a CPU architecture that has execution units capable of performing operations on 256-bit vectors, we can process four double-precision elements with a single instruction. This leads to issuing 4x fewer instructions and can potentially gain a 4x speedup over four scalar computations.
+图 @fig:SIMD 显示了 @lst:SIMD 中代码的标量和 SIMD 执行模式。在传统的单指令单数据（SISD）模式（也称为*标量*模式）中，加法操作分别应用于数组 `a` 和 `b` 的每个元素。然而，在 SIMD 模式下，加法同时应用于多个元素。如果我们针对具有能够对 256 位向量执行操作的执行单元的 CPU 架构，我们可以用单条指令处理四个双精度元素。这导致发出 4 倍少的指令，并可能获得比四个标量计算 4 倍的加速。
 
-Listing: SIMD execution
+清单：SIMD 执行
 
 ~~~~ {#lst:SIMD .cpp}
 double *a, *b, *c;
@@ -13,33 +13,33 @@ for (int i = 0; i < N; ++i) {
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-![Example of scalar and SIMD operations.](../../img/uarch/SIMD.png){#fig:SIMD width=80%}
+![标量和 SIMD 操作示例。](../../img/uarch/SIMD.png){#fig:SIMD width=80%}
 
-For regular integer SISD instructions, processors utilize general-purpose registers. Similarly, for SIMD instructions, CPUs have a set of SIMD registers to keep the data loaded from memory and store the intermediate results of computations. In our example, two regions of 256 bits of contiguous data corresponding to arrays `a` and `b` will be loaded from memory and stored in two separate vector registers. Next, the element-wise addition will be done and the result will be stored in a new 256-bit vector register. Finally, the result will be written from the vector register to a 256-bit memory region corresponding to array `c`. Note, that the data elements can be either integers or floating-point numbers.
+对于常规整数 SISD 指令，处理器使用通用寄存器。类似地，对于 SIMD 指令，CPU 有一组 SIMD 寄存器来保存从内存加载的数据和存储计算的中间结果。在我们的示例中，对应于数组 `a` 和 `b` 的两个 256 位连续数据区域将从内存加载并存储在两个单独的向量寄存器中。接下来，将进行逐元素加法，结果将存储在一个新的 256 位向量寄存器中。最后，结果将从向量寄存器写入对应于数组 `c` 的 256 位内存区域。注意，数据元素可以是整数或浮点数。
 
-A vector execution unit is logically divided into *lanes*. In the context of SIMD, a lane refers to a distinct data pathway within the SIMD execution unit and processes one element of the vector. In our example, each lane processes 64-bit elements (double-precision), so there will be 4 lanes in a 256-bit register.
+向量执行单元在逻辑上被分为*通道*。在 SIMD 的上下文中，通道是指 SIMD 执行单元内的不同数据通路，并处理向量的一个元素。在我们的示例中，每个通道处理 64 位元素（双精度），因此 256 位寄存器中将有 4 个通道。
 
-Most of the popular CPU architectures feature vector instructions, including x86, PowerPC, ARM, and RISC-V. In 1996 Intel released MMX, a SIMD instruction set, that was designed for multimedia applications. Following MMX, Intel introduced new instruction sets with added capabilities and increased vector size: SSE, AVX, AVX2, and AVX-512. ARM has optionally supported the 128-bit NEON instruction set in various versions of its architecture. In version 8 (aarch64), this support was made mandatory, and new instructions were added.
+大多数流行的 CPU 架构都具有向量指令，包括 x86、PowerPC、ARM 和 RISC-V。1996 年 Intel 发布了 MMX，这是一种为多媒体应用程序设计的 SIMD 指令集。继 MMX 之后，Intel 引入了具有附加功能和增加向量大小的新指令集：SSE、AVX、AVX2 和 AVX-512。ARM 在其架构的各种版本中可选地支持 128 位 NEON 指令集。在版本 8（aarch64）中，此支持变为强制性的，并添加了新指令。
 
-As the new instruction sets became available, work began to make them usable to software engineers. The software changes required to exploit SIMD instructions are known as *code vectorization*. Initially, SIMD instructions were programmed in assembly. Later, special compiler intrinsics, which are small functions providing a one-to-one mapping to SIMD instructions, were introduced. Today all the major compilers support autovectorization for the popular processors, i.e., they can generate SIMD instructions straight from high-level code written in C/C++, Java, Rust, and other languages.
+随着新指令集的可用，开始使它们对软件工程师可用。利用 SIMD 指令所需的软件更改称为*代码向量化*。最初，SIMD 指令是用汇编语言编程的。后来，引入了特殊的编译器内置函数，这些是提供与 SIMD 指令一对一映射的小函数。今天，所有主要编译器都支持流行处理器的自动向量化，即它们可以直接从用 C/C++、Java、Rust 和其他语言编写的高级代码生成 SIMD 指令。
 
-To enable code to run on systems that support different vector lengths, Arm introduced the SVE instruction set. Its defining characteristic is the concept of *scalable vectors*: their length is unknown at compile time. With SVE, there is no need to port software to every possible vector length. Users don't have to recompile the source code of their applications to leverage wider vectors when they become available in newer CPU generations. Another example of scalable vectors is the RISC-V V extension (RVV), which was ratified in late 2021. Some implementations support quite wide (2048-bit) vectors, and up to eight can be grouped together to yield 16384-bit vectors, which greatly reduces the number of instructions executed. At each loop iteration, SVE code typically does `ptr += number_of_lanes`, where `number_of_lanes` is not known at compile time. ARM SVE provides special instructions for such length-dependent operations, while RVV enables a programmer to query/set the `number_of_lanes`.
+为了使代码能够在支持不同向量长度的系统上运行，Arm 引入了 SVE 指令集。它的定义特征是*可伸缩向量*的概念：它们的长度在编译时未知。使用 SVE，无需将软件移植到每个可能的向量长度。当较新的 CPU 代中提供更宽的向量时，用户不必重新编译其应用程序的源代码来利用它们。可伸缩向量的另一个示例是 RISC-V V 扩展（RVV），于 2021 年底获得批准。一些实现支持相当宽（2048 位）的向量，最多可以将八个组合在一起以产生 16384 位向量，这大大减少了执行的指令数。在每次循环迭代中，SVE 代码通常执行 `ptr += number_of_lanes`，其中 `number_of_lanes` 在编译时未知。ARM SVE 提供特殊指令用于此类长度相关的操作，而 RVV 使程序员能够查询/设置 `number_of_lanes`。
 
-Going back to the example in @lst:SIMD, if `N` equals 5, and we have a 256-bit vector, we cannot process all the elements in a single iteration. We can process the first four elements using a single SIMD instruction, but the 5th element needs to be processed individually. This is known as the *loop remainder*. Loop remainder is a portion of a loop that must process fewer elements than the vector width, requiring additional scalar code to handle the leftover elements. Scalable vector ISA extensions do not have this problem, as they can process any number of elements in a single instruction. Another solution to the loop remainder problem is to use *masking*, which allows selectively enabling or disabling SIMD lanes based on a condition.
+回到 @lst:SIMD 中的示例，如果 `N` 等于 5，我们有一个 256 位向量，我们无法在单次迭代中处理所有元素。我们可以使用单条 SIMD 指令处理前四个元素，但第 5 个元素需要单独处理。这称为*循环余数*。循环余数是必须处理少于向量宽度的元素的循环部分，需要额外的标量代码来处理剩余元素。可伸缩向量 ISA 扩展没有这个问题，因为它们可以在单条指令中处理任意数量的元素。循环余数问题的另一个解决方案是使用*掩码*，它允许根据条件选择性地启用或禁用 SIMD 通道。
 
-Also, CPUs increasingly accelerate the matrix multiplications often used in machine learning. Intel's AMX extension, supported in server processors since 2023, multiplies 8-bit matrices of shape 16x64 and 64x16, accumulating into a 32-bit 16x16 matrix. By contrast, the unrelated but identically named AMX extension in Apple CPUs, as well as ARM's SME extension, compute outer products of a row and column, respectively stored in special 512-bit registers or scalable vectors.
+此外，CPU 越来越多地加速机器学习中经常使用的矩阵乘法。自 2023 年以来在服务器处理器中支持的 Intel AMX 扩展，将 16x64 和 64x16 形状的 8 位矩阵相乘，累加到 32 位 16x16 矩阵中。相比之下，Apple CPU 中不相关但同名的 AMX 扩展以及 ARM 的 SME 扩展分别计算行和列的外积，分别存储在特殊的 512 位寄存器或可伸缩向量中。
 
-Initially, SIMD was driven by multimedia applications and scientific computations, but later found uses in many other domains. Over time, the set of operations supported in SIMD instruction sets has steadily increased. In addition to straightforward arithmetic as shown in Figure @fig:SIMD, newer use cases of SIMD include:
+最初，SIMD 由多媒体应用程序和科学计算驱动，但后来在许多其他领域找到了用途。随着时间的推移，SIMD 指令集中支持的操作集稳步增加。除了图 @fig:SIMD 所示的直接算术之外，SIMD 的新用例包括：
 
-- String processing: finding characters, validating UTF-8,[^1] parsing JSON[^2] and CSV;[^3]
-- Hashing,[^4] random generation,[^5] cryptography(AES);
-- Columnar databases (bit packing, filtering, joins);
-- Sorting built-in types (VQSort,[^6] QuickSelect);
-- Machine Learning and Artificial Intelligence (speeding up PyTorch, TensorFlow).
+- 字符串处理：查找字符、验证 UTF-8、[^1] 解析 JSON[^2] 和 CSV；[^3]
+- 哈希、[^4] 随机生成、[^5] 密码学（AES）；
+- 列式数据库（位打包、过滤、连接）；
+- 内置类型排序（VQSort、[^6] QuickSelect）；
+- 机器学习和人工智能（加速 PyTorch、TensorFlow）。
 
-[^1]: UTF-8 validation - [https://github.com/rusticstuff/simdutf8](https://github.com/rusticstuff/simdutf8)
-[^2]: Parsing JSON - [https://github.com/simdjson/simdjson](https://github.com/simdjson/simdjson)
-[^3]: Parsing CSV - [https://github.com/geofflangdale/simdcsv](https://github.com/geofflangdale/simdcsv)
-[^4]: SIMD hashing - [https://github.com/google/highwayhash](https://github.com/google/highwayhash)
-[^5]: Random generation - [abseil library](https://github.com/abseil/abseil-cpp/blob/master/absl/random/internal/randen.h)
-[^6]: Sorting - [VQSort](https://github.com/google/highway/tree/master/hwy/contrib/sort)
+[^1]: UTF-8 验证 - [https://github.com/rusticstuff/simdutf8](https://github.com/rusticstuff/simdutf8)
+[^2]: 解析 JSON - [https://github.com/simdjson/simdjson](https://github.com/simdjson/simdjson)
+[^3]: 解析 CSV - [https://github.com/geofflangdale/simdcsv](https://github.com/geofflangdale/simdcsv)
+[^4]: SIMD 哈希 - [https://github.com/google/highwayhash](https://github.com/google/highwayhash)
+[^5]: 随机生成 - [abseil 库](https://github.com/abseil/abseil-cpp/blob/master/absl/random/internal/randen.h)
+[^6]: 排序 - [VQSort](https://github.com/google/highway/tree/master/hwy/contrib/sort)
