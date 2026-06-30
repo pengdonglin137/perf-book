@@ -1,14 +1,14 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* Single-threaded CPU performance is not increasing as rapidly as it used to a few decades ago. When it's no longer the case that each hardware generation provides a significant performance boost, developers should start optimizing the code of their software.
-* Modern software is massively inefficient. A regular server system in a public cloud, typically runs poorly optimized code, consuming more power than it could have consumed, which increases carbon emissions and contributes to other environmental issues.
-* Certain limitations exist that prevent applications from reaching their full performance potential. CPUs cannot magically speed up slow algorithms. Compilers are far from generating optimal code for every program. Big O notation is not always a good indicator of performance as it doesn't account for hardware specifics.
-* For many years performance engineering was a nerdy niche. But now it's becoming mainstream as software vendors realize the impact that their poorly optimized software has on their bottom line.
-* People absolutely hate using slow software, especially when their productivity goes down because of it. Not all fast software is world-class, but all world-class software is fast. Performance is _the_ killer feature.
-* Software tuning is becoming more important than it has been for the last 40 years and it will be one of the key drivers for performance gains in the near future. The importance of low-level performance tuning should not be underestimated, even if it's just a 1% improvement. The cumulative effect of these small improvements is what makes the difference.
-* To squeeze the last bit of performance you need to have a good mental model of how modern CPUs work.
-* Predicting the performance of a certain piece of code is nearly impossible since there are so many factors that affect the performance of modern platforms. When implementing software optimizations, developers should not rely on intuition but use careful performance analysis instead.
+* 单线程 CPU 性能的增长速度不如几十年前那样快。当硬件每一代不再提供显著的性能提升时，开发者应该开始优化其软件的代码。
+* 现代软件极其低效。公共云中的典型服务器系统通常运行着优化不佳的代码，消耗的电力比它本可以消耗的更多，这会增加碳排放并加剧其他环境问题。
+* 存在某些限制阻止应用程序达到其全部性能潜力。CPU 不能神奇地加速慢速算法。编译器远非为每个程序生成最优代码。大 O 表示法并不总是性能的良好指标，因为它没有考虑硬件特性。
+* 多年来，性能工程一直是一个小众领域。但现在随着软件供应商意识到其优化不佳的软件对其利润的影响，它正在成为主流。
+* 人们绝对讨厌使用慢速软件，尤其是当他们的生产力因此下降时。不是所有快速的软件都是世界级的，但所有世界级的软件都是快速的。性能是_杀手级_特性。
+* 软件调优比过去 40 年更重要，它将是未来性能提升的关键驱动力之一。低级性能调优的重要性不应被低估，即使只是 1% 的改进。这些小改进的累积效应才是造成差异的原因。
+* 要榨取最后一丝性能，你需要对现代 CPU 的工作原理有良好的心智模型。
+* 预测某段代码的性能几乎是不可能的，因为有太多因素影响现代平台的性能。在实施软件优化时，开发者不应该依赖直觉，而应该使用仔细的性能分析。
 
 \sectionbreak
