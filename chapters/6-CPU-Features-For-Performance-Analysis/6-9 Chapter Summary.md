@@ -1,12 +1,12 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* Modern processors provide features that enhance performance analysis. Using those features greatly simplifies finding opportunities for low-level optimization.
-* Top-down Microarchitecture Analysis (TMA) methodology is a powerful technique for identifying ineffective usage of CPU microarchitecture by a program, and is easy to use even for inexperienced developers. TMA is an iterative process that consists of multiple steps, including characterizing the workload and locating the exact place in the source code where the bottleneck occurs. We advise that TMA should be one of the starting points for every low-level tuning effort.
-* Branch Record mechanisms such as Intel's LBR, AMD's LBR, and ARM's BRBE continuously log the most recent branch outcomes in parallel with executing the program, causing a minimal slowdown. One of the primary usages of these facilities is to collect call stacks. Also, they help identify hot branches, and misprediction rates and enable precise timing of machine code.
-* Modern processors often provide Hardware-Based Sampling features for advanced profiling. Such features lower the sampling overhead by storing multiple samples in a dedicated buffer without software interrupts. They also introduce "Precise Events" that enable pinpointing the exact instruction that caused a particular performance event. In addition, there are several other less important use cases. Example implementations of such Hardware-Based Sampling features include Intel's PEBS, AMD's IBS, and ARM's SPE.
-* Intel Processor Traces (PT) is a CPU feature that records the program execution by encoding packets in a highly compressed binary format that can be used to reconstruct execution flow with a timestamp on every instruction. PT has extensive coverage and a relatively small overhead. Its main usages are postmortem analysis and finding the root cause(s) of performance glitches. The Intel PT feature is covered in Appendix C. Processors based on ARM architecture also have a tracing capability called Arm [CoreSight](https://developer.arm.com/ip-products/system-ip/coresight-debug-and-trace),[^2] but it is mostly used for debugging rather than for performance analysis.
+* 现代处理器提供增强性能分析的功能。使用这些功能大大简化了查找底层优化的机会。
+* Top-down 微架构分析（TMA）方法是识别程序对 CPU 微架构低效使用的技术，即使对于经验不足的开发人员也易于使用。TMA 是一个迭代过程，包括多个步骤，包括表征工作负载和定位源代码中发生瓶颈的确切位置。我们建议 TMA 应该是每次底层调优工作的起点之一。
+* 分支记录机制，如 Intel 的 LBR、AMD 的 LBR 和 ARM 的 BRBE，在执行程序的同时持续记录最近的分支结果，造成最小的减速。这些设施的主要用途之一是收集调用栈。此外，它们有助于识别热分支和预测错误率，并能够精确计时机器代码。
+* 现代处理器通常提供基于硬件的采样功能用于高级分析。这些功能通过将多个样本存储在专用缓冲区中而不使用软件中断来降低采样开销。它们还引入了"精确事件"，能够精确定位导致特定性能事件的确切指令。此外，还有其他一些不太重要的用例。此类基于硬件的采样功能的示例实现包括 Intel 的 PEBS、AMD 的 IBS 和 ARM 的 SPE。
+* Intel 处理器跟踪（PT）是一项 CPU 功能，通过以高度压缩的二进制格式编码数据包来记录程序执行，可用于重建每条指令带有时间戳的执行流程。PT 具有广泛的覆盖范围和相对较小的开销。其主要用途是事后分析和查找性能故障的根本原因。Intel PT 功能在附录 C 中介绍。基于 ARM 架构的处理器也具有称为 Arm [CoreSight](https://developer.arm.com/ip-products/system-ip/coresight-debug-and-trace) 的跟踪功能，[^2] 但它主要用于调试而不是性能分析。
 
 [^2]: Arm CoreSight - [https://developer.arm.com/ip-products/system-ip/coresight-debug-and-trace](https://developer.arm.com/ip-products/system-ip/coresight-debug-and-trace)
 
