@@ -1,144 +1,40 @@
-## Cache-Friendly Data Structures {#sec:secCacheFriendly}
+## 缓存友好数据结构 {#sec:secCacheFriendly}
 
-Writing cache-friendly algorithms and data structures is one of the key items in the recipe for a well-performing application. The key pillars of cache-friendly code are the principles of temporal and spatial locality that we introduced in [@sec:MemHierar]. The goal here is to have a predictable memory access pattern and store data efficiently.
+编写缓存友好的算法和数据结构是高性能应用程序的关键要素之一。缓存友好代码的关键支柱是我们在 [@sec:MemHierar] 中介绍的时间和空间局部性原则。这里的目标是具有可预测的内存访问模式并高效地存储数据。
 
-The cache line is the smallest unit of data that can be transferred between the cache and the main memory. When designing cache-friendly code, it's helpful to think not only of individual variables and their locations in memory but also of cache lines.
+缓存行是可以在缓存和主内存之间传输的最小数据单元。在设计缓存友好代码时，不仅要考虑单个变量及其在内存中的位置，还要考虑缓存行，这很有帮助。
 
-Next, we will discuss several techniques to make data structures more cache-friendly.
+接下来，我们将讨论使数据结构更缓存友好的几种技术。
 
-### Access Data Sequentially
+### 顺序访问数据
 
-The best way to exploit the spatial locality of the caches is to make sequential memory accesses. By doing so, we enable the hardware prefetching mechanism (see [@sec:HwPrefetch]) to recognize the memory access pattern and bring in the next chunk of data ahead of time. An example of Row-major versus Column-Major traversal is shown in [@lst:CacheFriend]. Notice, that there is only one tiny change in the code (swapped `col` and `row` subscripts), but it has a large impact on performance.
+利用缓存空间局部性的最佳方式是进行顺序内存访问。通过这样做，我们使硬件预取机制（参见 [@sec:HwPrefetch]）能够识别内存访问模式并提前获取下一块数据。[@lst:CacheFriend] 中显示了行主序与列主序遍历的示例。注意，代码中只有一个微小的变化（交换了 `col` 和 `row` 下标），但它对性能有很大的影响。
 
-The code on the left is not cache-friendly because it skips the `NCOLS` elements on every iteration of the inner loop. This results in a very inefficient use of caches: we aren't making full use of the entire prefetched cache line before it gets evicted. In contrast, the code on the right accesses elements of the matrix in the order in which they are laid out in memory. This guarantees that the cache line will be fully used before it gets evicted. Row-major traversal exploits spatial locality and is cache-friendly. Figure @fig:ColRowMajor illustrates the difference between the two traversal patterns.
+左边的代码不是缓存友好的，因为它在内循环的每次迭代中跳过 `NCOLS` 个元素。这导致缓存的使用非常低效：我们没有在缓存行被驱逐之前充分利用整个预取的缓存行。相反，右边的代码按照矩阵在内存中布局的顺序访问元素。这保证了缓存行在被驱逐之前会被完全使用。行主序遍历利用空间局部性，是缓存友好的。图 @fig:ColRowMajor 说明了两种遍历模式之间的区别。
 
-Listing: Cache-friendly memory accesses.
+清单：缓存友好的内存访问。
 
 ~~~~ {#lst:CacheFriend .cpp}
-// Column-major order                              // Row-major order
+// 列主序顺序                              // 行主序顺序
 for (row = 0; row < NROWS; row++)                  for (row = 0; row < NROWS; row++)
   for (col = 0; col < NCOLS; col++)                  for (col = 0; col < NCOLS; col++)
     matrix[col][row] = row + col;          =>          matrix[row][col] = row + col;
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-![Column-major versus Row-major traversal.](../../img/memory-access-opts/ColumnRowMajor.png){#fig:ColRowMajor width=60%}
+![列主序与行主序遍历。](../../img/memory-access-opts/ColumnRowMajor.png){#fig:ColRowMajor width=60%}
 
-The example presented above is classical, but usually, real-world applications are much more complicated than this. Sometimes you need to go an additional mile to write cache-friendly code. If the data is not laid out in memory in a way that is optimal for the algorithm, it may require to rearrange the data first.
+上面展示的例子是经典的，但通常，现实世界的应用程序比这复杂得多。有时你需要额外努力来编写缓存友好的代码。如果数据在内存中的布局不是算法最优的，可能需要先重新排列数据。
 
-Consider a standard implementation of binary search in a large sorted array, where on each iteration, you access the middle element, compare it with the value you're searching for, and go either left or right. This algorithm does not exploit spatial locality since it tests elements in different locations that are far away from each other and do not share the same cache line. The most famous way of solving this problem is storing elements of the array using the Eytzinger layout [@EytzingerArray]. The idea is to maintain an implicit binary search tree packed into an array using the BFS-like layout, usually seen with binary heaps. If the code performs a large number of binary searches in the array, it may be beneficial to convert it to the Eytzinger layout. 
+考虑在大型排序数组中实现二分查找的标准方法，在每次迭代中，你访问中间元素，将其与你正在搜索的值进行比较，然后向左或向右。该算法不利用空间局部性，因为它测试位于不同位置的元素，这些元素彼此相距很远，并且不共享相同的缓存行。解决此问题的最著名方法是使用 Eytzinger 布局 [@EytzingerArray] 存储数组元素。其思想是维护一个隐式二叉树搜索树，使用类似 BFS 的布局（通常在二叉堆中看到）打包到数组中。如果代码在数组中执行大量二分查找，将其转换为 Eytzinger 布局可能是有益的。
 
-### Use Appropriate Containers. 
+### 使用适当的容器。
 
-There is a wide variety of ready-to-use containers in almost any language. But it's important to know their underlying storage and performance implications. Keep in mind how the data will be accessed and manipulated. You should consider not only the time and space complexity of operations with a data structure but also the hardware effects associated with them.
+几乎任何语言中都有各种各样的即用型容器。但了解它们的底层存储和性能影响很重要。记住数据将如何被访问和操作。你应该考虑的不仅是数据结构操作的时间和空间复杂性，还有与之相关的硬件影响。
 
-By default, stay away from data structures that rely on pointers, e.g. linked lists or trees. When traversing elements, they require additional memory accesses to follow the pointers. If the maximum number of elements is relatively small and known at compile time, C++ `std::array` might be a better option than `std::vector`. If you need an associative container but don't need to store the elements in sorted order, `std::unordered_map` should be faster than `std::map`. A good step-by-step guide for choosing appropriate C++ containers can be found in [@fogOptimizeCpp, Section 9.7 Data structures, and container classes].
+默认情况下，远离依赖指针的数据结构，例如链表或树。遍历元素时，它们需要额外的内存访问来跟随指针。如果最大元素数量相对较小且在编译时已知，C++ `std::array` 可能比 `std::vector` 更好。如果你需要关联容器但不需要按排序顺序存储元素，`std::unordered_map` 应该比 `std::map` 更快。选择适当 C++ 容器的逐步指南可以在 [@fogOptimizeCpp, Section 9.7 Data structures, and container classes] 中找到。
 
-Sometimes, it's more efficient to store pointers to contained objects, instead of objects themselves. Consider a situation when you need to store many objects in an array while the size of each object is big. In addition, the objects are frequently shuffled, removed, and inserted. Storing objects in an array will require moving large chunks of memory every time the order of objects is changed, which is expensive. In this case, it's better to store pointers to objects in the array. This way, only the pointers are moved, which is much cheaper. However, this approach has its drawbacks. It requires additional memory for the pointers and introduces an additional level of indirection.
+有时，存储指向包含对象的指针而不是对象本身更有效。考虑需要在数组中存储许多对象的情况，同时每个对象的大小很大。此外，对象经常被洗牌、删除和插入。在数组中存储对象将要求每次对象顺序更改时移动大块内存，这是昂贵的。在这种情况下，最好在数组中存储指向对象的指针。这样，只移动指针，这便宜得多。然而，这种方法有其缺点。它需要指针的额外内存，并引入了额外的间接级别。
 
-### Packing the Data
+### 数据打包
 
-The utilization of data caches can be also improved by making data more compact. There are many ways to pack data. One of the classic examples is to use bitfields. An example of code when packing data might be profitable is shown in [@lst:DataPacking]. If we know that `a`, `b`, and `c` represent enum values that take a certain number of bits to encode, we can reduce the storage of the struct `S`.
-
-Listing: Data Packing
-
-~~~~ {#lst:DataPacking .cpp}
-// S is 3 bytes                         // S is 1 byte
-struct S {                              struct S {
-  unsigned char a;                        unsigned char a:4;
-  unsigned char b;                =>      unsigned char b:2;
-  unsigned char c;                        unsigned char c:2;
-};                                      };
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Notice the three times less space required to store an object of the packed version of `S`. This greatly reduces the amount of memory transferred back and forth and saves cache space. However, using bitfields comes with additional costs.[^15] Since the bits of `a`, `b`, and `c` are packed into a single byte, the compiler needs to perform additional bit manipulation operations to extract and insert them. For example, to load `b`, you need to shift the byte value right (`>>`) by 2 and do logical AND (`&`) with `0x3`. Similarly, shift left (`<<`) and logical OR (`|`) operations are needed to store the updated value back into the packed format. Data packing is beneficial in places where additional computation is cheaper than the delay caused by inefficient memory transfers.
-
-Also, a programmer can reduce memory usage by rearranging fields in a struct or class when it avoids padding added by a compiler. Inserting unused bytes of memory (pads) enables efficient storing and fetching of individual members of a struct. In the example in [@lst:AvoidPadding], the size of `S` can be reduced if its members are declared in the order of decreasing size. Figure @fig:AvoidPadding illustrates the effect of rearranging the fields in struct `S`.
-
-Listing: Avoid compiler padding.
-
-~~~~ {#lst:AvoidPadding .cpp}
-// S is `sizeof(int) * 3` bytes          // S is `sizeof(int) * 2` bytes
-struct S {                               struct S {
-  bool b;                                  int i;
-  int i;                         =>        short s;
-  short s;                                 bool b;
-};                                       };
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-![Avoid compiler padding by rearranging the fields. Blank cells represent compiler padding.](../../img/memory-access-opts/AvoidPadding.png){#fig:AvoidPadding width=90%}
-
-### Field Reordering
-
-Reordering fields in a data structure can also be beneficial for another reason. Consider an example in [@lst:FieldReordering]. Suppose that the `Soldier` structure is used to track each one of the thousands of units on the battlefield in a game. The game has three phases: battle, movement, and trade. During the battle phase, the `attack`, `defense`, and `health` fields are used. During the movement phase, the `coords`, and `speed` fields are used. During the trade phase, only the `money` field is used.
-
-The problem with the organization of the `Soldier` struct in the code on the left is that the fields are not grouped according to the phases of the game. For example, during the battle phase, the program needs to access two different cache lines to fetch the required fields. The fields `attack` and `defense` are very likely to reside on the same cache line, but the `health` field is always pushed to the next cache line. The same applies to the movement phase (`speed` and `coords` fields).
-
-We can make the `Soldier` struct more cache-friendly by reordering the fields as shown in [@lst:FieldReordering] on the right. With that change, the fields that are accessed together are grouped together.
-
-Listing: Field Reordering.
-
-~~~~ {#lst:FieldReordering .cpp}
-struct Soldier {                                 struct Soldier {
-  2DCoords coords;   /*  8 bytes */                unsigned attack;  // 1. battle
-  unsigned attack;                                 unsigned defense; // 1. battle
-  unsigned defense;                     =>         unsigned health;  // 1. battle
-  /* other fields */ /* 64 bytes */                2DCoords coords;  // 2. move
-  unsigned speed;                                  unsigned speed;   // 2. move
-  unsigned money;                                  // other fields
-  unsigned health;                                 unsigned money;   // 3. trade
-};                                                };
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Since Linux kernel 6.8, there is a new functionality in the `perf` tool that allows you to find data structure reordering opportunities. The `perf mem record` command can now be used to profile data structure access patterns. The `perf annotate --data-type` command will show you the data structure layout along with profiling samples attributed to each field of the data structure. Using this information you can identify fields that are accessed together.[^5]
-
-Data-type profiling is very effective at finding opportunities to improve cache utilization. Recent Linux kernel history contains many examples of commits that reorder structures,[^1] pad fields,[^3], or pack[^2] them to improve performance.
-
-### Other Data Structure Reorganization Techniques
-
-To close the topic of cache-friendly data structures, we will briefly mention two other techniques that can be used to improve cache utilization: *structure splitting* and *pointer inlining*.
-
-**Structure splitting**. Splitting a large structure into smaller ones can improve cache utilization. For example, if you have a structure that contains a large number of fields, but only a few of them are accessed together, you can split the structure into two or more smaller ones. This way, you can avoid loading unnecessary data into the cache. An example of structure splitting is shown in [@lst:StructureSplitting]. By splitting the `Point` structure into `PointCoords` and `PointInfo`, we can avoid loading the `PointInfo` data into caches when we only need `PointCoords`. This way, we can fit more points on a single cache line.
-
-Listing: Structure Splitting.
-
-~~~~ {#lst:StructureSplitting .cpp}
-struct Point {                                struct PointCoords {
-  int X;                                        int X;
-  int Y;                                        int Y;
-  int Z;                                        int Z;
-  /*many other fields*/            =>         };
-};                                            struct PointInfo {
-std::vector<Point> points;                      /*many other fields*/
-                                              };
-                                              std::vector<PointCoords> pointCoords;
-                                              std::vector<PointInfo> pointInfos;
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**Pointer inlining**. Inlining a pointer into a structure can improve cache utilization. For example, if you have a structure that contains a pointer to another structure, you can inline the pointer into the first structure. This way, you can avoid additional memory access to fetch the second structure. An example of pointer inlining is shown in [@lst:PointerInlining]. The `weight` parameter is used in many graph algorithms, and thus, it is frequently accessed. However, in the original version on the left, retrieving the edge weight requires additional memory access, which can result in a cache miss. By moving the `weight` parameter into the `GraphEdge` structure, we avoid such issues.
-
-Listing: Moving the `weight` parameter into the parent structure.
-
-~~~~ {#lst:PointerInlining .cpp}
-struct GraphEdge {                            struct GraphEdge {
-  unsigned int from;                            unsigned int from;
-  unsigned int to;                              unsigned int to;
-  GraphEdgeProperties* prop;                    float weight;
-};                                 =>           GraphEdgeProperties* prop;
-struct GraphEdgeProperties {                  };
-  float weight;                               struct GraphEdgeProperties {
-  std::string label;                            std::string label;
-  // ...                                        // ...
-};                                            };
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-[^1]: Linux commit [54ff8ad69c6e93c0767451ae170b41c000e565dd](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=54ff8ad69c6e93c0767451ae170b41c000e565dd)
-[^2]: Linux commit [e5598d6ae62626d261b046a2f19347c38681ff51](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=e5598d6ae62626d261b046a2f19347c38681ff51)
-[^3]: Linux commit [aee79d4e5271cee4ffa89ed830189929a6272eb8](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=aee79d4e5271cee4ffa89ed830189929a6272eb8)
-
-[^5]: Linux `perf` data-type profiling - [https://lwn.net/Articles/955709/](https://lwn.net/Articles/955709/)
-
-[^12]: aligned_alloc - [https://en.cppreference.com/w/c/memory/aligned_alloc](https://en.cppreference.com/w/c/memory/aligned_alloc)
-[^13]: Linux manual page for `memalign` - [https://linux.die.net/man/3/memalign](https://linux.die.net/man/3/memalign)
-[^14]: Generating aligned memory - [https://embeddedartistry.com/blog/2017/02/22/generating-aligned-memory/](https://embeddedartistry.com/blog/2017/02/22/generating-aligned-memory/)
-[^15]: Also, you cannot take the address of a bitfield.
+数据缓存的利用率也可以通过使数据更紧凑来提高。打包数据有许多方法。经典的例子之一是使用位字段。[@lst:DataPacking] 中显示了数据打包可能有益的代码示例。如果我们知道 `a`、`b` 和 `c` 表示需要一定位数来编码的枚举值，我们可以减少结构体 `S` 的存储。
