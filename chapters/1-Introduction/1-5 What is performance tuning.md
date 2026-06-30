@@ -1,17 +1,17 @@
-## What Is Performance Tuning?
+## 什么是性能调优？
 
-Locating a performance bottleneck is only half of an engineer’s job. The second half is to fix it properly. Sometimes changing one line in the source code of a program can yield a drastic performance boost. Missing such opportunities can be quite wasteful. Performance analysis and tuning are all about finding and fixing this line.
+定位性能瓶颈只是工程师工作的一半。另一半是正确地修复它。有时更改程序源代码中的一行可以产生显著的性能提升。错过这样的机会可能非常浪费。性能分析和调优都是关于找到并修复这一行。
 
-To take advantage of all the computing power of modern CPUs, you need to understand how they work. Or as performance engineers like to say, you need to have "mechanical sympathy". This term was borrowed from the car racing world. It means that a racing driver with a good understanding of how the car works has an edge over its competitors who don't. The same applies to performance engineering. It is not possible to know all the details of how a modern CPU operates, but you need to have a good mental model of it to squeeze the last bit of performance.
+为了利用现代 CPU 的所有计算能力，你需要了解它们的工作原理。或者正如性能工程师喜欢说的，你需要有"机械同理心"。这个术语借自赛车世界。它意味着一个对汽车工作原理有良好理解的赛车手比没有理解的竞争对手更有优势。同样的道理也适用于性能工程。不可能了解现代 CPU 运作的所有细节，但你需要对它有一个良好的心智模型，以榨取最后一丝性能。
 
-This is what I mean by *low-level optimizations*. This is a type of optimization that takes into account the details of the underlying hardware capabilities. It is different from *high-level optimizations* which are more about application-level logic, algorithms, and data structures. As you will see in the book, the majority of low-level optimizations can be applied to a wide variety of modern processors. To successfully implement low-level optimizations, you need to have a good understanding of the underlying hardware. 
+这就是我所说的*低级优化*。这是一种考虑底层硬件能力细节的优化。它不同于*高级优化*，后者更多关于应用程序级逻辑、算法和数据结构。正如你将在书中看到的，大多数低级优化可以应用于各种现代处理器。要成功实施低级优化，你需要对底层硬件有良好的理解。
 
-> "During the post-Moore era, it will become ever more important to make code run fast and, in particular, to tailor it to the hardware on which it runs." [@Leisersoneaam9744]
+> "在后摩尔时代，使代码快速运行变得越来越重要，特别是根据运行它的硬件进行定制。"[@Leisersoneaam9744]
 
-In the past, software developers had more mechanical sympathy, as they often had to deal with nuances of the hardware implementation. During the PC era, developers usually were programming directly on top of the operating system, with possibly a few libraries in between. As the world moved to the cloud era, the software stack grew deeper, broader, and more complex. The top layer of the stack (on which most developers work) has moved further away from the hardware. The negative side of such evolution is that developers of modern applications have less affinity for the actual hardware on which their software is running. This book will help you build a strong connection with modern processors.
+过去，软件开发者有更多的机械同理心，因为他们经常必须处理硬件实现的细微差别。在 PC 时代，开发者通常直接在操作系统之上编程，中间可能有一些库。随着世界进入云时代，软件栈变得更深、更宽、更复杂。栈的顶层（大多数开发者工作的地方）已经离硬件更远。这种演进的负面影响是，现代应用程序的开发者对其软件运行的实际硬件亲和力较低。这本书将帮助你与现代处理器建立强大的联系。
 
-There is a famous quote by Donald Knuth: "Premature optimization is the root of all evil".[@Knuth1974StructuredPW] But the opposite is often true as well. Postponed performance engineering may be too late and cause as much evil as premature optimization. For developers working with performance-critical projects, it is crucial to know how underlying hardware works. In such roles, program development without a hardware focus is a failure from the beginning.[^1] Performance characteristics of software must be a primary objective alongside correctness and security from day one. Poor performance can kill a product just as easily as security vulnerabilities.
+Donald Knuth 有一句名言："过早优化是万恶之源"。[@Knuth1974StructuredPW] 但相反的情况也经常是真的。延迟的性能工程可能为时已晚，造成与过早优化同样多的恶果。对于从事性能关键项目的开发者来说，了解底层硬件的工作原理至关重要。在这种角色中，不以硬件为重点的程序开发从一开始就是失败的。[^1] 软件的性能特征必须与正确性和安全性一样，从第一天起就成为主要目标。糟糕的性能可能像安全漏洞一样容易杀死一个产品。
 
-Performance engineering is important and rewarding work, but it may be very time-consuming. In fact, performance optimization is a game with no end. There will always be something to optimize. Inevitably, a developer will reach the point of diminishing returns at which further improvement is not justified by expected engineering costs. Knowing when to stop optimizing is a critical aspect of performance work.
+性能工程是一项重要且有回报的工作，但它可能非常耗时。事实上，性能优化是一场没有终点的游戏。总有一些东西需要优化。不可避免地，开发者会达到收益递减的点，此时进一步的改进不被预期的工程成本所证明。知道何时停止优化是性能工作的关键方面。
 
-[^1]: ClickHouse DB is an example of a successful software product that was built around a small but very efficient core.
+[^1]: ClickHouse DB 是一个成功的软件产品的例子，它围绕一个小但非常高效的核心构建。
