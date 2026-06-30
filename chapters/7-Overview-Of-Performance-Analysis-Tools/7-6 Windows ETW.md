@@ -1,30 +1,30 @@
-## Event Tracing for Windows {#sec:ETW}
+## Windows 事件跟踪 {#sec:ETW}
 
-Microsoft has developed a system-wide tracing facility named Event Tracing for Windows (ETW). It was originally intended for helping device driver developers but later found use in analyzing general-purpose applications as well. ETW is available on all supported Windows platforms (x86 and ARM) with the corresponding platform-dependent installation packages. ETW records structured events in user and kernel code with full call stack trace support, which enables you to observe software dynamics in a running system and solve many challenging performance issues.
+Microsoft 开发了一个名为 Windows 事件跟踪（ETW）的系统级跟踪设施。它最初旨在帮助设备驱动程序开发人员，但后来也用于分析通用应用程序。ETW 在所有受支持的 Windows 平台（x86 和 ARM）上可用，具有相应的平台相关安装包。ETW 在用户和内核代码中记录结构化事件，具有完整的调用栈跟踪支持，使你能够观察运行系统中的软件动态并解决许多具有挑战性的性能问题。
 
-### How to configure it {.unlisted .unnumbered}
+### 如何配置 {.unlisted .unnumbered}
 
-Recording ETW data is possible without any extra download since Windows 10 with `WPR.exe`. But to enable system-wide profiling you must be an administrator and have the `SeSystemProfilePrivilege` enabled. The \underline{W}indows \underline{P}erformance \underline{R}ecorder tool supports a set of built-in recording profiles that are suitable for common performance issues. You can tailor your recording needs by authoring a custom performance recorder profile xml file with the `.wprp` extension.
+从 Windows 10 开始，使用 `WPR.exe` 无需额外下载即可录制 ETW 数据。但要启用系统级分析，你必须是管理员并启用 `SeSystemProfilePrivilege`。Windows 性能记录器工具支持一组内置录制配置文件，适用于常见的性能问题。你可以通过编写具有 `.wprp` 扩展名的自定义性能记录器配置文件 XML 文件来定制你的录制需求。
 
-If you want to not only record but also view the recorded ETW data you need to install the Windows Performance Toolkit (WPT). You can download it from the Windows SDK[^1] or ADK[^2] download page. The Windows SDK is huge; you don't necessarily need all its parts. In our case, we just enabled the checkbox of the Windows Performance Toolkit. You are allowed to redistribute WPT as a part of your own application.
+如果你想不仅录制而且查看录制的 ETW 数据，你需要安装 Windows 性能工具包（WPT）。你可以从 Windows SDK[^1] 或 ADK[^2] 下载页面下载它。Windows SDK 很大；你不一定需要它的所有部分。在我们的案例中，我们只启用了 Windows 性能工具包的复选框。你被允许将 WPT 作为你自己应用程序的一部分重新分发。
 
-### What you can do with it: {.unlisted .unnumbered}
+### 你能用它做什么： {.unlisted .unnumbered}
 
-- Identify hotspots with a configurable CPU sampling rate from 125 microseconds up to 10 seconds. The default is 1 millisecond which costs approximately 5--10% runtime overhead.
-- Determine what blocks a certain thread and for how long (e.g., late event signals, unnecessary thread sleep, etc).
-- Examine how fast a disk serves read/write requests and discover what initiates that work.
-- Check file access performance and patterns (including cached read/writes that lead to no disk IO).
-- Trace the TCP/IP stack to see how packets flow between network interfaces and computers.
+- 使用可配置的 CPU 采样率（从 125 微秒到 10 秒）识别热点。默认值为 1 毫秒，成本约为 5-10% 的运行时开销。
+- 确定什么阻塞了某个线程以及多长时间（例如，延迟的事件信号、不必要的线程休眠等）。
+- 检查磁盘提供读/写请求的速度，并发现什么启动了该工作。
+- 检查文件访问性能和模式（包括导致无磁盘 IO 的缓存读/写）。
+- 跟踪 TCP/IP 堆栈以查看数据包如何在网络接口和计算机之间流动。
 
-All the items listed above are recorded system-wide for all processes with configurable call stack traces (kernel and user mode call stacks are combined). It's also possible to add your own ETW provider to correlate the system-wide traces with your application behavior. You can extend the amount of data collected by instrumenting your code. For example, you can inject enter/leave ETW tracing hooks in functions into your source code to measure how often a certain function was executed.
+上面列出的所有项目都在系统范围内为所有进程录制，具有可配置的调用栈跟踪（内核和用户模式调用栈被组合）。也可以添加你自己的 ETW 提供程序，将系统级跟踪与你的应用程序行为关联起来。你可以通过检测代码来扩展收集的数据量。例如，你可以在函数中注入进入/离开 ETW 跟踪钩子到你的源代码中，以测量某个函数被执行的频率。
 
-### What you cannot do with it: {.unlisted .unnumbered}
+### 你不能用它做什么： {.unlisted .unnumbered}
 
-ETW traces are not useful for examining CPU microarchitectural bottlenecks. For that, use vendor-specific tools like Intel VTune, AMD uProf, Apple Instruments, etc.
+ETW 跟踪不适用于检查 CPU 微架构瓶颈。为此，请使用供应商特定的工具，如 Intel VTune、AMD uProf、Apple Instruments 等。
 
-ETW traces capture the dynamics of all processes at the system level, however, it may generate a lot of data. For example, capturing thread context switching data to observe various waits and delays can easily generate 1--2 GB per minute. That's why it is not practical to record high-volume events for hours without overwriting previously stored traces.
+ETW 跟踪捕获系统级别所有进程的动态，但它可能会生成大量数据。例如，捕获线程上下文切换数据以观察各种等待和延迟，每分钟很容易生成 1-2 GB。这就是为什么在不覆盖先前存储的跟踪的情况下记录高容量事件数小时是不切实际的。
 
-If you'd like to learn more about ETW, there is a more detailed discussion in Appendix D. We explore tools to record and analyze ETW and present a case study of debugging a slow start of a program.
+如果你想了解更多关于 ETW 的信息，附录 D 中有更详细的讨论。我们探讨了录制和分析 ETW 的工具，并介绍了调试程序启动缓慢的案例研究。
 
-[^1]: Windows SDK Downloads - [https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/](https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/)
-[^2]: Windows ADK Downloads - [https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install#other-adk-downloads](https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install#other-adk-downloads)
+[^1]: Windows SDK 下载 - [https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/](https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/)
+[^2]: Windows ADK 下载 - [https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install#other-adk-downloads](https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install#other-adk-downloads)
