@@ -1,22 +1,22 @@
-# CPU Features for Performance Analysis {#sec:PmuChapter}
+# 用于性能分析的 CPU 特性 {#sec:PmuChapter}
 
-The ultimate goal of performance analysis is to identify performance bottlenecks and locate parts of the code that are associated with them. Unfortunately, there are no predetermined steps to follow, so it can be approached in many different ways. 
+性能分析的最终目标是识别性能瓶颈并定位与之相关的代码部分。不幸的是，没有预定的步骤可以遵循，因此可以用许多不同的方法来处理。
 
-Usually, profiling an application can give quick insights into the hotspots of the application. Sometimes it’s all that’s needed to help developers find and fix the performance problems. Especially high-level performance problems can often be revealed by profiling. For example, consider a situation when you've just made a change to the function `foo` in your application and suddenly see a noticeable performance degradation. So, you decide to profile the application. According to your mental model of the application, you expect that `foo` is a cold function and it doesn't show up in the top-10 list of hot functions. But when you open the profile, you see it consumes a lot more time than before. You quickly realize the mistake you've made in the code and fix it. If all issues in performance engineering were that easy to fix, this book would not exist.
+通常，分析应用程序可以快速了解应用程序的热点。有时这就是帮助开发人员发现和修复性能问题所需要的。特别是高级性能问题通常可以通过分析来揭示。例如，考虑这样一种情况：你刚刚对应用程序中的函数 `foo` 进行了更改，突然看到明显的性能下降。因此，你决定分析应用程序。根据你对应用程序的心智模型，你期望 `foo` 是一个冷函数，它不会出现在热函数的前 10 名列表中。但当你打开性能剖析时，你看到它消耗的时间比以前多得多。你很快意识到你在代码中犯的错误并修复了它。如果性能工程中的所有问题都那么容易修复，这本书就不会存在。
 
-When you embark on a journey to squeeze the last bit of performance from your application, simply looking at the list of hotspots is not enough. Unless you have a crystal ball or an accurate model of an entire CPU in your head, you need additional support to understand what the performance bottlenecks are.
+当你开始从应用程序中榨取最后一丝性能的旅程时，仅仅查看热点列表是不够的。除非你有一个水晶球或整个 CPU 的精确模型在脑海中，否则你需要额外的支持来理解性能瓶颈是什么。
 
-Some developers rely on their intuition and proceed with random experiments, trying to force various compiler optimizations like loop unrolling, vectorization, inlining, you name it. Indeed, sometimes you can be lucky and enjoy a portion of compliments from your colleagues and maybe even claim an unofficial title of performance guru on your team. But usually, you need to have a very good intuition and luck. In this book, we don't teach you how to be lucky. Instead, we show methods that have proved to be working in practice.
+一些开发人员依赖他们的直觉并进行随机实验，尝试强制各种编译器优化，如循环展开、向量化、内联等等。确实，有时你可以很幸运，享受同事的一些赞美，甚至可能在团队中获得非官方的性能大师称号。但通常，你需要有非常好的直觉和运气。在本书中，我们不教你如何幸运。相反，我们展示在实践中被证明有效的方法。
 
-Modern CPUs are constantly getting new features that enhance performance analysis in different ways. Using those features greatly simplifies finding low-level issues like cache misses, branch mispredictions, etc. In this chapter, we will take a look at a few hardware performance monitoring capabilities available on modern CPUs. Processors from different vendors do not necessarily have the same set of features. We will explore performance monitoring capabilities available in Intel, AMD, and Arm processors.[^1]
+现代 CPU 不断获得新功能，以不同的方式增强性能分析。使用这些功能大大简化了查找底层问题（如缓存未命中、分支预测错误等）。在本章中，我们将看看现代 CPU 上可用的一些硬件性能监控功能。来自不同供应商的处理器不一定具有相同的功能集。我们将探索 Intel、AMD 和 Arm 处理器中可用的性能监控功能。[^1]
 
-* **Top-down Microarchitecture Analysis** (TMA) methodology, discussed in [@sec:TMA]. This is a powerful technique for identifying ineffective usage of CPU microarchitecture by a program. It characterizes the bottleneck of a workload and allows locating the exact place in the source code where it occurs. It abstracts away the intricacies of the CPU microarchitecture and is relatively easy to use even for inexperienced developers.
-* **Branch Recording**, discussed in [@sec:lbr]. This is a mechanism that continuously logs the most recent branch outcomes in parallel with executing the program. It is used for collecting call stacks, identifying hot branches, calculating misprediction rates of individual branches, and more.
-* **Hardware-Based Sampling**, discussed in [@sec:secPEBS]. This is a feature that enhances sampling. Its primary benefits include: lowering the overhead of sampling and providing "Precise Events" capability, that enables pinpointing of the exact instruction that caused a particular performance event.
-* **Intel Processor Traces** (PT), discussed in Appendix C. It is a facility to record and reconstruct the program execution with a timestamp on *every* instruction. Its main usages are postmortem analysis and root-causing performance glitches.
+* **Top-down 微架构分析**（TMA）方法，在 [@sec:TMA] 中讨论。这是一种识别程序对 CPU 微架构低效使用的技术。它表征工作负载的瓶颈，并允许定位源代码中发生该问题的确切位置。它抽象了 CPU 微架构的复杂性，即使对于经验不足的开发人员也相对容易使用。
+* **分支记录**，在 [@sec:lbr] 中讨论。这是一种在执行程序的同时持续记录最近分支结果的机制。它用于收集调用栈、识别热分支、计算单个分支的预测错误率等。
+* **基于硬件的采样**，在 [@sec:secPEBS] 中讨论。这是一种增强采样的功能。其主要优点包括：降低采样开销和提供"精确事件"功能，能够精确定位导致特定性能事件的确切指令。
+* **Intel 处理器跟踪**（PT），在附录 C 中讨论。这是一种以*每条*指令的时间戳记录和重建程序执行的设施。其主要用途是事后分析和根本原因性能故障。
 
-The Intel PT feature is covered in Appendix C. Intel PT was supposed to be an "end game" for performance analysis. With its low runtime overhead, it is a very powerful analysis feature. But it turns out to be not very popular among performance engineers. Partially because the support in the tools is not mature, and partially because in many cases it is overkill, and it's just easier to use a sampling profiler. Also, it produces a lot of data, which is not practical for long-running workloads. Nevertheless, it is popular in some industries, such as high-frequency trading (HFT).
+Intel PT 功能在附录 C 中介绍。Intel PT 本应是性能分析的"终极方案"。凭借其低运行时开销，它是一个非常强大的分析功能。但事实证明它在性能工程师中并不十分流行。部分原因是工具中的支持还不成熟，部分原因是在许多情况下它是多余的，使用采样分析器更容易。此外，它会产生大量数据，对于长时间运行的工作负载来说不实用。尽管如此，它在某些行业（如高频交易（HFT））中很受欢迎。
 
-The hardware performance monitoring features mentioned above provide insights into the efficiency of a program from the CPU perspective. In the next chapter, we will discuss how profiling tools use these features to provide many different types of analysis.
+上述硬件性能监控功能从 CPU 的角度提供了对程序效率的见解。在下一章中，我们将讨论分析工具如何使用这些功能提供许多不同类型的分析。
 
-[^1]: The RISC-V ecosystem does not yet have a mature performance monitoring infrastructure, so we will not cover it in this book.
+[^1]: RISC-V 生态系统还没有成熟的性能监控基础设施，因此我们不会在本书中介绍它。
