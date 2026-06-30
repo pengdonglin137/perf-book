@@ -1,30 +1,30 @@
-## Sampling {#sec:profiling}
+## 采样 {#sec:profiling}
 
-Sampling is the most frequently used approach for doing performance analysis. People usually associate it with finding hotspots in a program. To put it more broadly, sampling helps to find places in the code that contribute to the highest number of certain performance events. If we want to find hotspots, the problem can be reformulated as: "find a place in the code that consumes the biggest number of CPU cycles". People often use the term *profiling* for what is technically called *sampling*. According to [Wikipedia](https://en.wikipedia.org/wiki/Profiling_(computer_programming)),[^1] profiling is a much broader term and includes a wide variety of techniques to collect data, including sampling, code instrumentation, tracing, and others.
+采样是最常用的性能分析方法。人们通常将其与查找程序中的热点联系起来。更广泛地说，采样有助于找到代码中贡献最多特定性能事件的地方。如果我们想查找热点，问题可以重新表述为："找到代码中消耗最多 CPU 周期的地方"。人们经常使用*分析*一词来描述技术上称为*采样*的内容。根据 [Wikipedia](https://en.wikipedia.org/wiki/Profiling_(computer_programming))，[^1] 分析是一个更广泛的术语，包括各种收集数据的技术，包括采样、代码检测、跟踪等。
 
-It may come as a surprise, but the simplest sampling profiler one can imagine is a debugger. In fact, you can identify hotspots as follows: a) run the program under the debugger; b) pause the program every 10 seconds; and c) record the place where it stopped. If you repeat b) and c) many times, you can build a histogram from collected samples. The line of code where you stopped the most will be the hottest place in the program. Of course, this is not an efficient way to find hotspots, and we don't recommend doing this. It's just to illustrate the concept. Nevertheless, this is a simplified description of how real profiling tools work. Modern profilers are capable of collecting thousands of samples per second, which gives a pretty accurate estimate of the hottest places in a program.
+可能会令人惊讶的是，可以想象的最简单的采样分析器是调试器。事实上，你可以按如下方式识别热点：a) 在调试器下运行程序；b) 每 10 秒暂停程序；c) 记录它停止的位置。如果你重复 b) 和 c) 多次，你可以从收集的样本构建直方图。你停止次数最多的代码行将是程序中最热的地方。当然，这不是查找热点的有效方式，我们不建议这样做。这只是为了说明概念。尽管如此，这是真实分析工具工作方式的简化描述。现代分析器每秒可以收集数千个样本，这给出了程序中最热位置的相当准确的估计。
 
-As in the example with a debugger, the execution of the analyzed program is interrupted every time a new sample is captured. At the time of an interrupt, the profiler collects the snapshot of the program state, which constitutes one sample. Information collected for every sample may include an instruction address that was executed at the time of the interrupt, register state, call stack (see [@sec:secCollectCallStacks]), etc. Collected samples are stored in a dump file, which can be further used to display the most time-consuming parts of the program, a call graph, etc.
+与调试器示例一样，每次捕获新样本时，被分析程序的执行都会被中断。在中断时，分析器收集程序状态的快照，该快照构成一个样本。为每个样本收集的信息可能包括中断时执行的指令地址、寄存器状态、调用栈（参见 [@sec:secCollectCallStacks]）等。收集的样本存储在转储文件中，该文件可用于显示程序中最耗时的部分、调用图等。
 
-### User-Mode and Hardware Event-based Sampling
+### 用户模式和基于硬件事件的采样
 
-Sampling can be performed in 2 different modes, using user-mode or hardware event-based sampling (EBS). User-mode sampling is a pure software approach that embeds an agent library into the profiled application. The agent sets up an OS timer for each thread in the application. Upon timer expiration, the application receives the `SIGPROF` signal that is handled by the agent. EBS uses hardware PMCs to trigger interrupts. In particular, the counter overflow feature of the PMU is used, which we will discuss shortly.
+采样可以使用两种不同的模式执行：用户模式或基于硬件事件的采样（EBS）。用户模式采样是一种纯软件方法，将代理库嵌入到被分析的应用程序中。代理为应用程序中的每个线程设置一个操作系统定时器。定时器到期时，应用程序接收由代理处理的 `SIGPROF` 信号。EBS 使用硬件 PMC 来触发中断。特别是，使用 PMU 的计数器溢出功能，我们稍后将讨论。
 
-User-mode sampling can only be used to identify hotspots, while EBS can be used for additional analysis types that involve PMCs, e.g., sampling on cache-misses, Top-down Microarchitecture Analysis (see [@sec:TMA]), etc.
+用户模式采样只能用于识别热点，而 EBS 可用于涉及 PMC 的其他分析类型，例如在缓存未命中上采样、Top-down 微架构分析（参见 [@sec:TMA]）等。
 
-User-mode sampling incurs higher runtime overhead than EBS. The average overhead of the user-mode sampling is about 5% when sampling with an interval of 10ms, while EBS has less than 1% overhead. Because of less overhead, you can use EBS with a higher sampling rate which will give more accurate data. However, user-mode sampling generates fewer data to analyze, and it takes less time to process it. 
+用户模式采样比 EBS 产生更高的运行时开销。当以 10ms 的间隔采样时，用户模式采样的平均开销约为 5%，而 EBS 的开销小于 1%。由于开销较少，你可以使用更高的采样率使用 EBS，这将提供更准确的数据。但是，用户模式采样生成的数据较少，处理时间也更短。
 
-### Finding Hotspots
+### 查找热点
 
-In this section, we will discuss the mechanics of using PMCs with EBS. Figure @fig:Sampling illustrates the counter overflow feature of the PMU, which is used to trigger a Performance Monitoring Interrupt (PMI), also known as `SIGPROF`. At the start of a benchmark, we configure the event that we want to sample. Sampling on cycles is a default for many profiling tools since we want to know where the program spends most of the time. However, it is not necessarily a strict rule; we can sample on any performance event we want. For example, if we would like to know the place where the program experiences the biggest number of L3-cache misses, we would sample on the corresponding event, i.e., `MEM_LOAD_RETIRED.L3_MISS`.
+在本节中，我们将讨论使用 PMC 和 EBS 的机制。图 @fig:Sampling 说明了 PMU 的计数器溢出功能，该功能用于触发性能监控中断（PMI），也称为 `SIGPROF`。在基准测试开始时，我们配置要采样的事件。对周期进行采样是许多分析工具的默认设置，因为我们想知道程序在哪里花费了大部分时间。然而，这不一定是一条严格的规则；我们可以对我们想要的任何性能事件进行采样。例如，如果我们想知道程序经历最多 L3 缓存未命中的地方，我们将在相应的事件上采样，即 `MEM_LOAD_RETIRED.L3_MISS`。
 
-![Using performance counter for sampling](../../img/perf-analysis/SamplingFlow.png){#fig:Sampling width=80%}
+![使用性能计数器进行采样](../../img/perf-analysis/SamplingFlow.png){#fig:Sampling width=80%}
 
-After we have initialized the register, we start counting and let the benchmark run. Since we have configured a PMC to count cycles, it will be incremented every cycle. Eventually, it will overflow. At the time the register overflows, the hardware will raise a PMI. The profiling tool is configured to capture PMIs and has an Interrupt Service Routine (ISR) for handling them. We do multiple steps inside the ISR: first of all, we disable counting; after that, we record the instruction that was executed by the CPU at the time the counter overflowed; then, we reset the counter to `N` and resume the benchmark.
+初始化寄存器后，我们开始计数并让基准测试运行。由于我们配置了一个 PMC 来计算周期，它将在每个周期递增。最终，它将溢出。在寄存器溢出时，硬件将发出 PMI。分析工具配置为捕获 PMI，并有一个中断服务例程（ISR）来处理它们。我们在 ISR 内执行多个步骤：首先，我们禁用计数；之后，我们记录计数器溢出时 CPU 执行的指令；然后，我们将计数器重置为 `N` 并恢复基准测试。
 
-Now, let us go back to the value `N`. Using this value, we can control how frequently we want to get a new interrupt. Say we want a finer granularity and have one sample every 1 million cycles. To achieve this, we can set the counter to `(unsigned) -1,000,000` so that it will overflow after every 1 million cycles. This value is also referred to as the *sample after* value.
+现在，让我们回到值 `N`。使用此值，我们可以控制我们希望多久获得一次新中断。假设我们想要更细的粒度，每 100 万个周期一个样本。为了实现这一点，我们可以将计数器设置为 `(unsigned) -1,000,000`，这样它将在每 100 万个周期后溢出。此值也称为 *sample after* 值。
 
-We repeat the process many times to build a sufficient collection of samples. If we later aggregate those samples, we could build a histogram of the hottest places in our program, like the one shown in the output from Linux `perf record/report` below. This gives us the breakdown of the overhead for functions of a program sorted in descending order (hotspots). An example of sampling the [x264](https://openbenchmarking.org/test/pts/x264)[^7] benchmark from the [Phoronix test suite](https://www.phoronix-test-suite.com/)[^8] is shown below:
+我们重复此过程多次以构建足够的样本集合。如果我们稍后聚合这些样本，我们可以构建程序中最热位置的直方图，如下面 Linux `perf record/report` 输出中所示的那样。这给出了按降序排序的程序函数开销的细分（热点）。在 [Phoronix 测试套件](https://www.phoronix-test-suite.com/)[^8] 中采样 [x264](https://openbenchmarking.org/test/pts/x264)[^7] 基准测试的示例如下：
 
 ```bash
 $ time -p perf record -F 1000 -- ./x264 -o /dev/null --slow --threads 1 ../Bosphorus_1920x1080_120fps_420_8bit_YUV.y4m
@@ -38,88 +38,4 @@ $ perf report -n --stdio
 # ........  .......  .............  ........................................
   7.50%     2620     x264           [.] x264_8_me_search_ref
   7.38%     2577     x264           [.] refine_subpel.lto_priv.0
-  6.51%     2281     x264           [.] x264_8_pixel_satd_8x8_internal_avx2
-  6.29%     2212     x264           [.] get_ref_avx2.lto_priv.0
-  5.07%     1787     x264           [.] x264_8_pixel_avg2_w16_sse2
-  3.26%     1145     x264           [.] x264_8_mc_chroma_avx2
-  2.88%     1013     x264           [.] x264_8_pixel_satd_16x8_internal_avx2
-  2.87%     1006     x264           [.] x264_8_pixel_avg2_w8_mmx2
-  2.58%      904     x264           [.] x264_8_pixel_satd_8x8_avx2
-  2.51%      882     x264           [.] x264_8_pixel_sad_16x16_sse2
-  ...
 ```
-
-Linux `perf` collected `35,035` samples, which means that there were the same number of process interrupts. We also used `-F 1000` which sets the sampling rate at 1000 samples per second. This roughly matches the overall runtime of 36.2 seconds. Notice, that Linux `perf` provided the approximate number of total cycles elapsed. If we divide it by the number of samples, we'll have `156756064947 cycles / 35035 samples = 4.5 million cycles` per sample. That means that Linux `perf` set the number `N` to roughly `4500000` to collect 1000 samples per second. The number `N` can be adjusted by Linux `perf` dynamically according to the actual CPU frequency.
-
-And of course, most valuable for us is the list of hotspots sorted by the number of samples attributed to each function. After we know what are the hottest functions, we may want to look one level deeper: what are the hot parts of code inside every function? To see the profiling data for functions that were inlined as well as assembly code generated for a particular source code region, we need to build the application with debug information (`-g` compiler flag). 
-
-Linux `perf` doesn't have rich graphic support, so viewing hot parts of source code is not very convenient, but doable. Linux `perf` intermixes source code with the generated assembly, as shown below:
-
-```bash
-# snippet of annotating source code of 'x264_8_me_search_ref' function
-$ perf annotate x264_8_me_search_ref --stdio
-Percent | Source code & Disassembly of x264 for cycles:ppp 
-----------------------------------------------------------
-  ...
-        :                 bmx += square1[bcost&15][0];   <== source code
-  1.43  : 4eb10d:  movsx  ecx,BYTE PTR [r8+rdx*2]        <== corresponding machine code
-        :                 bmy += square1[bcost&15][1];
-  0.36  : 4eb112:  movsx  r12d,BYTE PTR [r8+rdx*2+0x1]
-        :                 bmx += square1[bcost&15][0];
-  0.63  : 4eb118:  add    DWORD PTR [rsp+0x38],ecx
-        :                 bmy += square1[bcost&15][1];
-  ...
-```
-
-Most profilers with a Graphical User Interface (GUI), like Intel VTune Profiler, can show source code and associated assembly side-by-side. Also, there are tools that can visualize the output of Linux `perf` raw data with a rich graphical interface similar to Intel VTune and other tools. You'll see all that in more detail in [@sec:secOverviewPerfTools].
-
-Sampling gives a good statistical representation of a program's execution, however, one of the downsides of this technique is that it has blind spots and is not suitable for detecting abnormal behaviors. Each sample represents an aggregated view of a portion of a program's execution. Aggregation doesn't give us enough details of what exactly happened during that time interval. We cannot zoom in to learn more about execution nuances. When we squash time intervals into samples, we lose valuable information and it becomes useless for analyzing events with a very short duration. For instance, profiling a program that reacts to network packets (such as stock trading software) may not be very informative as it will attribute most samples to the busy wait loop. Increasing the sampling interval, e.g., more than 1000 samples per second may give you a better picture, but may still not be enough. As a solution, you should use tracing as it doesn't skip events of interest.
-
-### Collecting Call Stacks {#sec:secCollectCallStacks}
-
-Often when sampling, we might encounter a situation when the hottest function in a program gets called from multiple functions. An example of such a scenario is shown in Figure @fig:CallStacks. The output from the profiling tool might reveal that `foo` is one of the hottest functions in the program, but if it has multiple callers, we would like to know which one of them calls `foo` the most number of times. It is a typical situation for applications that have library functions like `memcpy` or `sqrt` appear in the hotspots. To understand why a particular function appeared as a hotspot, we need to know which path in the Control Flow Graph (CFG) of the program is responsible for it.
-
-![Control Flow Graph: hot function "foo" has multiple callers.](../../img/perf-analysis/CallStacksCFG.png){#fig:CallStacks width=70%}
-
-Analyzing the source code of all the callers of `foo` might be very time-consuming. We want to focus only on those callers that caused `foo` to appear as a hotspot. In other words, we want to figure out the hottest path in the CFG of a program. Profiling tools achieve this by capturing the call stack of the process along with other information at the time of collecting performance samples. Then, all collected stacks are grouped, allowing us to see the hottest path that led to a particular function.
-
-Collecting call stacks in Linux `perf` is possible with three methods:
-
-1. Frame pointers (`perf record --call-graph fp`). It requires that the binary be built with `--fno-omit-frame-pointer`. Historically, the frame pointer (`RBP` register) was used for debugging since it enables us to get the call stack without popping all the arguments from the stack (also known as *stack unwinding*). The frame pointer can tell the return address immediately. It enables very cheap stack unwinding, which reduces profiling overhead, however, it consumes one additional register just for this purpose. At the time when the number of architectural registers was small, using frame pointers was expensive in terms of runtime performance. Nowadays, the Linux community is moving back to using frame pointers, because it provides better quality call stacks and low profiling overhead.
-2. DWARF debug info (`perf record --call-graph dwarf`). It requires that the binary be built with DWARF debug information (`-g`). It also obtains call stacks through the stack unwinding procedure, but this method is more expensive than using frame pointers.
-3. Intel Last Branch Record (LBR). This method makes use of a hardware feature, and is accessed with the following command: `perf record --call-graph lbr`. It obtains call stacks by parsing the LBR stack (a set of hardware registers). The resulting call graph is not as deep as those produced by the first two methods. See more information about the LBR call-stack mode in [@sec:lbr].
-
-Below is an example of collecting call stacks in a program using LBR. By looking at the output, we know that 55% of the time `foo` was called from `func1`, 33% of the time from `func2`, and 11% from `fun3`. We can clearly see the distribution of the overhead between callers of `foo` and can now focus our attention on the hottest edge in the CFG of the program, which is `func1` &rarr; `foo`, but we should probably also pay attention to the edge `func2` &rarr; `foo`.
-
-```bash
-$ perf record --call-graph lbr -- ./a.out
-$ perf report -n --stdio --no-children
-# Samples: 65K of event 'cycles:ppp'
-# Event count (approx.): 61363317007
-# Overhead       Samples  Command  Shared Object     Symbol
-# ........  ............  .......  ................  ......................
-    99.96%         65217  a.out    a.out             [.] foo
-            |
-             --99.96%--foo
-                       |
-                       |--55.52%--func1
-                       |          main
-                       |          __libc_start_main
-                       |          _start
-                       |
-                       |--33.32%--func2
-                       |          main
-                       |          __libc_start_main
-                       |          _start
-                       |
-                        --11.12%--func3
-                                  main
-                                  __libc_start_main
-                                  _start
-```
-
-When using Intel VTune Profiler, you can collect call stacks data by checking the corresponding "Collect stacks" box while configuring analysis. When using the command-line interface, specify the `-knob enable-stack-collection=true` option.
-
-[^1]: Profiling(wikipedia) - [https://en.wikipedia.org/wiki/Profiling_(computer_programming)](https://en.wikipedia.org/wiki/Profiling_(computer_programming)).
-[^7]: x264 benchmark - [https://openbenchmarking.org/test/pts/x264](https://openbenchmarking.org/test/pts/x264).
-[^8]: Phoronix test suite - [https://www.phoronix-test-suite.com/](https://www.phoronix-test-suite.com/).
