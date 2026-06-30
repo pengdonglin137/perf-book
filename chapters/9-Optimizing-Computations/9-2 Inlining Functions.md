@@ -1,31 +1,31 @@
-## Inlining Functions
+## 内联函数
 
-If you're one of those developers who frequently looks into assembly code, you have probably seen `CALL`, `PUSH`, `POP`, and `RET` instructions. In x86 ISA, `CALL` and `RET` instructions are used to call and return from a function. `PUSH` and `POP` instructions are used to save a register value on the stack and restore it.
+如果你是那些经常查看汇编代码的开发人员之一，你可能见过 `CALL`、`PUSH`、`POP` 和 `RET` 指令。在 x86 ISA 中，`CALL` 和 `RET` 指令用于调用和从函数返回。`PUSH` 和 `POP` 指令用于在堆栈上保存寄存器值并恢复它。
 
-The nuances of a function call are described by the *calling convention*: how arguments are passed and in what order, how the result is returned, which registers the called function must preserve, and how the work is split between the caller and the callee. Based on a calling convention, when a caller makes a function call, it expects that some registers will hold the same values after the callee returns. Thus, if a callee needs to change one of the registers that should be preserved, it needs to save (`PUSH`) and restore (`POP`) them before returning to the caller. A series of `PUSH` instructions is called a *prologue*, and a series of `POP` instructions is called an *epilogue*.
+函数调用的细微差别由*调用约定*描述：参数如何传递以及以什么顺序传递，结果如何返回，被调用函数必须保留哪些寄存器，以及调用者和被调用者之间的工作如何分配。基于调用约定，当调用者进行函数调用时，它期望某些寄存器在被调用者返回后保持相同的值。因此，如果被调用者需要更改应保留的寄存器之一，它需要在返回给调用者之前保存（`PUSH`）和恢复（`POP`）它们。一系列 `PUSH` 指令称为*序言*，一系列 `POP` 指令称为*尾声*。
 
-When a function is small, the overhead of calling a function (prologue and epilogue) can be very pronounced. This overhead can be eliminated by inlining a function body into the place where it is called. Function inlining is a process of replacing a call to function `foo` with the code for `foo` specialized with the actual arguments of the call. Inlining is one of the most important compiler optimizations. Not only because it eliminates the overhead of calling a function, but also because it enables other optimizations. This happens because when a compiler inlines a function, the scope of compiler analysis widens to a much larger chunk of code. However, there are disadvantages as well: inlining can potentially increase code size and compile time.[^20]
+当函数很小时，调用函数的开销（序言和尾声）可能非常显著。通过将函数体内联到调用它的位置，可以消除此开销。函数内联是将对函数 `foo` 的调用替换为使用调用的实际参数专门化的 `foo` 代码的过程。内联是最重要的编译器优化之一。不仅因为它消除了调用函数的开销，还因为它启用了其他优化。当编译器内联函数时，编译器分析的范围会扩展到更大的代码块，从而实现这一点。然而，也有缺点：内联可能会增加代码大小和编译时间。[^20]
 
-The primary mechanism for function inlining in many compilers relies on a cost model. For example, in the LLVM compiler, function inlining is based on computing a cost for each function *call site*. A call site is a place in the code where a function is called. The cost of inlining a function call is based on the number and type of instructions in that function. Inlining happens if the cost is less than a threshold, which is usually a fixed number; however, it can be varied under certain circumstances.[^21] In addition to the generic cost model, many heuristics can overwrite cost model decisions in some cases. For instance: 
+许多编译器中函数内联的主要机制依赖于成本模型。例如，在 LLVM 编译器中，函数内联基于计算每个函数*调用点*的成本。调用点是代码中调用函数的位置。内联函数调用的成本基于该函数中的指令数量和类型。如果成本低于阈值（通常是固定数字），则会发生内联；但在某些情况下可以改变。[^21] 除了通用成本模型之外，许多启发式方法可以在某些情况下覆盖成本模型决策。例如：
 
-* Tiny functions (wrappers) are almost always inlined.
-* Functions with a single call site are preferred candidates for inlining.
-* Large functions usually are not inlined as they bloat the code of the caller function.
+* 微小函数（包装器）几乎总是被内联。
+* 具有单个调用点的函数是内联的首选候选者。
+* 大函数通常不被内联，因为它们会膨胀调用者的代码。
 
-Also, there are situations when inlining is problematic:
+此外，内联存在问题的情况：
 
-* A recursive function cannot be inlined into itself unless it's a tail-recursive function (see next section). Also, if the depth of recursion is usually small, it's possible to partially inline a recursive function, i.e., inline a body of a recursive function to itself a couple of times, and then leave a recursive call as before. This may eliminate the overhead of a function call if the recursive call depth is usually small.
-* A function that is referred to through a pointer can be inlined in place of a direct call but the function has to remain in the binary, i.e., it cannot be fully inlined and eliminated. The same is true for functions with external linkage.
+* 递归函数不能内联到自身中，除非它是尾递归函数（参见下一节）。此外，如果递归深度通常很小，可以部分内联递归函数，即将递归函数的主体内联到自身几次，然后像以前一样保留递归调用。如果递归调用深度通常很小，这可以消除函数调用的开销。
+* 通过指针引用的函数可以在直接调用的位置内联，但函数必须保留在二进制文件中，即它不能被完全内联和消除。具有外部链接的函数也是如此。
 
-As I wrote earlier, compilers tend to use a cost model approach when deciding about inlining a function, which typically works well in practice. In general, it is a good strategy to rely on the compiler for making all the inlining decisions and adjusting if needed. The cost model cannot account for every possible situation, which leaves room for improvement. Sometimes compilers require special hints from the developer. One way to find potential candidates for inlining in a program is by looking at the profiling data, and in particular, how hot is the prologue and the epilogue of the function. [@lst:FuncInlining] is an example of a function profile with a prologue and epilogue consuming `~50%` of the function time:
+正如我之前写的，编译器在决定内联函数时倾向于使用成本模型方法，这在实践中通常效果良好。通常，依靠编译器做出所有内联决策并在需要时进行调整是一个好策略。成本模型无法考虑每种可能的情况，这留下了改进的空间。有时编译器需要开发人员的特殊提示。在程序中找到潜在内联候选者的一种方法是查看分析数据，特别是函数的序言和尾声有多热。[@lst:FuncInlining] 是一个具有热序言和尾声的函数配置文件示例，占函数时间的 `~50%`：
 
-Listing: A profile of function `foo` which has a hot prologue and epilogue
+清单：函数 `foo` 的配置文件，具有热序言和尾声
 
 ~~~~ {#lst:FuncInlining .cpp}
-Overhead |  Source code & Disassembly
-   (%)   |  of function `foo`
+开销 |  函数 `foo` 的
+   (%)   |  源代码和反汇编
 --------------------------------------------
-    3.77 :  418be0:  push   r15	     # prologue
+    3.77 :  418be0:  push   r15	     # 序言
     4.62 :  418be2:  mov    r15d,0x64
     2.14 :  418be8:  push   r14
     1.34 :  418bea:  mov    r14,rsi
@@ -38,51 +38,3 @@ Overhead |  Source code & Disassembly
     1.94 :  418bfb:  push   rbx
     0.50 :  418bfc:  sub    rsp,0x8
     ...
-    # function body
-    ...
-    4.17 :  418d43:  add    rsp,0x8  # epilogue
-    3.67 :  418d47:  pop    rbx
-    0.35 :  418d48:  pop    rbp
-    0.94 :  418d49:  pop    r12
-    4.72 :  418d4b:  pop    r13
-    4.12 :  418d4d:  pop    r14
-    0.00 :  418d4f:  pop    r15
-    1.59 :  418d51:  ret
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-When you see hot `PUSH` and `POP` instructions, this might be a strong indicator that the time consumed by the prologue and epilogue of the function might be saved if we inline the function. Note that even if the prologue and epilogue are hot, it doesn't necessarily mean it will be profitable to inline the function. Inlining triggers a lot of different changes, so it's hard to predict the outcome. Always measure the performance of the changed code before forcing a compiler to inline a function.
-
-For the GCC and Clang compilers, you can make a hint for inlining `foo` with the help of a C++11 `[[gnu::always_inline]]` attribute as shown in the code example below. With earlier C++ standards you can use `__attribute__((always_inline))`. For the MSVC compiler, you can use the `__forceinline` keyword.
-
-```cpp
-[[gnu::always_inline]] int foo() {
-    // foo body
-}
-```
-
-### Tail Call Optimization
-
-In a tail-recursive function, the recursive call is the last operation performed by the function before it returns its result. A simple example is demonstrated [@lst:TailCall]. In the original code, the `sum` function recursively accumulates integer numbers from 0 to `n`, for example, a call of `sum(5,0)` will yield `5+4+3+2+1`, which gives 15.
-
-If we compile the original code without optimizations (`-O0`), compilers will generate assembly code that has a recursive call. This is very inefficient due to the overhead of the function call. Moreover, if you call `sum` with a large `n`, the program will create a large number of stack frames on top of each other. There is a high chance that it will result in a stack overflow since the stack memory is limited.
-
-When you apply optimizations, e.g., `-O2`, to the example in [@lst:TailCall], compilers will recognize an opportunity for tail call optimization. The transformation will reuse the current stack frame instead of recursively creating new frames. To do so, the compiler flushes the current frame and replaces the `call` instruction with a `jmp` to the beginning of the function. Just like inlining, tail call optimization provides room for further optimizations. So, later, the compiler can apply more transformations to replace the original version with an iterative version shown on the right. For example, GCC 13.2 generates identical machine code for both versions.
-
-Listing: Tail Call Compiler Optimization
-		
-~~~~ {#lst:TailCall .cpp}
-// original code                         // compiler intermediate transformation
-int sum(int n, int acc) {                int sum(int n, int acc) {
-  if (n == 0) {                            for (int i = n; i > 0; --i) {
-    return acc;                    =>        acc += i;
-  } else {                                 }
-    return sum(n - 1, acc + n);            return acc;
-  }                                      }
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Like with any compiler optimization, there are cases when it cannot perform the code transformation you want. If you are using the Clang compiler, and you want guaranteed tail call optimizations, you can mark a `return` statement with `__attribute__((musttail))`. This indicates that the compiler must generate a tail call for the program to be correct, even when optimizations are disabled. One example, where it is beneficial is language interpreter loops.[^22] In case of doubt, it is better to use an iterative version instead of tail recursion and leave tail recursion to functional programming languages.
-
-[^20]: See the article: [https://aras-p.info/blog/2017/10/09/Forced-Inlining-Might-Be-Slow/](https://aras-p.info/blog/2017/10/09/Forced-Inlining-Might-Be-Slow/).
-[^21]: For example: 1) when a function declaration has a hint for inlining; 2) when there is profiling data for the function; or 3) when a compiler optimizes for size (`-Os`) rather than performance (`-O2`).
-[^22]: Josh Haberman's blog: motivation for guaranteed tail calls - [https://blog.reverberate.org/2021/04/21/musttail-efficient-interpreters.html](https://blog.reverberate.org/2021/04/21/musttail-efficient-interpreters.html).
