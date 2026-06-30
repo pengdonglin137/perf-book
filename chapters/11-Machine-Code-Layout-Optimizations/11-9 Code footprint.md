@@ -1,56 +1,40 @@
-## Case Study: Measuring Code Footprint {#sec:CodeFootprint}
+## 案例研究：度量代码占用 {#sec:CodeFootprint}
 
-As I mentioned a couple of times in this chapter, code layout optimizations are most impactful on applications with large amounts of code. The best way to clarify the uncertainty about the size of the hot code in your program is to measure its *code footprint*, which is defined as the number of bytes/cache lines/pages with machine instructions the program touches during its execution.
+正如我在本章中多次提到的，代码布局优化对具有大量代码的应用程序影响最大。澄清程序中热代码大小不确定性的最佳方法是度量其*代码占用*，它定义为程序执行期间触及的具有机器指令的字节/缓存行/页数。
 
-A large code footprint by itself doesn't necessarily negatively impact performance. Code footprint is not a decisive metric, and it doesn't immediately tell you if there is a problem. Nevertheless, it has proven to be useful as an additional data point in performance analysis. In conjunction with TMA's `Frontend_Bound`, L1-instruction cache miss rate, and other metrics, it may strengthen the argument for investing time in optimizing the machine code layout of your application.
+大的代码占用本身不一定对性能产生负面影响。代码占用不是决定性指标，它不能立即告诉你是否有问题。然而，它已被证明在性能分析中作为额外数据点很有用。结合 TMA 的 `Frontend_Bound`、L1 指令缓存未命中率和其他指标，它可以加强为优化应用程序的机器代码布局投入时间的论点。
 
-Currently, there are very few tools available that can reliably measure code footprint. In this case study, I will demonstrate [perf-tools](https://github.com/aayasin/perf-tools),[^1] an open-source collection of profiling tools built on top of Linux `perf`. To estimate[^2] code footprint, `perf-tools` leverages Intel's LBR (see [@sec:lbr]), so it currently doesn't work on AMD- or ARM-based systems. Below is a sample command to collect the code footprint data:
+目前，可用于可靠度量代码占用的工具非常少。在本案例研究中，我将演示 [perf-tools](https://github.com/aayasin/perf-tools)，[^1] 这是一个建立在 Linux `perf` 之上的开源分析工具集合。为了估计[^2] 代码占用，`perf-tools` 利用 Intel 的 LBR（参见 [@sec:lbr]），因此它目前不适用于基于 AMD 或 ARM 的系统。以下是收集代码占用数据的示例命令：
 
 ```
 $ perf-tools/do.py profile --profile-mask 100 -a <your benchmark>
 ```
 
-`--profile-mask 100` initiates LBR sampling, and `-a` enables you to specify a program to run. This command will collect code footprint along with various other data. I don't show the output of the tool, curious readers are welcome to study documentation and experiment with the tool.
+`--profile-mask 100` 启动 LBR 采样，`-a` 允许你指定要运行的程序。此命令将收集代码占用以及各种其他数据。我不显示该工具的输出，好奇的读者可以研究文档并尝试该工具。
 
-I took a set of four benchmarks: Clang C++ compilation, Blender ray tracing, Cloverleaf hydrodynamics, and Stockfish chess engine; these workloads should be already familiar to you from [@sec:PerfMetricsCaseStudy] where we analyzed their performance characteristics. I ran them on an Intel's Alder Lake-based processor.[^5]
+我取了一组四个基准测试：Clang C++ 编译、Blender 光线追踪、Cloverleaf 流体动力学和 Stockfish 国际象棋引擎；这些工作负载你应该已经从 [@sec:PerfMetricsCaseStudy] 中熟悉了，我们在其中分析了它们的性能特征。我在 Intel 的 Alder Lake 处理器上运行了它们。[^5]
 
-Before we start looking at the results, let's spend some time on terminology. Different parts of a program's code may be exercised with different frequencies, so some parts will be hotter than others. The `perf-tools` package doesn't make this distinction and uses the term "non-cold code" to refer to code that was executed at least once. This is called *two-way splitting* since it splits the code into cold and non-cold parts. Other tools (e.g., Meta's HHVM) use *three-way splitting* and distinguish between hot, warm, and cold code with an adjustable threshold between warm and hot. In this section, we use the term "hot code" to refer to the non-cold code.
+在我们开始查看结果之前，让我们花一些时间在术语上。程序代码的不同部分可能以不同的频率执行，因此某些部分会比其他部分更热。`perf-tools` 包不区分这一点，并使用术语"非冷代码"来指代至少执行过一次的代码。这称为*双向拆分*，因为它将代码分为冷和非冷部分。其他工具（例如 Meta 的 HHVM）使用*三向拆分*，并区分热、暖和冷代码，具有可调整的阈值。在本节中，我们使用术语"热代码"来指代非冷代码。
 
-Results for each of the four benchmarks are presented in Table @tbl:code_footprint. The binary and `.text` sizes were obtained with a standard Linux `readelf` utility, while other metrics were collected with `perf-tools`. The `non-cold code footprint [KB]` metric is the number of kilobytes with machine instructions that a program touched at least once. The metric `non-cold code [4KB-pages]` tells us the number of non-cold 4KB-pages with machine instructions that a program touched at least once. Together they help us to understand how dense or sparse those non-cold memory locations are. It will become clear once we dig into the numbers. Finally, we also present Frontend Bound percentages, a metric that should be already familiar to you from [@sec:TMA] about TMA.
+四个基准测试的每个结果如表 @tbl:code_footprint 所示。二进制和 `.text` 大小是使用标准 Linux `readelf` 工具获得的，而其他指标是使用 `perf-tools` 收集的。`non-cold code footprint [KB]` 指标是程序至少触及一次的具有机器指令的千字节数。指标 `non-cold code [4KB-pages]` 告诉我们程序至少触及一次的具有机器指令的非冷 4KB 页面数。它们帮助我们理解这些非冷内存位置的密集程度或稀疏程度。最后，我们还展示了前端绑定百分比，这是从关于 TMA 的 [@sec:TMA] 中你应该已经熟悉的指标。
 
 --------------------------------------------------------------------------------
-Metric                                  Clang17   Blender  CloverLeaf  Stockfish      
-                                    compilation                                
+指标                                  Clang17   Blender  CloverLeaf  Stockfish      
+                                    编译                                
 ----------------------------------- ----------- --------- ----------- ----------
-Binary size [KB]                         113844    223914         672      39583
+二进制大小 [KB]                         113844    223914         672      39583
 
-`.text` size [KB]                         67309    133009         598        238
+`.text` 大小 [KB]                         67309    133009         598        238
 
-non-cold code footprint [KB]               5042       313         104         99
+非冷代码占用 [KB]               5042       313         104         99
 
-non-cold code [4KB-pages]                  6614       546         104         61
+非冷代码 [4KB 页面]                  6614       546         104         61
 
-Frontend Bound [%]                         52.3      29.4         5.3       25.8
+前端绑定 [%]                         52.3      29.4         5.3       25.8
 --------------------------------------------------------------------------------
 
-Table: Code footprint of the benchmarks used in the case study. {#tbl:code_footprint}
+表：案例研究中使用的基准测试的代码占用。{#tbl:code_footprint}
 
-Let's first look at the binary and `.text` sizes. CloverLeaf is a tiny application compared to Clang17 and Blender; Stockfish embeds the neural network file which accounts for the largest part of the binary, but its code section is relatively small; Clang17 and Blender have gigantic code bases. The `.text size` metric is the upper bound for our applications, i.e. we assume[^3] the code footprint should not exceed the `.text` size.
+让我们首先看看二进制和 `.text` 大小。CloverLeaf 与 Clang17 和 Blender 相比是一个很小的应用程序；Stockfish 嵌入了神经网络文件，占二进制文件的大部分，但其代码段相对较小；Clang17 和 Blender 具有巨大的代码库。`.text size` 指标是我们应用程序的上限，即我们假设[^3] 代码占用不应超过 `.text` 大小。
 
-A few interesting observations can be made by analyzing the code footprint data. First, even though the Blender `.text` section is very large, less than 1% of Blender's code is non-cold: 313 KB out of 133 MB. So, just because a binary size is large, doesn't mean the application suffers from CPU Frontend bottlenecks. It's the amount of hot code that matters. For other benchmarks this ratio is higher: Clang17 7.5%, CloverLeaf 17.4%, Stockfish 41.6%. In absolute numbers, the Clang17 compilation touches an order of magnitude more bytes with machine instructions than the other three applications combined.
-
-Second, let's examine the `non-cold code [4KB-pages]` row in the table. For Clang17, non-cold 5042 KB are spread over 6614 4KB pages, which gives us `5042 / (6614 * 4) = 19%` page utilization. This metric tells us how dense/sparse the hot parts of the code are. The closer each hot cache line is located to another hot cache line, the fewer pages are required to store the hot code. The higher the page utilization the better. Basic block placement and function reordering that we discussed earlier in this chapter are perfect examples of a transformation that improves page utilization. For other benchmarks, the percentages are: Blender 14%, CloverLeaf 25%, and Stockfish 41%. 
-
-Now that we quantified the code footprints of the four applications, it's tempting to think about the size of L1-instruction and L2 caches and whether the hot code fits or not. On my Alder Lake-based machine, the L1 I-cache is only 32 KB, which is not enough to fully cover any of the benchmarks that we've analyzed. But remember, at the beginning of this section we said that a large code footprint doesn't immediately point to a problem. Yes, a large codebase puts more pressure on the CPU Frontend, but an instruction access pattern is also crucial for performance. The same locality principles as for data accesses apply. That's why we accompanied it with the Frontend Bound metric from Topdown analysis. 
-
-For Clang17, the 5 MB of non-cold code causes a huge 52.3% Frontend Bound performance bottleneck: more than half of the cycles are wasted waiting for instructions. From all the presented benchmarks, it benefits the most from PGO-type optimizations. CloverLeaf doesn't suffer from inefficient instruction fetch; 75% of its branches are backward jumps, which suggests that those could be relatively small loops executed over and over again. Stockfish, while having roughly the same non-cold code footprint as CloverLeaf, poses a far greater challenge for the CPU Frontend (25.8%). It has a lot more indirect jumps and function calls. Finally, Blender has even more indirect jumps and calls than Stockfish. 
-
-I stop my analysis at this point as further investigations are outside the scope of this case study. For readers who are interested in continuing the analysis, I suggest drilling down into the Frontend Bound category according to the TMA methodology and looking at metrics such as `ICache_Misses`, `ITLB_Misses`, `DSB coverage`, and others.
-
-Another useful tool to study the code footprint is [llvm-bolt-heatmap](https://github.com/llvm/llvm-project/blob/main/bolt/docs/Heatmaps.md)[^4], which is a part of llvm's BOLT project. This tool can produce code heatmaps that give a fine-grained understanding of the code layout in your application. It is primarily used to evaluate the original layout of hot code and confirm that the optimized layout is more compact.
-
-[^1]: perf-tools - [https://github.com/aayasin/perf-tools](https://github.com/aayasin/perf-tools)
-[^2]: The code footprint data collected by `perf-tools` is not exact since it is based on sampling LBR records. Other tools like Intel's `sde -footprint`, unfortunately, don't provide code footprint. However, it is not hard to write a PIN-based tool yourself that will measure the exact code footprint.
-[^3]: It is not always true: an application itself may be tiny, but call into multiple other dynamically linked libraries, or it may make heavy use of kernel code.
-[^4]: llvm-bolt-heatmap - [https://github.com/llvm/llvm-project/blob/main/bolt/docs/Heatmaps.md](https://github.com/llvm/llvm-project/blob/main/bolt/docs/Heatmaps.md)
-[^5]: It doesn't matter which machine you use for collecting code footprint as it depends on the program and input data, and not on the characteristics of a particular machine. As a sanity check, I ran it on a Skylake-based machine and got very similar results.
+通过分析代码占用数据可以进行一些有趣的观察。首先，即使 Blender `.text` 段非常大，Blender 代码中不到 1% 是非冷的：133 MB 中的 313 KB。因此，仅仅因为二进制文件很大，并不意味着应用程序遭受 CPU 前端瓶颈。重要的是热代码的数量。对于其他基准测试，这个比率更高：Clang17 7.5%，CloverLeaf 17.4%，Stockfish 41.6%。从绝对数字来看，Clang17 编译触及的机器指令字节数比其他三个应用程序的总和多一个数量级。
