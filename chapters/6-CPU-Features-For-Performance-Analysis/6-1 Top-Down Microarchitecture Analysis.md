@@ -1,11 +1,11 @@
-## Top-down Microarchitecture Analysis {#sec:TMA}
+## Top-down 微架构分析 {#sec:TMA}
 
-Top-down Microarchitecture Analysis (TMA) methodology is a very powerful technique for identifying CPU bottlenecks in a program. The best part of this methodology is that it does not require a developer to have a deep understanding of the microarchitecture and PMCs in the system and still efficiently find CPU bottlenecks.
+Top-down 微架构分析（TMA）方法是识别程序中 CPU 瓶颈的强大技术。该方法最好的部分是它不需要开发人员对系统中的微架构和 PMC 有深入的理解，就能高效地找到 CPU 瓶颈。
 
-At a conceptual level, TMA identifies what is stalling the execution of a program. Figure @fig:TMA_concept illustrates the core idea of TMA. Here is a short guide on how to read this diagram. As we know from [@sec:uarch], there are internal buffers in the CPU that keep track of information about $\mu$ops that are being executed. Whenever a new instruction is fetched and decoded, new entries in those buffers are allocated. If a $\mu$op for the instruction was not allocated during a particular cycle of execution, it could be for one of two reasons: either we were not able to fetch and decode it (`Frontend Bound`), or the Backend was overloaded with work, and resources for the new $\mu$op could not be allocated (`Backend Bound`). If a $\mu$op was allocated and scheduled for execution but never retired, this means it came from a mispredicted path (`Bad Speculation`). Finally, `Retiring` represents a normal execution. It is the bucket where we want all our $\mu$ops to be, although there are exceptions which we will talk about later.
+在概念层面上，TMA 识别什么在阻止程序执行。图 @fig:TMA_concept 说明了 TMA 的核心思想。以下是如何阅读此图的简短指南。正如我们在 [@sec:uarch] 中所知，CPU 中有内部缓冲区，用于跟踪正在执行的 $\mu$ops 的信息。每当获取和解码一条新指令时，就会在这些缓冲区中分配新条目。如果指令的 $\mu$op 在特定执行周期内未被分配，可能有两个原因：要么我们无法获取和解码它（`前端绑定`），要么后端工作过载，无法为新的 $\mu$op 分配资源（`后端绑定`）。如果 $\mu$op 被分配并调度执行但从未退休，这意味着它来自预测错误的路径（`错误推测`）。最后，`退休`代表正常执行。这是我们希望所有 $\mu$ops 所在的桶，尽管有例外，我们稍后会讨论。
 
-![The concept behind TMA's top-level breakdown. *© Source: [@TMA_ISPASS]*](../../img/pmu-features/TMAM_diag.png){#fig:TMA_concept width=80%}
+![TMA 顶层分解背后的概念。*© 来源：[@TMA_ISPASS]*](../../img/pmu-features/TMAM_diag.png){#fig:TMA_concept width=80%}
 
-This is not how the analysis works in practice because analyzing every single microoperation ($\mu$op) would be terribly slow. Instead, TMA observes the execution of a program by monitoring a specific set of performance events and then calculates metrics based on predefined formulas. Using these metrics, TMA characterizes the program by assigning it to one of the four high-level buckets. Each of the four high-level categories has several nested levels, which CPU vendors may choose to implement differently. Each generation of processors may have different formulas for calculating those metrics, so it's better to rely on tools to do the analysis rather than trying to calculate them yourself.
+这不是分析在实践中工作的方式，因为分析每个微操作（$\mu$op）会非常慢。相反，TMA 通过监控一组特定的性能事件来观察程序的执行，然后根据预定义的公式计算指标。使用这些指标，TMA 通过将程序分配到四个高级桶之一来表征程序。四个高级类别中的每一个都有几个嵌套级别，CPU 供应商可以选择不同的实现方式。每一代处理器可能有不同的公式来计算这些指标，因此最好依靠工具进行分析，而不是自己尝试计算。
 
-In the upcoming sections, we will discuss the TMA implementation in AMD, Arm, and Intel processors.
+在接下来的章节中，我们将讨论 AMD、Arm 和 Intel 处理器中的 TMA 实现。
