@@ -1,88 +1,40 @@
-## Cache Coherence {#sec:TrueFalseSharing}
+## 缓存一致性 {#sec:TrueFalseSharing}
 
-Multiprocessor systems incorporate means to ensure data coherence during shared usage of memory by each core containing its own, separate cache entity. Without such a protocol, if both CPU `A` and `B` read memory location `L` into their individual caches, and CPU `B` subsequently modifies its cached value for `L`, then the CPUs would have incoherent values of the same memory location `L`. Cache Coherency Protocols ensure that any updates to cached entries are dutifully updated or invalidated in any other cached entry of the same location.
+多处理器系统包含确保每个核心在共享内存使用期间数据一致性的方法，每个核心包含自己的独立缓存实体。如果没有这样的协议，如果 CPU `A` 和 `B` 都将内存位置 `L` 读入它们各自的缓存，然后 CPU `B` 随后修改其缓存值 `L`，那么 CPU 将具有相同内存位置 `L` 的不一致值。缓存一致性协议确保对缓存条目的任何更新都会在相同位置的任何其他缓存条目中被忠实地更新或无效化。
 
-### Cache Coherency Protocols
+### 缓存一致性协议
 
-One of the most well-known cache coherency protocols is MESI (**M**odified **E**xclusive **S**hared **I**nvalid), which is used to support writeback caches like those used in modern CPUs. Its acronym denotes the four states with which a cache line can be marked (see Figure @fig:MESI):
+最著名的缓存一致性协议之一是 MESI（**M**odified **E**xclusive **S**hared **I**nvalid），它用于支持现代 CPU 中使用的写回缓存。它的首字母缩写表示缓存行可以被标记的四种状态（参见图 @fig:MESI）：
 
-* **Modified**: a cache line is present only in the current cache and has been modified from its value in RAM
-* **Exclusive**: a cache line is present only in the current cache and matches its value in RAM
-* **Shared**: a cache line is present here and in other cache lines and matches its value in RAM
-* **Invalid**: a cache line is unused (i.e., does not contain any RAM location)
+* **已修改**：缓存行仅存在于当前缓存中，并且已从 RAM 中的值修改
+* **独占**：缓存行仅存在于当前缓存中，并且与 RAM 中的值匹配
+* **共享**：缓存行存在于此处和其他缓存行中，并且与 RAM 中的值匹配
+* **无效**：缓存行未使用（即不包含任何 RAM 位置）
 
-![MESI States Diagram. *© Source: University of Washington via courses.cs.washington.edu.*](../../img/mt-perf/MESI_Cache_Diagram.jpg){#fig:MESI width=60%}
+![MESI 状态图。*© 来源：华盛顿大学 via courses.cs.washington.edu.*](../../img/mt-perf/MESI_Cache_Diagram.jpg){#fig:MESI width=60%}
 
-When fetched from memory, each cache line has one of the states encoded into its tag. Then the cache line state keeps transiting from one state to another.[^25] In reality, CPU vendors usually implement slightly improved variants of MESI. For example, Intel uses [MESIF](https://en.wikipedia.org/wiki/MESIF_protocol),[^26] which adds a Forwarding (F) state, while AMD employs [MOESI](https://en.wikipedia.org/wiki/MOESI_protocol),[^27] which adds the Owning (O) state. However, these protocols still maintain the essence of the base MESI protocol.
+从内存获取时，每个缓存行都有一个状态编码到其标签中。然后缓存行状态从一个状态转换到另一个状态。[^25] 实际上，CPU 供应商通常实现稍作改进的 MESI 变体。例如，Intel 使用 [MESIF](https://en.wikipedia.org/wiki/MESIF_protocol)，[^26] 它添加了转发（F）状态，而 AMD 使用 [MOESI](https://en.wikipedia.org/wiki/MOESI_protocol)，[^27] 它添加了拥有（O）状态。然而，这些协议仍然保持基本 MESI 协议的本质。
 
-Lack of cache coherency can cause sequentially inconsistent programs. This problem can be mitigated by having _snoop_ caches watch all memory transactions and cooperate with each other to maintain memory consistency. Unfortunately, it comes with a cost since modification done by one core invalidates the corresponding cache line in another core's cache. This causes memory stalls and wastes system bandwidth. In contrast to serialization and locking issues, which can only put a ceiling on the performance of the application, coherency issues can cause retrograde effects as attributed by USL in [@sec:secAmdahl]. Two widely known types of coherency problems are *true sharing* and *false sharing*, which we will explore next.
+缺乏缓存一致性可能导致顺序不一致的程序。这个问题可以通过让_snoop_缓存监视所有内存事务并相互协作以保持内存一致性来缓解。不幸的是，这需要付出代价，因为一个核心所做的修改会使另一个核心缓存中的相应缓存行无效。这会导致内存停顿并浪费系统带宽。与只能为应用程序性能设定上限的序列化和锁定问题相比，一致性问题可能导致 USL 在 [@sec:secAmdahl] 中归因的倒退效应。两种广泛知晓的一致性问题是*真共享*和*假共享*，我们接下来将探讨。
 
-### True Sharing {#sec:secTrueSharing}
+### 真共享 {#sec:secTrueSharing}
 
-True sharing occurs when two different cores access the same variable (see [@lst:TrueSharing]).
+当两个不同的核心访问同一个变量时，就会发生真共享（参见 [@lst:TrueSharing]）。
 
-Listing: True Sharing Example.
+清单：真共享示例。
 
 ~~~~ {#lst:TrueSharing .cpp}
-unsigned int sum; // shared between all threads
-{ // code executed by thread A      │ { // code executed by thread B
+unsigned int sum; // 在所有线程之间共享
+{ // 由线程 A 执行的代码      │ { // 由线程 B 执行的代码
   for (int i = 0; i < N; i++)       │   for (int i = 0; i < N; i++)
     sum += a[i];                    │     sum += b[i];
 }                                   │ }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-First of all, we have a bigger problem here besides true sharing. We actually have a *data race*, which sometimes can be quite tricky to detect. Notice, that we don't have a proper synchronization mechanism in place, which can lead to unpredictable or incorrect program behavior, because the operations on the shared data might interfere with one another. Fortunately, there are tools that can help identify such issues. [Thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)[^30] from Clang and [helgrind](https://www.valgrind.org/docs/manual/hg-manual.html)[^31] are among such tools. To prevent the data race in [@lst:TrueSharing], you should declare the `sum` variable as `std::atomic<unsigned int> sum`.
+首先，除了真共享之外，我们还有一个更大的问题。我们实际上有一个*数据竞争*，这有时可能很难检测。注意，我们没有适当的同步机制，这可能导致不可预测或不正确的程序行为，因为对共享数据的操作可能相互干扰。幸运的是，有一些工具可以帮助识别此类问题。来自 Clang 的 [Thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)[^30] 和 [helgrind](https://www.valgrind.org/docs/manual/hg-manual.html)[^31] 就是此类工具。为了防止 [@lst:TrueSharing] 中的数据竞争，你应该将 `sum` 变量声明为 `std::atomic<unsigned int> sum`。
 
-Using C++ atomics can help to solve data races when true sharing happens. However, it effectively serializes accesses to the atomic variable, which may hurt performance. A better way of solving our true sharing issue is by using Thread Local Storage (TLS). TLS is the method by which each thread in a given multithreaded process can allocate memory to store thread-specific data. By doing so, threads modify their local copies instead of contending for a globally available memory location. The example in [@lst:TrueSharing] can be fixed by declaring `sum` with a TLS class specifier: `thread_local unsigned int sum` (since C++11). The main thread should then incorporate results from all the local copies of each worker thread.
+使用 C++ 原子类型可以帮助解决真共享发生时的数据竞争。但是，它有效地序列化了对原子变量的访问，这可能会损害性能。解决我们真共享问题的更好方法是使用线程本地存储（TLS）。TLS 是给定多线程进程中每个线程可以分配内存来存储线程特定数据的方法。通过这样做，线程修改它们的本地副本，而不是争夺全局可用的内存位置。[@lst:TrueSharing] 中的示例可以通过使用 TLS 类说明符声明 `sum` 来修复：`thread_local unsigned int sum`（自 C++11 起）。然后主线程应该合并每个工作线程的所有本地副本的结果。
 
-### False Sharing {#sec:secFalseSharing}
+### 假共享 {#sec:secFalseSharing}
 
-If not careful, you may attempt to solve the true sharing issue as shown in [@lst:FalseSharing]. This solution introduces another problem: *false sharing*. It occurs when two different cores modify different variables that happen to reside on the same cache line. In the code sample shown in [@lst:FalseSharing], even though threads `A` and `B` update different fields of struct `S`, they are very likely to reside on the same cache line, which will trigger a false sharing issue. Figure @fig:FalseSharing illustrates this problem.
-
-Listing: False Sharing Example.
-
-~~~~ {#lst:FalseSharing .cpp}
-struct S {
-  int sumA; // sumA and sumB are likely to
-  int sumB; // reside in the same cache line
-};
-S s;
-
-{ // code executed by thread A     │     { // code executed by thread B
-  for (int i = 0; i < N; i++)      │       for (int i = 0; i < N; i++)
-    s.sumA += a[i];                │         s.sumB += b[i];
-}                                  │     }
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-![False Sharing: two threads access the same cache line.](../../img/mt-perf/FalseSharing.jpg){#fig:FalseSharing width=60%}
-
-False sharing is a frequent source of performance issues for multithreaded applications. Because of that, modern analysis tools have built-in support for detecting such cases. For applications that experience true/false sharing, TMA will likely show a high `Memory Bound` &rarr; `L3 Bound` &rarr; `Contested Accesses` metric.[^18]
-
-When using Intel VTune Profiler, I recommend running two types of analysis to find and eliminate false sharing issues. First, run a *Microarchitecture Exploration* analysis that implements TMA methodology to detect the presence of false sharing in an application. As noted before, the high value for the *Contested Accesses* metric prompts us to dig deeper and run the *Memory Access* analysis with the *Analyze dynamic memory objects* checkbox enabled. This analysis helps in finding out memory accesses to the data structure that caused contention issues. Typically, such memory accesses have high latency, which will be revealed by the analysis. See an example of using Intel VTune Profiler for fixing false sharing issues in [Intel Developer Zone](https://software.intel.com/en-us/vtune-cookbook-false-sharing).[^20]
-
-Linux `perf` has support for finding false sharing as well. As with the Intel VTune profiler, run TMA first (see [@sec:secTMA_Intel]) to find out if the program experiences false/true sharing issues. If that's the case, use the `perf c2c` tool to detect memory accesses with high cache coherency costs. `perf c2c` matches store/load addresses for different threads and checks if the hit in a modified cache line occurred. Readers can find a detailed explanation of the process and how to use the tool in a dedicated [blog post](https://joemario.github.io/blog/2016/09/01/c2c-blog/).[^21]
-
-It is possible to eliminate false sharing with the help of aligning/padding memory objects. Example in [@sec:secTrueSharing] can be fixed by ensuring `sumA` and `sumB` do not share the same cache line as shown in [@lst:PadFalseSharing].[^32]
-
-Listing: Data padding to avoid false sharing.
-
-~~~~ {#lst:PadFalseSharing .cpp}
-                              constexpr int CacheLineAlign = 64;
-struct S {                    struct S {
-  int sumA;        =>           int sumA; 
-  int sumB;                     alignas(CacheLineAlign) int sumB;
-};                            };
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-False sharing can not only be observed in native languages, like C and C++, but also in managed ones, like Java and C#. From a general performance perspective, the most important thing to consider is the cost of the possible state transitions. Of all cache states, the only ones that do not involve a costly cross-cache subsystem communication and data transfer during CPU read/write operations are the Modified (M) and Exclusive (E) states. Thus, the longer the cache line maintains the `M` or `E` states (i.e., the less sharing of data across caches), the lower the coherence cost incurred by a multithreaded application. An example demonstrating how this property has been employed can be found in Nitsan Wakart's blog post "[Diving Deeper into Cache Coherency](http://psy-lob-saw.blogspot.com/2013/09/diving-deeper-into-cache-coherency.html)".[^28]
-
-[^18]: See the Intel VTune user guide for a description of the *Contested Accesses* metric.
-[^20]: VTune cookbook: false-sharing - [https://software.intel.com/en-us/vtune-cookbook-false-sharing](https://software.intel.com/en-us/vtune-cookbook-false-sharing).
-[^21]: An article on `perf c2c` - [https://joemario.github.io/blog/2016/09/01/c2c-blog/](https://joemario.github.io/blog/2016/09/01/c2c-blog/).
-[^25]: There is an animated demonstration of the MESI protocol - [https://www.scss.tcd.ie/Jeremy.Jones/vivio/caches/MESI.htm](https://www.scss.tcd.ie/Jeremy.Jones/vivio/caches/MESI.htm).
-[^26]: MESIF - [https://en.wikipedia.org/wiki/MESIF_protocol](https://en.wikipedia.org/wiki/MESIF_protocol)
-[^27]: MOESI - [https://en.wikipedia.org/wiki/MOESI_protocol](https://en.wikipedia.org/wiki/MOESI_protocol)
-[^28]: Blog post "Diving Deeper into Cache Coherency" - [http://psy-lob-saw.blogspot.com/2013/09/diving-deeper-into-cache-coherency.html](http://psy-lob-saw.blogspot.com/2013/09/diving-deeper-into-cache-coherency.html)
-[^30]: Clang's thread sanitizer tool: [https://clang.llvm.org/docs/ThreadSanitizer.html](https://clang.llvm.org/docs/ThreadSanitizer.html).
-[^31]: Helgrind, a thread error detector tool: [https://www.valgrind.org/docs/manual/hg-manual.html](https://www.valgrind.org/docs/manual/hg-manual.html).
-[^32]: Do not take the size of a cache line as a constant value. For example, in Apple processors such as M1, M2, and later, the L2 cache operates on 128B cache lines.
+如果不小心，你可能会尝试如 [@lst:FalseSharing] 所示解决真共享问题。此解决方案引入了另一个问题：*假共享*。当两个不同的核心修改恰好位于同一缓存行上的不同变量时，就会发生这种情况。在 [@lst:FalseSharing] 中显示的代码示例中，即使线程 `A` 和 `B` 更新结构体 `S` 的不同字段，它们也很可能位于同一缓存行上，这将触发假共享问题。图 @fig:FalseSharing 说明了这个问题。
