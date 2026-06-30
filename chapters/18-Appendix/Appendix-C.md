@@ -1,115 +1,40 @@
 \phantomsection
-# Appendix C. Intel Processor Traces {.unnumbered}
+# 附录 C. Intel 处理器跟踪 {.unnumbered}
 
-\markboth{Appendix C}{Appendix C}
+\markboth{附录 C}{附录 C}
 
-The Intel Processor Traces (PT) is a CPU feature that records the program execution by encoding packets in a highly compressed binary format that can be used to reconstruct execution flow with a timestamp on every instruction. PT has extensive coverage and relatively small overhead,[^1] which is usually below `5%`. Its main usages are postmortem analysis and root-causing performance glitches.
+Intel 处理器跟踪（PT）是一项 CPU 功能，它通过以高度压缩的二进制格式编码数据包来记录程序执行，可用于重建每条指令带有时间戳的执行流程。PT 具有广泛的覆盖范围和相对较小的开销，[^1] 通常低于 `5%`。其主要用途是事后分析和根本原因性能故障。
 
-## Workflow {.unnumbered .unlisted}
+## 工作流程 {.unlisted .unnumbered}
 
-Similar to sampling techniques, PT does not require any modifications to the source code. All you need to collect traces is just to run the program under the tool that supports PT. Once PT is enabled and the benchmark launches, the analysis tool starts writing PT packets to DRAM. 
+与采样技术类似，PT 不需要对源代码进行任何修改。收集跟踪所需的所有操作只是在支持 PT 的工具下运行程序。一旦 PT 启用并启动基准测试，分析工具就开始将 PT 数据包写入 DRAM。
 
-Similar to LBR (Last Branch Records), Intel PT works by recording branches. At runtime, whenever a CPU encounters any branch instruction, PT will record the outcome of this branch. For a simple conditional jump instruction, a CPU will record whether it was taken (`T`) or not taken (`NT`) using just 1 bit. For an indirect call, PT will record the destination address. Note that unconditional branches are ignored since we statically know their targets. 
+与 LBR（最后分支记录）类似，Intel PT 通过记录分支来工作。在运行时，每当 CPU 遇到任何分支指令时，PT 将记录该分支的结果。对于简单的条件跳转指令，CPU 将使用 1 位记录它是被采取（`T`）还是未采取（`NT`）。对于间接调用，PT 将记录目标地址。请注意，无条件分支被忽略，因为我们静态地知道它们的目标。
 
-An example of encoding for a small instruction sequence is shown in Figure @fig:PT_encoding. Instructions like `PUSH`, `MOV`, `ADD`, and `CMP` are ignored because they don't change the control flow. However, the `JE` instruction may jump to `.label`, so its result needs to be recorded. Later there is an indirect call for which the destination address is saved.
+图 @fig:PT_encoding 显示了一个小指令序列的编码示例。像 `PUSH`、`MOV`、`ADD` 和 `CMP` 这样的指令被忽略，因为它们不改变控制流。但是，`JE` 指令可能跳转到 `.label`，因此需要记录其结果。后来有一个间接调用，其目标地址被保存。
 
-![Intel Processor Traces encoding](../../img/appendix-D/PT_encoding.jpg){#fig:PT_encoding width=80%}
+![Intel 处理器跟踪编码](../../img/appendix-D/PT_encoding.jpg){#fig:PT_encoding width=80%}
 
-At the time of analysis, we bring together the application binary and the collected PT trace. A software decoder needs the application binary file to reconstruct the execution flow of the program. It starts from the entry point and then uses collected traces as a lookup reference to determine the control flow. 
+在分析时，我们将应用程序二进制文件和收集的 PT 跟踪结合在一起。软件解码器需要应用程序二进制文件来重建程序的执行流程。它从入口点开始，然后使用收集的跟踪作为查找参考来确定控制流。
 
-Figure @fig:PT_decoding shows an example of decoding Intel Processor Traces. Suppose that the `PUSH` instruction is an entry point of the application binary file. Then `PUSH`, `MOV`, `ADD`, and `CMP` are reconstructed as-is without looking into encoded traces. Later, the software decoder encounters a `JE` instruction, which is a conditional branch and for which we need to look up the outcome. According to the traces in Figure @fig:PT_decoding, `JE` was taken (`T`), so we skip the next `MOV` instruction and go to the `CALL` instruction. Again, `CALL(edx)` is an instruction that changes the control flow, so we look up the destination address in encoded traces, which is `0x407e1d8`. 
+图 @fig:PT_decoding 显示了解码 Intel 处理器跟踪的示例。假设 `PUSH` 指令是应用程序二进制文件的入口点。然后，`PUSH`、`MOV`、`ADD` 和 `CMP` 被原样重建，而不查看编码的跟踪。稍后，软件解码器遇到 `JE` 指令，这是一个条件分支，我们需要查找其结果。根据图 @fig:PT_decoding 中的跟踪，`JE` 被采取（`T`），因此我们跳过下一个 `MOV` 指令并转到 `CALL` 指令。同样，`CALL(edx)` 是改变控制流的指令，因此我们在编码的跟踪中查找目标地址，即 `0x407e1d8`。
 
-![Intel Processor Traces decoding](../../img/appendix-D/PT_decoding.jpg){#fig:PT_decoding width=90%}
+![Intel 处理器跟踪解码](../../img/appendix-D/PT_decoding.jpg){#fig:PT_decoding width=90%}
 
-Instructions highlighted in yellow were executed when our program was running. Note that this is an *exact* reconstruction of program execution; we did not skip any instructions. Later we can map assembly instructions back to the source code by using debug information and have a log of source code that was executed line by line.
+以黄色突出显示的指令是在我们的程序运行时执行的。请注意，这是程序执行的*精确*重建；我们没有跳过任何指令。稍后，我们可以使用调试信息将汇编指令映射回源代码，并拥有逐行执行的源代码日志。
 
-## Timing Packets {.unnumbered .unlisted}
+## 时间数据包 {.unlisted .unnumbered}
 
-With Intel PT, not only execution flow can be traced but also timing information. In addition to saving jump destinations, PT can also emit timing packets. Figure @fig:PT_timings provides a visualization of how time packets can be used to restore timestamps for instructions. As in the previous example, we first see that `JNZ` was not taken (`NT`), so we update it and all the instructions above with timestamp 0ns. Then we see a timing update of 2ns and `JE` being taken, so we update it and all the instructions above `JE` (and below `JNZ`) with timestamp 2ns. After that, there is an indirect call (`CALL(edx)`), but no timing packet is attached to it, so we do not update timestamps. Then we see that 100ns elapsed, and `JB` was not taken, so we update all the instructions above it with the timestamp of 102ns.
+使用 Intel PT，不仅可以跟踪执行流，还可以跟踪时间信息。除了保存跳转目标之外，PT 还可以发出时间数据包。图 @fig:PT_timings 提供了如何使用时间数据包为指令恢复时间戳的可视化。与前面的示例一样，我们首先看到 `JNZ` 未被采取（`NT`），因此我们更新它以及上面所有时间戳为 0ns 的指令。然后我们看到 2ns 的时间更新和 `JE` 被采取，因此我们更新它以及 `JE` 上方（和 `JNZ` 下方）的所有指令，时间戳为 2ns。之后，有一个间接调用（`CALL(edx)`），但没有附加时间数据包，因此我们不更新时间戳。然后我们看到 100ns 过去，`JB` 未被采取，因此我们更新其上方的所有指令，时间戳为 102ns。
 
-![Intel Processor Traces timings](../../img/appendix-D/PT_timings.jpg){#fig:PT_timings width=90%}
+![Intel 处理器跟踪计时](../../img/appendix-D/PT_timings.jpg){#fig:PT_timings width=90%}
 
-In the example shown in Figure @fig:PT_timings, instruction data (control flow) is perfectly accurate, but timing information is less accurate. Obviously, `CALL(edx)`, `TEST`, and `JB` instructions were not happening at the same time, yet we do not have more accurate timing information for them. Having timestamps enables us to align the time interval of our program with another event in the system, and it's easy to compare to wall clock time. Trace timing in some implementations can further be improved by a cycle-accurate mode, in which the hardware keeps a record of cycle counts between normal packets (see more details in [@IntelOptimizationManual, Volume 3C, Chapter 36]).
+在图 @fig:PT_timings 中显示的示例中，指令数据（控制流）完全准确，但时间信息不够准确。显然，`CALL(edx)`、`TEST` 和 `JB` 指令不是同时发生的，但我们没有它们更准确的时间信息。有了时间戳，我们可以将程序的时间间隔与系统中的另一个事件对齐，并且很容易与墙钟时间进行比较。某些实现中的跟踪计时可以通过周期精确模式进一步改进，其中硬件在正常数据包之间保持周期计数记录（更多详细信息请参见 [@IntelOptimizationManual, Volume 3C, Chapter 36]）。
 
-## Collecting and Decoding Traces {.unnumbered .unlisted}
+## 收集和解码跟踪 {.unlisted .unlisted}
 
-Intel PT traces can be easily collected with the Linux `perf` tool:
+Intel PT 跟踪可以使用 Linux `perf` 工具轻松收集：
 
 ```bash
 $ perf record -e intel_pt/cyc=1/u -- ./a.out
 ```
-
-In the command line above, I asked the PT mechanism to update timing information every cycle. But likely, it will not increase our accuracy greatly since timing packets will only be sent when paired with another control flow packet.
-
-After collecting, raw PT traces can be obtained by executing:
-
-```bash
-$ perf report -D > trace.dump
-```
-
-PT bundles up to 6 conditional branches before it emits a timing packet. Since the Intel Skylake CPU generation, timing packets have cycle count elapsed from the previous packet. If we then look into the `trace.dump`, we might see something like the following:
-
-```
-000073b3: 2d 98 8c  TIP 0x8c98     // target address (IP)
-000073b6: 13        CYC 0x2        // timing update
-000073b7: c0        TNT TNNNNN (6) // 6 conditional branches
-000073b8: 43        CYC 0x8        // 8 cycles passed
-000073b9: b6        TNT NTTNTT (6)
-```
-
-The raw PT packets shown above are not very useful for performance analysis. To decode processor traces to human-readable form, you can execute:
-
-```bash
-$ perf script --ns --itrace=i1t -F time,srcline,insn,srccode
-```
-
-Below is an example of decoded traces:
-
-```
-timestamp       srcline   instruction      srccode
-...
-253.555413143:  a.cpp:24  call 0x35c       foo(arr, j);
-253.555413143:  b.cpp:7   test esi, esi    for (int i = 0; i <= n; i++)
-253.555413508:  b.cpp:7   js 0x1e
-253.555413508:  b.cpp:7   movsxd rsi, esi
-...
-```
-
-I only show a small snippet from the long execution log. In this log, we have traces of *every* instruction executed while our program was running. We can literally observe every step that was made by the program. It is a very strong foundation for further functional and performance analysis.
-
-## Use Cases {.unnumbered .unlisted}
-
-1. **Analyze performance glitches**: because PT captures the entire instruction stream, it is possible to analyze what was going on during the small-time period when the application was not responding. More detailed examples can be found in an [article](https://easyperf.net/blog/2019/09/06/Intel-PT-part3)[^2] on Easyperf blog.
-2. **Postmortem debugging**: PT traces can be replayed by traditional debuggers like `gdb`. In addition to that, PT provides call stack information, which is *always* valid even if the stack is corrupted.[^3] PT traces could be collected on a remote machine once and then analyzed offline. This is especially useful when the issue is hard to reproduce or access to the system is limited. 
-3. **Introspect execution of the program**:
-   - We can immediately tell if a code path was never executed. 
-   - Thanks to timestamps, it's possible to calculate how much time was spent waiting while spinning on a lock attempt, etc.
-   - Security mitigation by detecting specific instruction patterns.
-
-## Disk Space and Decoding Time {.unnumbered .unlisted}
-
-Even taking into account the compressed format of the trace, encoded data can consume a lot of disk space. Typically, it's less than 1 byte per instruction, however taking into account the speed at which CPU executes instructions, it is still a lot. Depending on the workload, it's very common for the CPU to encode PT at a speed of 100 MB/s. Decoded traces might easily be ten times more (~1GB/s). This makes PT not practical for use on long-running workloads. But it is affordable to run it for a short time, even on a big workload. In this case, the user can attach to the running process just for the time when the glitch happened. Or they can use a circular buffer, where new traces will overwrite old ones, i.e., always having traces for the last 10 seconds or so.
-
-Users can limit collection even further in several ways. They can limit collecting traces only on user/kernel space code. Also, there is an address range filter, so it's possible to opt in and opt out of tracing dynamically to limit the memory bandwidth. This allows us to trace just a single function or even a single loop.
-
-Decoding PT traces can take a long time because it has to follow along with disassembled instructions from the binary and reconstruct the flow. On an Intel Core i5-8259U machine, for a workload that runs for 7 milliseconds, encoded PT trace consumes around 1MB of disk space. Decoding this trace using `perf script -F time,ip,sym,symoff,insn` takes ~20 seconds[^4] and the output consumes ~1.3GB of disk space. 
-
-## Tools {.unnumbered .unlisted}
-
-Besides Linux perf, several other tools support Intel PT. First, Intel VTune Profiler has *Anomaly Detection* analysis type that uses Intel PT. Another popular tool worth mentioning is magic-trace[^5], which collects and displays high-resolution traces of a process.
-
-## Intel PT References and links {.unnumbered .unlisted}
-
-* Intel® 64 and IA-32 Architectures Software Developer Manuals [@IntelOptimizationManual, Volume 3C, Chapter 36].
-* Whitepaper "Hardware-assisted instruction profiling and latency detection" [@IntelPTPaper].
-* Andi Kleen article on LWN, URL: [https://lwn.net/Articles/648154](https://lwn.net/Articles/648154).
-* Intel PT Micro Tutorial, URL: [https://sites.google.com/site/intelptmicrotutorial/](https://sites.google.com/site/intelptmicrotutorial/).
-* Intel PT documentation in the Linux kernel, URL: [https://github.com/torvalds/linux/blob/master/tools/perf/Documentation/intel-pt.txt](https://github.com/torvalds/linux/blob/master/tools/perf/Documentation/intel-pt.txt).
-* Cheatsheet for Intel Processor Trace, URL: [http://halobates.de/blog/p/410](http://halobates.de/blog/p/410).
-
-[^1]: See more information about Intel PT overhead in [@IntelPTPaper].
-[^2]: Analyze performance glitches with Intel PT - [https://easyperf.net/blog/2019/09/06/Intel-PT-part3](https://easyperf.net/blog/2019/09/06/Intel-PT-part3)
-[^3]: Postmortem debugging with Intel PT - [https://easyperf.net/blog/2019/08/30/Intel-PT-part2](https://easyperf.net/blog/2019/08/30/Intel-PT-part2)
-[^4]: When you decode traces with `perf script -F` with `+srcline` or `+srccode` to emit source code, it gets even slower.
-[^5]: magic-trace - [https://github.com/janestreet/magic-trace](https://github.com/janestreet/magic-trace)
-[^6]: Notice that there are instructions executed as a result of the function call (denoted with `...`).
