@@ -1,207 +1,39 @@
-## Vectorization {#sec:Vectorization}
+## 向量化 {#sec:Vectorization}
 
-On modern processors, the use of SIMD instructions can result in a great speedup over regular un-vectorized (scalar) code. When doing performance analysis, one of the top priorities of the software engineer is to ensure that the hot parts of the code are vectorized. This section guides engineers toward discovering vectorization opportunities. For a recap of the SIMD capabilities of modern CPUs, readers can take a look at [@sec:SIMD].
+在现代处理器上，使用 SIMD 指令可以比常规未向量化（标量）代码获得巨大的加速。在进行性能分析时，软件工程师的首要任务之一是确保代码的热部分被向量化。本节指导工程师发现向量化机会。有关现代 CPU 的 SIMD 功能的回顾，读者可以查看 [@sec:SIMD]。
 
-Vectorization often happens automatically without any user intervention; this is called compiler *autovectorization*. In such a situation, a compiler automatically recognizes the opportunity to produce SIMD machine code from the source code. 
+向量化通常在没有任何用户干预的情况下自动发生；这称为编译器*自动向量化*。在这种情况下，编译器自动识别从源代码生成 SIMD 机器代码的机会。
 
-Autovectorization is very convenient because modern compilers can automatically generate fast SIMD code for a wide variety of programs. However, in some cases, autovectorization does not succeed without intervention by a software engineer. Modern compilers have extensions that allow power users to control the autovectorization process and make sure that certain parts of the code are vectorized efficiently. We will provide several examples of using compiler autovectorization hints.
+自动向量化非常方便，因为现代编译器可以自动为各种程序生成快速的 SIMD 代码。然而，在某些情况下，没有软件工程师的干预，自动向量化不会成功。现代编译器具有扩展功能，允许高级用户控制自动向量化过程，并确保代码的某些部分被高效地向量化。我们将提供几个使用编译器自动向量化提示的示例。
 
-In this section, we will discuss how to harness compiler autovectorization, especially inner loop vectorization because it is the most common type of autovectorization. The other two types (outer loop vectorization, and Superword-Level Parallelism vectorization) are not discussed in this book.
+在本节中，我们将讨论如何利用编译器自动向量化，特别是内循环向量化，因为它是自动向量化最常见的类型。另外两种类型（外循环向量化和超级字级并行向量化）不在本书中讨论。
 
-### Compiler Autovectorization
+### 编译器自动向量化
 
-Multiple hurdles can prevent autovectorization, some of which are inherent to the semantics of programming languages. For example, the compiler must assume that loop indices may overflow, and this can prevent certain loop transformations. Another example is the assumption that the C programming language makes: pointers in the program may point to overlapping memory regions, which can make the analysis of the program very difficult. 
+多个障碍可能阻止自动向量化，其中一些是编程语言语义固有的。例如，编译器必须假设循环索引可能溢出，这可能阻止某些循环转换。另一个例子是 C 语言的假设：程序中的指针可能指向重叠的内存区域，这会使程序分析变得非常困难。
 
-Another major hurdle is the design of the processor itself. In some cases, processors don’t have efficient vector instructions for certain operations. For example, predicated (bitmask-controlled) load and store operations are not available on most processors. Despite all of the challenges, you can work around many of them and enable autovectorization. Later in this section, we provide guidance on how to work with the compiler and ensure that the hot code is vectorized by the compiler.
+另一个主要障碍是处理器本身的设计。在某些情况下，处理器没有针对某些操作的有效向量指令。例如，谓词（位掩码控制）加载和存储操作在大多数处理器上不可用。尽管存在所有这些挑战，你可以解决其中的许多问题并启用自动向量化。在本节后面，我们提供关于如何与编译器协作并确保热代码被编译器向量化的指导。
 
-The vectorizer is usually structured in three phases: legality-check, profitability-check, and transformation itself:
+向量化器通常分三个阶段构建：合法性检查、盈利性检查和转换本身：
 
-* **Legality-check**: in this phase, the compiler checks if it is legal to transform the loop (or another type of code region) into using vectors. The legality phase collects a list of requirements that need to happen for the vectorization of the loop to be legal. The loop vectorizer checks that the iterations of the loop are consecutive, which means that the loop progresses linearly. The vectorizer also ensures that all of the memory and arithmetic operations in the loop can be widened into consecutive operations. That the control flow of the loop is uniform across all lanes and that the memory access patterns are uniform. The compiler has to check or ensure that the generated code won’t touch memory that it is not supposed to and that the order of operations will be preserved. The compiler needs to analyze the possible range of pointers, and if it has some missing information, it has to assume that the transformation is illegal.
+* **合法性检查**：在此阶段，编译器检查是否可以合法地将循环（或另一种类型的代码区域）转换为使用向量。合法性阶段收集需要发生的一系列要求，以使循环的向量化合法。循环向量化器检查循环的迭代是否连续，这意味着循环线性推进。向量化器还确保循环中的所有内存和算术操作都可以展宽为连续操作。循环的控制流在所有 lane 上是统一的，内存访问模式是统一的。编译器必须检查或确保生成的代码不会触及它不应该触及的内存，并且操作顺序将被保留。编译器需要分析指针的可能范围，如果它缺少某些信息，它必须假设转换是非法的。
 
-* **Profitability-check**: next, the vectorizer checks if a transformation is profitable. It compares different vectorization widths and figures out which one would be the fastest to execute. The vectorizer uses a cost model to predict the cost of different operations, such as scalar add or vector load. It needs to take into account the added instructions that shuffle data into registers, predict register pressure, and estimate the cost of the loop guards that ensure that preconditions that allow vectorizations are met. The algorithm for checking profitability is simple: 1) add up the cost of all of the operations in the code, 2) compare the costs of each version of the code, and 3) divide the cost by the expected execution count. For example, if the scalar code costs 8 cycles, and the vectorized code costs 12 cycles but performs 4 loop iterations at once, then the vectorized version of the loop is probably faster.
+* **盈利性检查**：接下来，向量化器检查转换是否盈利。它比较不同的向量化宽度，并找出哪个执行最快。向量化器使用成本模型来预测不同操作的成本，例如标量加法或向量加载。它需要考虑将数据混洗到寄存器中添加的指令，预测寄存器压力，并估计确保允许向量化的前提条件的循环保护的成本。检查盈利性的算法很简单：1）将代码中所有操作的成本相加，2）比较每个版本代码的成本，3）将成本除以预期执行次数。例如，如果标量代码成本为 8 个周期，而向量化代码成本为 12 个周期但一次执行 4 次循环迭代，那么循环的向量化版本可能更快。
 
-* **Transformation**: finally, after the vectorizer figures out that the transformation is legal and profitable, it transforms the code. This process also includes the insertion of guards that enable vectorization. For example, most loops use an unknown iteration count, so the compiler has to generate a scalar version of the loop (remainder), in addition to the vectorized version of the loop, to handle the last few iterations. The compiler also has to check if pointers don’t overlap, etc. All of these transformations are done using information that is collected during the legality check phase.
+* **转换**：最后，在向量化器确定转换是合法且盈利的之后，它转换代码。此过程还包括插入启用向量化的保护。例如，大多数循环使用未知的迭代次数，因此编译器必须生成循环的标量版本（余数），以及循环的向量化版本，以处理最后几次迭代。编译器还必须检查指针是否不重叠等。所有这些转换都使用在合法性检查阶段收集的信息完成。
 
-### Discovering Vectorization Opportunities. {#sec:DiscoverVectOpptnt}
+### 发现向量化机会。{#sec:DiscoverVectOpptnt}
 
-Discovering opportunities for improving vectorization should start by analyzing hot loops in the program and checking what optimizations were performed by the compiler. Checking compiler vectorization reports (see [@sec:compilerOptReports]) is the easiest way to know that. Modern compilers can report whether a certain loop was vectorized, and provide additional details, e.g., vectorization factor (VF). In the case when the compiler cannot vectorize a loop, it is also able to tell the reason why it failed. 
+发现改进向量化的机会应该从分析程序中的热循环开始，并检查编译器执行了哪些优化。检查编译器向量化报告（参见 [@sec:compilerOptReports]）是了解这一点的最简单方法。现代编译器可以报告某个循环是否被向量化，并提供其他详细信息，例如向量化因子（VF）。当编译器无法向量化循环时，它也能够说明失败的原因。
 
-An alternative way to use compiler optimization reports is to check assembly output. It is best to analyze the output from a profiling tool that shows the correspondence between the source code and generated assembly instructions for a given loop. That way you only focus on the code that matters, i.e., the hot code. However, understanding assembly language is much more difficult than a high-level language like C++. It may take some time to figure out the semantics of the instructions generated by the compiler. However, this skill is highly rewarding and often provides valuable insights. 
+使用编译器优化报告的另一种方法是检查汇编输出。最好分析来自分析工具的输出，该工具显示给定循环的源代码和生成的汇编指令之间的对应关系。这样，你只关注重要的代码，即热代码。然而，理解汇编语言比像 C++ 这样的高级语言要困难得多。可能需要一些时间来弄清楚编译器生成的指令的语义。然而，这项技能非常有价值，通常提供有价值的见解。
 
-Experienced developers can quickly tell whether the code was vectorized or not just by looking at instruction mnemonics and the register names used by those instructions. For example, in x86 ISA, vector instructions operate on packed data (thus have `P` in their name) and use `XMM`, `YMM`, or `ZMM` registers, e.g., `VMULPS XMM1, XMM2, XMM3` multiplies four single precision floats in `XMM2` and `XMM3` and saves the result in `XMM1`. But be careful, often people conclude from seeing the `XMM` register being used, that it is vector code---not necessarily. For instance, the `VMULSS XMM1, XMM2, XMM3` instruction will only multiply one single-precision floating-point value, not four.
+有经验的开发人员可以通过查看指令助记符和这些指令使用的寄存器名称来快速判断代码是否已被向量化。例如，在 x86 ISA 中，向量指令对打包数据进行操作（因此名称中有 `P`）并使用 `XMM`、`YMM` 或 `ZMM` 寄存器，例如，`VMULPS XMM1, XMM2, XMM3` 将 `XMM2` 和 `XMM3` 中的四个单精度浮点数相乘，并将结果保存在 `XMM1` 中。但要小心，人们通常从看到 `XMM` 寄存器被使用就得出结论它是向量代码——不一定。例如，`VMULSS XMM1, XMM2, XMM3` 指令将只乘以一个单精度浮点值，而不是四个。
 
-Another indicator for potential vectorization opportunities is a high `Retiring` metric (above 80%). In [@sec:TMA], we said that the `Retiring` metric is a good indicator of well-performing code. The rationale behind it is that execution is not stalled and a CPU is retiring instructions at a high rate. However, sometimes it may hide the real performance problem, that is, inefficient computations. Perhaps a workload executes a lot of simple instructions that can be replaced by vector instructions. In such situations, high `Retiring` metric doesn't translate into high performance.
+潜在向量化机会的另一个指标是高 `Retiring` 指标（高于 80%）。在 [@sec:TMA] 中，我们说过 `Retiring` 指标是性能良好代码的良好指标。其背后的原理是执行没有停顿，CPU 以高速率退休指令。然而，有时它可能隐藏真正的性能问题，即低效计算。也许工作负载执行大量可以被向量指令替换的简单指令。在这种情况下，高 `Retiring` 指标不会转化为高性能。
 
-There are a few common cases that developers frequently run into when trying to accelerate vectorizable code. Below we present four typical scenarios and give general guidance on how to proceed in each case.
+开发人员在尝试加速可向量化代码时经常遇到几种常见情况。下面我们介绍四种典型场景，并就每种情况给出一般性指导。
 
-#### Vectorization Is Illegal.
+#### 向量化是非法的。
 
-In some cases, the code that iterates over elements of an array is simply not vectorizable. Optimization reports are very effective at explaining what went wrong and why the compiler can’t vectorize the code. [@lst:VectDep] shows an example of dependence inside a loop that prevents vectorization.[^31]
-
-Listing: Vectorization: read-after-write dependence.
-
-~~~~ {#lst:VectDep .cpp}
-void vectorDependence(int *A, int n) {
-  for (int i = 1; i < n; i++)
-    A[i] = A[i-1] * 2;
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-While some loops cannot be vectorized due to the hard limitations (such as read-after-write dependence), others could be vectorized when certain constraints are relaxed. For example, the code in [@lst:VectIllegal] cannot be autovectorized by the compiler, because it will change the order of floating-point operations and may lead to different rounding and a slightly different result. Floating-point addition is commutative, which means that you can swap the left-hand side and the right-hand side without changing the result: `(a + b == b + a)`. However, it is not associative, because rounding happens at different times: `((a + b) + c) != (a + (b + c))`.
-
-Listing: Vectorization: floating-point arithmetic.
-
-~~~~ {#lst:VectIllegal .cpp .numberLines}
-// a.cpp
-float calcSum(float* a, unsigned N) {
-  float sum = 0.0f;
-  for (unsigned i = 0; i < N; i++) {
-    sum += a[i];
-  }
-  return sum;
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you tell the compiler that you can tolerate a bit of variation in the final result, it  will autovectorize the code for you. Clang and GCC compilers have a flag, `-ffast-math`,[^29] that allows this kind of transformation even though the resulting program may give slightly different results:
-
-```bash
-$ clang++ -c a.cpp -O3 -march=core-avx2 -Rpass-analysis=.*
-...
-a.cpp:5:9: remark: loop not vectorized: cannot prove it is safe to reorder floating-point operations; allow reordering by specifying '#pragma clang loop vectorize(enable)' before the loop or by providing the compiler option '-ffast-math'. [-Rpass-analysis=loop-vectorize]
-...
-$ clang++ -c a.cpp -O3 -march=core-avx2 -ffast-math -Rpass=.*
-...
-a.cpp:4:3: remark: vectorized loop (vectorization width: 4, interleaved count: 2) [-Rpass=loop-vectorize]
-...
-```
-
-Unfortunately, this flag involves subtle and potentially dangerous behavior changes, including for Not-a-Number, signed zero, infinity, and subnormals. Because third-party code may not be ready for these effects, this flag should not be enabled across large sections of code without careful validation of the results, including for edge cases. Since Clang 18, you can limit the scope of transformations by using dedicated pragmas, e.g., `#pragma clang fp reassociate(on)`.[^4]
-
-Let's look at another typical situation when a compiler may need support from a developer to perform vectorization. When compilers cannot prove that a loop operates on arrays with non-overlapping memory regions, they usually choose to be on the safe side. Given the code in [@lst:OverlappingMemRefions], compilers should account for the situation when the memory regions of arrays `a`, `b`, and `c` overlap.
-
-Listing: a.c
-
-~~~~ {#lst:OverlappingMemRefions .cpp .numberLines}
-void foo(float* a, float* b, float* c, unsigned N) {
-  for (unsigned i = 1; i < N; i++) {
-    c[i] = b[i];
-    a[i] = c[i-1];
-  }
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Here is the optimization report (enabled with `-fopt-info`) provided by GCC 10.2:
-
-```bash
-$ gcc -O3 -march=core-avx2 -fopt-info
-a.cpp:2:26: optimized: loop vectorized using 32-byte vectors
-a.cpp:2:26: optimized:  loop versioned for vectorization because of possible aliasing
-```
-
-GCC has recognized potential overlap between memory regions and created multiple versions of the loop. The compiler inserted runtime checks[^36] to detect if the memory regions overlap. Based on those checks, it dispatches between vectorized and scalar versions. In this case, vectorization comes with the cost of inserting potentially expensive runtime checks. If a developer knows that memory regions of arrays `a`, `b`, and `c` do not overlap, it can insert `#pragma GCC ivdep`[^37] right before the loop or use the `__restrict__  ` keyword as shown in [@sec:compilerOptReports]. Such compiler hints will eliminate the need for the GCC compiler to insert the runtime checks mentioned earlier.
-
-Some dynamic tools, such as Intel Advisor, can detect if issues like cross-iteration dependence or access to arrays with overlapping memory regions occur in a loop. But be aware that such tools only provide a suggestion. Carelessly inserting compiler hints can cause real problems.
-
-#### Vectorization Is Not Beneficial.
-
-In some cases, the compiler can vectorize the loop but decide that doing so is not profitable. In the code presented in [@lst:VectNotProfit], the compiler could vectorize the memory access to array `A` but would need to split the access to array `B` into multiple scalar loads. The scatter/gather pattern is relatively expensive, and compilers that can simulate the cost of operations often decide to avoid vectorizing code with such patterns. 
-
-Listing: Vectorization: not beneficial.
-
-~~~~ {#lst:VectNotProfit .cpp .numberLines}
-// a.cpp
-void stridedLoads(int *A, int *B, int n) {
-  for (int i = 0; i < n; i++)
-    A[i] += B[i * 3];
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Here is the compiler optimization report for the code in [@lst:VectNotProfit]: 
-
-```bash
-$ clang -c -O3 -march=core-avx2 a.cpp -Rpass-missed=loop-vectorize
-a.cpp:3:3: remark: the cost-model indicates that vectorization is not beneficial [-Rpass-missed=loop-vectorize]
-  for (int i = 0; i < n; i++)
-  ^
-```
-
-Users can force the Clang compiler to vectorize the loop by using the `#pragma` hint, as shown in [@lst:VectNotProfitOverriden]. However, keep in mind that whether vectorization is profitable largely depends on the runtime data, for example, the number of iterations of the loop. Compilers don't have this information available,[^1] so they often tend to be conservative. Though you can use such hints for performance experiments.
-
-Listing: Vectorization: not beneficial.
-
-~~~~ {#lst:VectNotProfitOverriden .cpp .numberLines}
-// a.cpp
-void stridedLoads(int *A, int *B, int n) {
-#pragma clang loop vectorize(enable)
-  for (int i = 0; i < n; i++)
-    A[i] += B[i * 3];
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Developers should be aware of the hidden cost of using vectorized code. Using AVX and especially AVX-512 vector instructions could lead to frequency downclocking or startup overhead, which on certain CPUs can also affect subsequent code for several microseconds. The vectorized portion of the code should be hot enough to justify using AVX-512.[^38] For example, sorting 80 KiB was found to be sufficient to amortize this overhead and make vectorization worthwhile.[^39]
-
-#### Loop Vectorized but Scalar Version Used.
-
-In some scenarios, the compiler successfully vectorizes the code, but it does not show up as being executed in the profiler. When inspecting the corresponding assembly of a loop, it is usually easy to find the vectorized version of the loop body because it uses vector registers, which are not commonly used in other parts of the program.
-
-If the vector code is not executed, one possible reason for this is that the generated code assumes loop trip counts that are higher than what the program uses. For example, a compiler may decide to vectorize and unroll the loop in such a way as to process 64 elements per iteration. An input array may not have enough elements even for a single iteration of the loop. In this case, the scalar version (remainder) of the loop will be used instead. It is easy to detect these cases because the scalar loop would light up in the profiler, and the vectorized code would remain cold. 
-
-The solution to this problem is to force the vectorizer to use a lower vectorization factor or unroll count, to reduce the number of elements that the loop processes. You can achieve that with the help of `#pragma` hints. For the Clang compiler, you can use `#pragma clang loop vectorize_width(N)` as shown in the article on the Easyperf blog.[^30]
-
-#### Loop Vectorized in a Suboptimal Way.
-
-When you see a loop being autovectorized and executed at runtime, there is a high chance that this part of the program already performs well. However, there are exceptions. There are situations when the scalar un-vectorized version of a loop performs better than the vectorized one. This could happen due to expensive vector operations like `gather/scatter` loads, masking, `inserting/extracting` elements, data shuffling, etc., if the compiler is required to use them to make vectorization happen. Performance engineers could also try to disable vectorization in different ways. For the Clang compiler, it can be done via compiler options `-fno-vectorize` and `-fno-slp-vectorize`, or with a hint specific to a particular loop, e.g., `#pragma clang loop vectorize(disable)`.
-
-It is important to note that there is a range of problems where SIMD is important and where autovectorization just does not work and is not likely to work in the near future. One example can be found in [@Mula_Lemire_2019]. Another example is outer loop autovectorization, which is not currently attempted by compilers. Vectorizing floating-point code is problematic because reordering arithmetic floating-point operations results in different rounding and slightly different values.
-
-There is one more subtle problem with autovectorization. As compilers evolve, optimizations that they make are changing. The successful autovectorization of code that was done in the previous compiler version may stop working in the next version, or vice versa. Also, during code maintenance or refactoring, the structure of the code may change, such that autovectorization suddenly starts failing. This may occur long after the original software was written, so it would be more expensive to fix or redo the implementation at this point.
-
-#### Languages with Explicit Vectorization. {#sec:ISPC}
-
-Vectorization can also be achieved by rewriting parts of a program in a programming language that is dedicated to parallel computing. Those languages use special constructs and knowledge of the program's data to compile the code efficiently into parallel programs. Originally such languages were mainly used to offload work to specific processing units such as graphics processing units (GPU), digital signal processors (DSP), or field-programmable gate arrays (FPGAs). However, some of those programming models can also target your CPU (such as OpenCL and OpenMP).
-
-One such parallel language is Intel® Implicit SPMD Program Compiler [(ISPC)](https://ispc.github.io/),[^33] which I will briefly cover in this section. The ISPC language is based on the C programming language and uses the LLVM compiler infrastructure to generate optimized code for many different architectures. The key feature of ISPC is the "close to the metal" programming model and performance portability across SIMD architectures. It requires a shift from the traditional thinking of writing programs but gives programmers more control over CPU resource utilization.
-
-Another advantage of ISPC is its interoperability and ease of use. ISPC compiler generates standard object files that can be linked with the code generated by conventional C/C++ compilers. ISPC code can be easily plugged into any native project since functions written with ISPC can be called as if it was C code.
-
-[@lst:ISPC_code] shows an ISPC version of a function that I presented earlier in [@lst:VectIllegal]. ISPC considers that the program will run in parallel instances, based on the target instruction set. For example, when using SSE with `float`s, it can compute 4 operations in parallel. Each program instance would operate on vector values of `i` being `(0,1,2,3)`, then `(4,5,6,7)`, and so on, effectively computing 4 sums at a time. As you can see, a few keywords not typical for C and C++ are used:
-
-* The `export` keyword means that the function can be called from a C-compatible language.
-
-* The `uniform` keyword means that a variable is shared between program instances.
-
-* The `varying` keyword means that each program instance has its own local copy of the variable.
-
-* The `foreach` is the same as a classic `for` loop except that it will distribute the work across the different program instances. 
-
-Listing: ISPC version of summing elements of an array.
-
-~~~~ {#lst:ISPC_code .cpp}
-export uniform float calcSum(const uniform float array[], 
-                             uniform ptrdiff_t count)
-{
-    varying float sum = 0;
-    foreach (i = 0 ... count)
-        sum += array[i];
-    return reduce_add(sum);
-}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Since the function `calcSum` must return a single value (a `uniform` variable) and our `sum` variable is `varying`, we then need to *gather* the values of each program instance using the `reduce_add` function. ISPC also takes care of generating peeled and remainder loops as needed to take into account the data that is not correctly aligned or that is not a multiple of the vector width. 
-
-**"Close to the metal" programming model**: one of the problems with traditional C and C++ languages is that the compiler doesn't always vectorize critical parts of code. ISPC helps to resolve this problem by assuming every operation is SIMD by default. For example, the ISPC statement `sum += array[i]` is implicitly considered as a SIMD operation that makes multiple additions in parallel. ISPC is not an autovectorizing compiler, and it does not automatically discover vectorization opportunities. Since the ISPC language is very similar to C and C++, it is more readable than intrinsics (see [@sec:secIntrinsics]) as it allows you to focus on the algorithm rather than the low-level instructions. Also, it has reportedly matched [@ISPC_Paper] or beaten[^34] hand-written intrinsics code in terms of performance.
-
-**Performance portability**: ISPC can automatically detect features of your CPU to fully utilize all the resources available. Programmers can write ISPC code once and compile to many vector instruction sets, such as SSE4, AVX2, and ARM NEON.
-
-[^1]: Besides Profile Guided Optimizations (see [@sec:secPGO]).
-[^2]: For example, compiler optimization reports, see [@sec:compilerOptReports].
-[^29]: The compiler flag `-Ofast` enables `-ffast-math` as well as the `-O3` compilation mode.
-[^30]: Using Clang's optimization pragmas - [https://easyperf.net/blog/2017/11/09/Multiversioning_by_trip_counts](https://easyperf.net/blog/2017/11/09/Multiversioning_by_trip_counts)
-[^31]: It is easy to spot a read-after-write dependency once you unroll a couple of iterations of the loop. See the example in [@sec:compilerOptReports].
-[^33]: ISPC compiler: [https://ispc.github.io/](https://ispc.github.io/).
-[^34]: Some parts of the Unreal Engine that used SIMD intrinsics were rewritten using ISPC, which gave speedups: [https://software.intel.com/content/www/us/en/develop/articles/unreal-engines-new-chaos-physics-system-screams-with-in-depth-intel-cpu-optimizations.html](https://software.intel.com/content/www/us/en/develop/articles/unreal-engines-new-chaos-physics-system-screams-with-in-depth-intel-cpu-optimizations.html).
-[^36]: See the example on the Easyperf blog: [https://easyperf.net/blog/2017/11/03/Multiversioning_by_DD](https://easyperf.net/blog/2017/11/03/Multiversioning_by_DD).
-[^37]: It is a GCC-specific pragma. For other compilers, check the corresponding manuals.
-[^38]: For more details read this blog post: [https://travisdowns.github.io/blog/2020/01/17/avxfreq1.html](https://travisdowns.github.io/blog/2020/01/17/avxfreq1.html).
-[^39]: Study of AVX-512 downclocking: in [VQSort readme](https://github.com/google/highway/blob/master/hwy/contrib/sort/README.md#study-of-avx-512-downclocking)
-[^4]: LLVM extensions to specify floating-point flags - [https://clang.llvm.org/docs/LanguageExtensions.html#extensions-to-specify-floating-point-flags](https://clang.llvm.org/docs/LanguageExtensions.html#extensions-to-specify-floating-point-flags)
+在某些情况下，遍历数组元素的代码根本不可向量化。优化报告非常有效地解释了出了什么问题以及为什么编译器无法向量化代码。[@lst:VectDep] 显示了阻止向量化的循环内依赖的示例。[^31]
