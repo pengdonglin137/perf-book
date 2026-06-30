@@ -1,23 +1,23 @@
-# Optimizing Branch Prediction {#sec:ChapterBadSpec}
+# 优化分支预测 {#sec:ChapterBadSpec}
 
-So far we've been talking about optimizing memory accesses and computations. However, we haven't discussed another important category of performance bottlenecks yet. It is related to speculative execution, a feature that is present in all modern high-performance CPU cores. To refresh your memory, turn to [@sec:SpeculativeExec] where we discussed how speculative execution can be used to improve performance. In this chapter, we will explore techniques to reduce the number of branch mispredictions.
+到目前为止，我们一直在讨论优化内存访问和计算。然而，我们还没有讨论另一类重要的性能瓶颈。它与推测执行有关，推测执行是所有现代高性能 CPU 核心中都存在的特性。为了刷新你的记忆，请参阅 [@sec:SpeculativeExec]，我们在其中讨论了如何使用推测执行来提高性能。在本章中，我们将探索减少分支预测错误数量的技术。
 
-In general, modern processors are very good at predicting branch outcomes. They not only follow static prediction rules but also detect dynamic patterns. Usually, branch predictors save the history of previous outcomes for the branches and try to guess what the next result will be. However, when the pattern becomes hard for the CPU branch predictor to follow, it may hurt performance.
+通常，现代处理器非常擅长预测分支结果。它们不仅遵循静态预测规则，还检测动态模式。通常，分支预测器保存先前结果的历史记录，并尝试猜测下一个结果是什么。但是，当模式变得难以遵循 CPU 分支预测器时，它可能会损害性能。
 
-Mispredicting a branch can add a significant penalty when it happens regularly. When such an event occurs, a CPU is required to clear all the speculative work that was done ahead of time and later was proven to be wrong. It also needs to flush the pipeline and start filling it with instructions from the correct path. Typically, modern CPUs experience a 10- to 25-cycle penalty as a result of a branch misprediction. The exact number of cycles depends on the microarchitecture design, namely, on the depth of the pipeline and the mechanism used to recover from a mispredict.
+当分支预测错误定期发生时，它可能会带来显著的惩罚。当发生此类事件时，CPU 需要清除所有先前完成的推测工作，这些工作后来被证明是错误的。它还需要刷新流水线并开始用正确路径的指令填充它。通常，现代 CPU 因分支预测错误而经历 10 到 25 个周期的惩罚。确切的周期数取决于微架构设计，即流水线的深度和用于从预测错误中恢复的机制。
 
-Perhaps the most frequent reason for a branch misprediction is simply because it has a complicated outcome pattern (e.g., exhibits pseudorandom behavior), which is unpredictable for a processor. For completeness, let's cover the other less frequent reasons behind branch mispredicts. Branch predictors use caches and history registers and therefore are susceptible to the issues related to caches, namely:
+分支预测错误最频繁的原因可能是因为它具有复杂的模式（例如，表现出伪随机行为），这对处理器来说是不可预测的。为了完整起见，让我们介绍分支预测错误背后的其他不太频繁的原因。分支预测器使用缓存和历史寄存器，因此容易出现与缓存相关的问题，即：
 
-- **Cold misses**: mispredictions may happen on the first dynamic occurrence of the branch when no dynamic history is available and static prediction is employed.
-- **Capacity misses**: mispredictions arising from the loss of dynamic history due to a very high number of branches in the program or exceedingly long dynamic pattern.
-- **Conflict misses**: branches are mapped into cache buckets (associative sets) using a combination of their virtual and/or physical addresses. If too many active branches are mapped to the same set, the loss of history can occur. Another instance of a conflict miss is aliasing when two independent branches are mapped to the same cache entry and interfere with each other potentially degrading the prediction history.
+- **冷未命中**：当没有动态历史记录可用且使用静态预测时，分支的第一次动态发生时可能会发生预测错误。
+- **容量未命中**：由于程序中分支数量非常多或动态模式过长而导致动态历史丢失而产生的预测错误。
+- **冲突未命中**：分支使用其虚拟和/或物理地址的组合映射到缓存桶（关联集）。如果太多活动分支映射到同一集合，则可能发生历史丢失。冲突未命中的另一个实例是别名，当两个独立分支映射到同一缓存条目并可能相互干扰从而降低预测历史时。
 
-A program will always experience a non-zero number of branch mispredictions. You can find out how much a program suffers from branch mispredictions by looking at the TMA `Bad Speculation` metric. It is normal for a general-purpose application to have a `Bad Speculation` metric in the range of 5--10\%. My recommendation is to pay close attention once this metric goes higher than 10\%.
+程序将始终经历非零数量的分支预测错误。你可以通过查看 TMA `Bad Speculation` 指标来了解程序因分支预测错误而遭受多少损失。对于通用应用程序，`Bad Speculation` 指标在 5-10% 范围内是正常的。我的建议是，一旦该指标超过 10%，就要密切关注。
 
-In the past, developers had an option of providing a prediction hint to an x86 processor in the form of a prefix to the branch instruction (`0x2E: Branch Not Taken`, `0x3E: Branch Taken`). This could potentially improve performance on older microarchitectures, like Pentium 4. However, modern x86 processors used to ignore those hints until Intel's RedwoodCove started using it again. Its branch predictor is still good at finding dynamic patterns, but now it will use the encoded prediction hint for branches that have never been seen before (i.e. when there is no stored information about a branch). [@IntelOptimizationManual, Section 2.1.1.1 Branch Hint]
+过去，开发人员有一种选项可以通过分支指令前缀的形式向 x86 处理器提供预测提示（`0x2E: Branch Not Taken`、`0x3E: Branch Taken`）。这可能会在较旧的微架构（如 Pentium 4）上提高性能。但是，现代 x86 处理器过去忽略这些提示，直到 Intel 的 RedwoodCove 开始再次使用它。它的分支预测器仍然擅长寻找动态模式，但现在它将使用编码的预测提示来处理以前从未见过的分支（即当没有关于分支的存储信息时）。[@IntelOptimizationManual, Section 2.1.1.1 Branch Hint]
 
-There are indirect ways to reduce the branch misprediction rate by reducing the dynamic number of branch instructions. This approach helps because it alleviates the pressure on branch predictor structures. When a program executes fewer branch instructions, it may indirectly improve the prediction of branches that previously suffered from capacity and conflict misses. Compiler transformations such as loop unrolling and vectorization help reduce the dynamic branch count, though they don't specifically aim to improve the prediction rate of any given conditional statement. Profile-Guided Optimizations (PGO) and post-link optimizers (e.g., BOLT) are also effective at reducing branch mispredictions thanks to improving the fallthrough rate (straightening the code). We will discuss those techniques in the next chapter.[^1]
+有间接的方法可以通过减少动态分支指令数量来降低分支预测错误率。这种方法有帮助，因为它减轻了分支预测器结构的压力。当程序执行较少的分支指令时，它可能会间接改善以前遭受容量和冲突未命中的分支的预测。编译器转换（如循环展开和向量化）有助于减少动态分支计数，尽管它们并不专门针对改善任何给定条件语句的预测率。配置文件引导优化（PGO）和链接后优化器（例如 BOLT）也通过改善直通率（拉直代码）来有效减少分支预测错误。我们将在下一章讨论这些技术。[^1]
 
-The only direct way to get rid of branch mispredictions is to get rid of the branch instruction itself. In subsequent sections, we will take a look at both direct and indirect ways to improve branch prediction. In particular, we will explore the following techniques: replacing branches with lookup tables, arithmetic, selection, and SIMD instructions.
+消除分支预测错误的唯一直接方法是消除分支指令本身。在接下来的章节中，我们将研究改善分支预测的直接和间接方法。特别是，我们将探索以下技术：用查找表替换分支、算术、选择和 SIMD 指令。
 
-[^1]: There is a conventional wisdom that never-taken branches are transparent to the branch prediction and can't affect performance, and therefore it doesn't make much sense to remove them, at least from a prediction perspective. However, contrary to the wisdom, an experiment conducted by authors of BOLT optimizer demonstrated that replacing never-taken branches with equal-sized no-ops in a large code footprint application, such as Clang C++ compiler, leads to approximately 5\% speedup on modern Intel CPUs. So it still pays to try to eliminate all branches.
+[^1]: 有一个传统观点认为永远不会采取的分支对分支预测是透明的，不会影响性能，因此从预测的角度来看，删除它们没有太大意义。然而，与这种观点相反，BOLT 优化器的作者进行的一项实验表明，在大型代码占用应用程序（如 Clang C++ 编译器）中，用等大小的空操作替换永远不会采取的分支，在现代 Intel CPU 上可带来约 5% 的加速。因此，尝试消除所有分支仍然是值得的。
