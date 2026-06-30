@@ -1,36 +1,36 @@
-## Function Splitting 
+## 函数分割
 
-The idea behind function splitting is to separate the hot code from the cold. Such transformation is also often called *function outlining*. This optimization is beneficial for relatively big functions with a complex control flow graph and large chunks of cold code inside a hot path. An example of code when such transformation might be profitable is shown in [@lst:FunctionSplitting1]. To remove cold basic blocks from the hot path, we cut and paste them into a new function and create a call to it.
+函数分割背后的思想是将热代码与冷代码分离。这种转换通常也称为*函数轮廓化*。这种优化对于具有复杂控制流图和热路径中大块冷代码的相对较大的函数是有益的。[@lst:FunctionSplitting1] 中显示了这种转换可能有益的代码示例。为了从热路径中移除冷基本块，我们剪切并将它们粘贴到一个新函数中，并创建对它的调用。
 
-Listing: Function splitting: cold code outlined to the new functions.
+清单：函数分割：冷代码轮廓化到新函数。
 
 ~~~~ {#lst:FunctionSplitting1 .cpp}
 void foo(bool cond1,                void foo(bool cond1,
          bool cond2) {                       bool cond2) {
-  // hot path                         // hot path
+  // 热路径                         // 热路径
   if (cond1) {                        if (cond1) {
-    /* cold code (1) */                 cold1(); 
+    /* 冷代码 (1) */                 cold1(); 
   }                                   }
-  // hot path                         // hot path
+  // 热路径                         // 热路径
   if (cond2) {              =>        if (cond2) {
-    /* cold code (2) */                 cold2(); 
+    /* 冷代码 (2) */                 cold2(); 
   }                                   }
 }                                   }
                                     void cold1() __attribute__((noinline)) 
-                                    { /* cold code (1) */ }
+                                    { /* 冷代码 (1) */ }
                                     void cold2() __attribute__((noinline))
-                                    { /* cold code (2) */ }
+                                    { /* 冷代码 (2) */ }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Notice, that we disable the inlining of cold functions by using the `noinline` attribute. Because without it, a compiler may decide to inline it, which will effectively undo our transformation. Alternatively, we could apply the `[[unlikely]]` macro (see [@sec:secLIKELY]) on both `cond1` and `cond2` branches to convey to the compiler that inlining `cold1` and `cold2` functions is not desired.
+注意，我们通过使用 `noinline` 属性禁用了冷函数的内联。因为如果没有它，编译器可能会决定内联它，这将有效地撤销我们的转换。或者，我们可以在 `cond1` 和 `cond2` 分支上应用 `[[unlikely]]` 宏（参见 [@sec:secLIKELY]），以向编译器传达不希望内联 `cold1` 和 `cold2` 函数。
 
 <div id="fig:FunctionSplitting">
-![default layout](../../img/cpu_fe_opts/FunctionSplitting_Default.png){#fig:FuncSplit_default width=50%}
-![improved layout](../../img/cpu_fe_opts/FunctionSplitting_Improved.png){#fig:FuncSplit_better width=50%}
+![默认布局](../../img/cpu_fe_opts/FunctionSplitting_Default.png){#fig:FuncSplit_default width=50%}
+![改进布局](../../img/cpu_fe_opts/FunctionSplitting_Improved.png){#fig:FuncSplit_better width=50%}
 
-Splitting cold code into a separate function.
+将冷代码分割到单独的函数中。
 </div>
 
-Figure @fig:FunctionSplitting gives a graphical representation of this transformation. In the improved layout, we left just a `CALL` instruction inside the hot path, the next hot instruction will likely reside in the same cache line as the previous one. This improves the utilization of CPU Frontend data structures such as I-cache and $\mu$op-cache.
+图 @fig:FunctionSplitting 给出了此转换的图形表示。在改进的布局中，我们在热路径中只保留了一个 `CALL` 指令，下一个热指令很可能与前一个位于同一缓存行中。这改善了 CPU 前端数据结构（如 I-cache 和 $\mu$op-cache）的利用率。
 
-Outlined functions should be created outside of the `.text` segment, for example in `.text.cold`. This improves memory footprint if the function is never called since it won't be loaded into memory at runtime.
+轮廓化函数应该创建在 `.text` 段之外，例如在 `.text.cold` 中。如果函数从未被调用，这可以改善内存占用，因为它不会在运行时加载到内存中。
