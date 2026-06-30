@@ -1,0 +1,30 @@
+# perf-book 翻译项目配置
+# 由 translate-engine 自动生成
+
+project:
+  name: "perf-book"
+  title: "Performance Analysis and Tuning on Modern CPUs"
+  title_translated: "现代 CPU 性能分析与调优"
+  author: "Denis Bakhvalov"
+  license: "CC0-1.0"
+  version: "2nd Edition"
+
+source:
+  type: markdown
+  upstream: "git@github.com:dendibakh/perf-book.git"
+  branch: main
+  sync_strategy: submodule
+
+translation:
+  target_language: zh-CN
+
+domains:
+  - technical
+
+terminology:
+  file: terms.yaml
+  auto_check: true
+
+build:
+  command: ""
+  targets: [pdf]

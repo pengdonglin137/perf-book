@@ -1,21 +1,21 @@
-# Introduction {#sec:chapter1}
+# 引言 {#sec:chapter1}
 
-Performance is king: this was true a decade ago, and it certainly is now. According to [@Domo2017], in 2017 the world has been creating 2.5 quintillion[^1] bytes of data every day. [@Statista2024] predicts that number to reach 400 quintillion bytes per day in 2024. In our increasingly data-centric world, the growth of information exchange requires both faster software and faster hardware.
+性能为王：这在十年前是正确的，现在更是如此。根据 [@Domo2017] 的数据，2017 年全球每天产生 250 亿亿[^1] 字节的数据。[@Statista2024] 预测到 2024 年这个数字将达到每天 4000 亿亿字节。在这个日益数据驱动的世界中，信息交换的增长既需要更快的软件，也需要更快的硬件。
 
-Software programmers have had an "easy ride" for decades, thanks to Moore’s law. Software vendors could rely on new generations of hardware to speed up their software products, even if they did not spend human resources on making improvements in their code. This strategy doesn't work any longer. By looking at Figure @fig:50YearsProcessorTrend, we can see that single-threaded[^2] performance growth is slowing down. From 1990 to 2000, single-threaded performance on SPECint benchmarks increased by a factor of approximately 25 to 30, driven largely by higher CPU frequencies and improved microarchitecture.
+软件程序员几十年来一直享有"轻松时光"，这要归功于摩尔定律。软件供应商可以依赖新一代硬件来加速他们的软件产品，即使他们不投入人力来改进代码。这种策略不再有效。从图 @fig:50YearsProcessorTrend 可以看出，单线程[^2] 性能增长正在放缓。从 1990 年到 2000 年，SPECint 基准测试中的单线程性能增长了大约 25 到 30 倍，主要由更高的 CPU 频率和改进的微架构驱动。
 
-![50 Years of Microprocessor Trend Data. *© Image by K. Rupp via karlrupp.net*. Original data up to the year 2010 was collected and plotted by M. Horowitz, F. Labonte, O. Shacham, K. Olukotun, L. Hammond, and C. Batten. New plot and data collected for 2010-2021 by K. Rupp.](../../img/intro/50-years-processor-trend.png){#fig:50YearsProcessorTrend width=100%}
+![50 年微处理器趋势数据。*© 图片由 K. Rupp 通过 karlrupp.net 提供*。2010 年之前的原始数据由 M. Horowitz、F. Labonte、O. Shacham、K. Olukotun、L. Hammond 和 C. Batten 收集和绘制。2010-2021 年的新数据由 K. Rupp 收集。](../../img/intro/50-years-processor-trend.png){#fig:50YearsProcessorTrend width=100%}
 
-Single-threaded CPU performance growth was more modest from 2000 to 2010 (a factor between four and five). At that time, clock speeds topped out around 4GHz due to power consumption, heat dissipation challenges, limitations in voltage scaling (Dennard Scaling[^3]), and other fundamental problems. Despite clock speed stagnation, architectural advancements continued: better branch prediction, deeper pipelines, larger caches, and more efficient execution units.
+2000 年到 2010 年间，单线程 CPU 性能增长更为温和（大约 4 到 5 倍）。当时，由于功耗、散热挑战、电压缩放限制（登纳德缩放[^3]）和其他基本问题，时钟频率在 4GHz 左右达到顶峰。尽管时钟频率停滞不前，架构改进仍在继续：更好的分支预测、更深的流水线、更大的缓存和更高效的执行单元。
 
-From 2010 to 2020, single-threaded performance grew only by a factor between two and three. During this period, CPU manufacturers began to focus more on multi-core processors and parallelism rather than solely increasing single-threaded performance.
+从 2010 年到 2020 年，单线程性能仅增长了 2 到 3 倍。在此期间，CPU 制造商开始更多地关注多核处理器和并行性，而不仅仅是提高单线程性能。
 
-Transistor counts continue to increase in modern processors. For instance, the number of transistors in Apple chips grew from 16 billion in M1 to 20 billion in M2, to 25 billion in M3, to 28 billion in M4 in a span of roughly four years. The growth in transistor count enables manufacturers to add more cores to a processor. As of 2024, you can buy a high-end server processor that will have more than 100 logical cores on a single CPU socket. This is very impressive. Unfortunately, it doesn't always translate into better performance. Very often, application performance doesn't scale with extra CPU cores.
+现代处理器中的晶体管数量继续增加。例如，苹果芯片中的晶体管数量在大约四年的时间里从 M1 的 160 亿增长到 M2 的 200 亿，再到 M3 的 250 亿，最后到 M4 的 280 亿。晶体管数量的增长使制造商能够在处理器中添加更多核心。截至 2024 年，你可以购买一个在单个 CPU 插槽上拥有超过 100 个逻辑核心的高端服务器处理器。这非常令人印象深刻。不幸的是，这并不总是转化为更好的性能。通常，应用程序性能不会随着额外的 CPU 核心而扩展。
 
-As it's no longer the case that each hardware generation provides a significant performance boost, we must start paying more attention to how fast our code runs. When seeking ways to improve performance, developers should not rely on hardware. Instead, they should start optimizing the code of their applications.
+由于硬件每一代不再提供显著的性能提升，我们必须开始更加关注代码运行的速度。在寻求提高性能的方法时，开发者不应该依赖硬件。相反，他们应该开始优化应用程序的代码。
 
-> “Software today is massively inefficient; it’s become prime time again for software programmers to get really good at optimization.” - Marc Andreessen, the US entrepreneur and investor (a16z Podcast)
+> "今天的软件效率极低；软件程序员重新进入优化的最佳时机。" - Marc Andreessen，美国企业家和投资者（a16z 播客）
 
-[^1]: A quintillion is a thousand raised to the power of six (10^18^).
-[^2]: Single-threaded performance is the performance of a single hardware thread inside a CPU core when measured in isolation.
-[^3]: Dennard Scaling - [https://en.wikipedia.org/wiki/Dennard_scaling](https://en.wikipedia.org/wiki/Dennard_scaling)
+[^1]: 亿亿是 10 的 18 次方（10^18^）。
+[^2]: 单线程性能是 CPU 核心中单个硬件线程在隔离测量时的性能。
+[^3]: 登纳德缩放 - [https://en.wikipedia.org/wiki/Dennard_scaling](https://en.wikipedia.org/wiki/Dennard_scaling)
