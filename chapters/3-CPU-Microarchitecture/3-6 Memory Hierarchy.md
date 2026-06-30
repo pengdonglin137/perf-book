@@ -1,153 +1,59 @@
-## Memory Hierarchy {#sec:MemHierar}
+## 内存层次结构 {#sec:MemHierar}
 
-To effectively utilize all the hardware resources provisioned in a CPU, the machine needs to be fed with the right data at the right time. Failing to do so requires fetching a variable from the main memory, which takes around 100 ns. From a CPU perspective, it is a very long time. Understanding the memory hierarchy is critically important to delivering the performance capabilities of a CPU. Most programs exhibit the property of locality: they don’t access all code or data uniformly. A CPU memory hierarchy is built on two fundamental properties:
+为了有效利用 CPU 中配置的所有硬件资源，机器需要在正确的时间获得正确的数据。未能做到这一点需要从主内存获取变量，这大约需要 100 纳秒。从 CPU 的角度来看，这是很长的时间。理解内存层次结构对于提供 CPU 的性能能力至关重要。大多数程序都表现出局部性：它们不均匀地访问所有代码或数据。CPU 内存层次结构建立在两个基本属性之上：
 
-* **Temporal locality**: when a given memory location is accessed, the same location will likely be accessed again soon. Ideally, we want this information to be in the cache next time we need it.
-* **Spatial locality**: when a given memory location is accessed, nearby locations will likely be accessed soon. This refers to placing related data close to each other. When a program reads a single byte from memory, typically, a larger chunk of memory (a cache line) is fetched because very often, the program will require that data soon.
+* **时间局部性**：当访问给定内存位置时，同一位置可能很快会被再次访问。理想情况下，我们希望下次需要此信息时它在缓存中。
+* **空间局部性**：当访问给定内存位置时，附近的位置可能很快会被访问。这指的是将相关数据放在一起。当程序从内存读取单个字节时，通常会获取更大的内存块（缓存行），因为程序很可能很快需要该数据。
 
-This section provides a summary of the key attributes of memory hierarchy systems supported on modern CPUs.
+本节概述了现代 CPU 支持的内存层次结构系统的关键属性。
 
-### Cache Hierarchy {#sec:CacheHierarchy}
+### 缓存层次结构 {#sec:CacheHierarchy}
 
-A cache is the first level of the memory hierarchy for any request (for code or data) issued from the CPU pipeline. Ideally, the pipeline performs best with an infinite cache with the smallest access latency. In reality, the access time for any cache increases as a function of the size. Therefore, the cache is organized as a hierarchy of small, fast storage blocks closest to the execution units, backed up by larger, slower blocks. A particular level of the cache hierarchy can be used exclusively for code (instruction cache, I-cache) or for data (data cache, D-cache), or shared between code and data (unified cache). Furthermore, some levels of the hierarchy can be private to a particular core, while other levels can be shared among cores.
+缓存是 CPU 流水线发出的任何请求（代码或数据）的内存层次结构的第一级。理想情况下，流水线在具有最小访问延迟的无限缓存中表现最佳。实际上，任何缓存的访问时间都会随着大小的增加而增加。因此，缓存被组织为层次结构，由最接近执行单元的小而快速的存储块组成，由更大、更慢的块备份。缓存层次结构的特定级别可以专门用于代码（指令缓存，I-cache）或数据（数据缓存，D-cache），或在代码和数据之间共享（统一缓存）。此外，层次结构的某些级别可以是特定核心私有的，而其他级别可以在核心之间共享。
 
-Caches are organized as blocks with a defined size, also known as *cache lines*. The typical cache line size in modern CPUs is 64 bytes. However, the notable exception here is the L2 cache in Apple processors (such as M1, M2, and later), which operates on 128B cache lines. Caches closest to the execution pipeline typically range in size from 32 KB to 128 KB. Mid-level caches tend to have 1MB and above. Last-level caches in modern CPUs can be tens or even hundreds of megabytes.
+缓存被组织为具有定义大小的块，也称为*缓存行*。现代 CPU 中典型的缓存行大小为 64 字节。然而，这里值得注意的例外是 Apple 处理器（如 M1、M2 及更高版本）中的 L2 缓存，它在 128B 缓存行上运行。最接近执行流水线的缓存大小通常范围从 32 KB 到 128 KB。中级缓存倾向于具有 1MB 及以上。现代 CPU 中的最后一级缓存可以是数十甚至数百兆字节。
 
-#### Placement of Data within the Cache.
+#### 数据在缓存中的放置
 
-The address for a request is used to access the cache. In *direct-mapped* caches, a given block address can appear only in one location in the cache and is defined by a mapping function shown below. Dirrect-mapped caches are relatively easy to build and have fast access time, however, they have a high miss rate.
+请求的地址用于访问缓存。在*直接映射*缓存中，给定的块地址只能出现在缓存中的一个位置，由下面显示的映射函数定义。直接映射缓存相对容易构建且访问时间快，但它们具有高未命中率。
 $$
-\textrm{Number of Blocks in the Cache} = \frac{\textrm{Cache Size}}{\textrm{Cache Block Size}}
-$$
-$$
-\textrm{Direct mapped location} = \textrm{(block address)  mod  (Number of Blocks in the Cache )}
-$$
-
-In a *fully associative* cache, a given block can be placed in any location in the cache. This approach involves high hardware complexity and slow access time, thus considered impractical for most use cases.
-
-An intermediate option between direct mapping and fully associative mapping is a *set-associative* mapping. In such a cache, the blocks are organized as sets, typically each set containing 2, 4, 8, or 16 blocks. A given address is first mapped to a set. Within a set, the address can be placed anywhere, among the blocks in that set. A cache with m blocks per set is described as an m-way set-associative cache. The formulas for a set-associative cache are:
-$$
-\textrm{Number of Sets in the Cache} = \frac{\textrm{Number of Blocks in the Cache}}{\textrm{Number of Blocks per Set (associativity)}}
+\textrm{缓存中的块数} = \frac{\textrm{缓存大小}}{\textrm{缓存块大小}}
 $$
 $$
-\textrm{Set (m-way) associative location} = \textrm{(block address)  mod  (Number of Sets in the Cache)}
+\textrm{直接映射位置} = \textrm{(块地址) mod (缓存中的块数)}
 $$
 
-Consider an example of an L1 cache, whose size is 32 KB with 64 bytes cache lines, 64 sets, and 8 ways. The total number of cache lines in such a cache is `32 KB / 64 bytes = 512 lines`. A new line can only be inserted in its appropriate set (one of the 64 sets). Once the set is determined, a new line can go to one of the 8 ways in this set. Similarly, when you later search for this cache line, you determine the set first, and then you only need to examine up to 8 ways in the set.
+在*全相联*缓存中，给定的块可以放在缓存中的任何位置。这种方法涉及高硬件复杂性和慢访问时间，因此被认为不适用于大多数用例。
 
-Here is another example of the cache organization of the Apple M1 processor. The L1 data cache inside each performance core can store 128 KB, has 256 sets with 8 ways in each set, and operates on 64-byte lines. Performance cores form a cluster and share the L2 cache, which can keep 12 MB, is 12-way set-associative, and operates on 128-byte lines. [@AppleOptimizationGuide]
-
-#### Finding Data in the Cache.
-
-Every block in the m-way set-associative cache has an address tag associated with it. In addition, the tag also contains state bits such as a bit to indicate whether the data is valid. Tags can also contain additional bits to indicate access information, sharing information, etc.
-
-![Address organization for cache lookup.](../../img/uarch/CacheLookup.png){#fig:CacheLookup width=90%}
-
-Figure @fig:CacheLookup shows how the address generated from the pipeline is used to check the caches. The lowest order address bits define the offset within a given block; the block offset bits (5 bits for 32-byte cache lines, 6 bits for 64-byte cache lines). The set is selected using the index bits based on the formulas described above. Once the set is selected, the tag bits are used to compare against all the tags in that set. If one of the tags matches the tag of the incoming request and the valid bit is set, a cache hit results. The data associated with that block entry (read out of the data array of the cache in parallel to the tag lookup) is provided to the execution pipeline. A cache miss occurs in cases where the tag is not a match.
-
-#### Managing Misses.
-
-When a cache miss occurs, the cache controller must select a block in the cache to be replaced to allocate the address that incurred the miss. For a direct-mapped cache, since the new address can be allocated only in a single location, the previous entry mapping to that location is deallocated, and the new entry is installed in its place. In a set-associative cache, since the new cache block can be placed in any of the blocks of the set, a replacement algorithm is required. The typical replacement algorithm used is the LRU (least recently used) policy, where the block that was least recently accessed is evicted to make room for the new data. Another alternative is to randomly select one of the blocks as the victim block.
-
-#### Managing Writes.
-
-Write accesses to caches are less frequent than data reads. Handling writes in caches is harder, and CPU implementations use various techniques to handle this complexity. Software developers should pay special attention to the various write caching flows supported by the hardware to ensure the best performance of their code.
-
-CPU designs use two basic mechanisms to handle writes that hit in the cache:
-
-* In a write-through cache, hit data is written to both the block in the cache and to the next lower level of the hierarchy.
-* In a write-back cache, hit data is only written to the cache. Subsequently, lower levels of the hierarchy contain stale data. The state of the modified line is tracked through a dirty bit in the tag. When a modified cache line is eventually evicted from the cache, a write-back operation forces the data to be written back to the next lower level.
-
-Cache misses on write operations can be handled in two ways:
-
-* In a *write-allocate* cache, the data for the missed location is loaded into the cache from the lower level of the hierarchy, and the write operation is subsequently handled like a write hit.
-* If the cache uses a *no-write-allocate* policy, the cache miss transaction is sent directly to the lower levels of the hierarchy, and the block is not loaded into the cache.
-
-Out of these options, most designs typically choose to implement a write-back cache with a write-allocate policy as both of these techniques try to convert subsequent write transactions into cache hits, without additional traffic to the lower levels of the hierarchy. Write-through caches typically use the no-write-allocate policy.
-
-#### Other Cache Optimization Techniques.
-
-For a programmer, understanding the behavior of the cache hierarchy is critical to extracting performance from any application. From the perspective of the CPU pipeline, the latency to access any request is given by the following formula that can be applied recursively to all the levels of the cache hierarchy up to the main memory:
+直接映射和全相联映射之间的中间选项是*组相联*映射。在这种缓存中，块被组织为组，通常每个组包含 2、4、8 或 16 个块。给定地址首先映射到一个组。在组内，地址可以放在该组中的任何块中。每组有 m 个块的缓存被描述为 m 路组相联缓存。组相联缓存的公式为：
 $$
-\textrm{Average Access Latency} = \textrm{Hit Time } + \textrm{ Miss Rate } \times \textrm{ Miss Penalty}
+\textrm{缓存中的组数} = \frac{\textrm{缓存中的块数}}{\textrm{每组块数（相联度）}}
 $$
-Hardware designers take on the challenge of reducing the hit time and miss penalty through many novel micro-architecture techniques. Fundamentally, cache misses stall the pipeline and hurt performance. The miss rate for any cache is highly dependent on the cache architecture (block size, associativity) and the software running on the machine.
-
-#### Hardware and Software Prefetching. {#sec:HwPrefetch}
-
-One method to avoid cache misses and subsequent stalls is to prefetch data into caches prior to when the pipeline demands it. The assumption is the time to handle the miss penalty can be mostly hidden if the prefetch request is issued sufficiently ahead in the pipeline. Most CPUs provide implicit hardware-based prefetching that is complemented by explicit software prefetching that programmers can control.
-
-Hardware prefetchers observe the behavior of a running application and initiate prefetching on repetitive patterns of cache misses. Hardware prefetching can automatically adapt to the dynamic behavior of an application, such as varying data sets, and does not require support from an optimizing compiler. Also, the hardware prefetching works without the overhead of additional address generation and prefetch instructions. However, hardware prefetching works for a limited set of commonly used data access patterns.
-
-Software memory prefetching complements prefetching done by hardware. Developers can specify which memory locations are needed ahead of time via dedicated hardware instruction (see [@sec:memPrefetch]). Compilers can also automatically add prefetch instructions into the code to request data before it is required. Prefetch techniques need to balance between demand and prefetch requests to guard against prefetch traffic slowing down demand traffic.
-
-### Main Memory {#sec:UarchMainmemory}
-
-Main memory is the next level of the hierarchy, downstream from the caches. Requests to load and store data are initiated by the Memory Controller Unit (MCU). In the past, this circuit was located in the northbridge chip on the motherboard. But nowadays, most processors have this component embedded, so the CPU has a dedicated memory bus connecting it to the main memory.
-
-Main memory uses DRAM (Dynamic Random Access Memory) technology that supports large capacities at reasonable cost points. When comparing DRAM modules, people usually look at memory density and memory speed, along with its price of course. Memory density defines the capacity of the module measured in GB. Obviously, the more available memory the better as it is a precious resource used by the OS and applications.
-
-The performance of the main memory is described by latency and bandwidth. Memory latency is the time elapsed between the memory access request being issued and when the data is available to use by the CPU. Memory bandwidth defines how many bytes can be fetched per some period of time, and is usually measured in gigabytes per second.
-
-#### DDR
-
-(Double Data Rate) is the predominant DRAM technology supported by most CPUs. Historically, DRAM bandwidths have improved every generation while the DRAM latencies have stayed the same or increased. Table @tbl:mem_rate shows the top data rate, peak bandwidth, and the corresponding reading latency for the last three generations of DDR technologies. The data rate is measured in millions of transfers per second (MT/s). The latencies shown in this table correspond to the latency in the DRAM device itself. Typically, the latencies as seen from the CPU pipeline (cache miss on a load to use) are higher (in the 50ns-150ns range) due to additional latencies and queuing delays incurred in the cache controllers, memory controllers, and on-die interconnects. You can see an example of measuring observed memory latency and bandwidth in [@sec:MemLatBw].
-
------------------------------------------------------------------
-   DDR       Year   Highest Data   Peak Bandwidth  In-device Read
-Generation           Rate(MT/s)       (GB/s)         Latency(ns)
-----------  ------  ------------   --------------  --------------
-  DDR3       2007      2133            17.1            10.3
-
-  DDR4       2014      3200            25.6            12.5
-
-  DDR5       2020      6400            51.2            14
-
------------------------------------------------------------------
-
-Table: Performance characteristics for the last three generations of DDR technologies. {#tbl:mem_rate}
-
-It is worth mentioning that DRAM chips require their memory cells to be refreshed periodically. This is because the bit value is stored as the presence of an electric charge on a tiny capacitor, so it can lose its charge over time. To prevent this, there is special circuitry that reads each cell and writes it back, effectively restoring the capacitor's charge. While a DRAM chip is in its refresh procedure, it is not serving memory access requests.
-
-A DRAM module is organized as a set of DRAM chips. Memory *rank* is a term that describes how many sets of DRAM chips exist on a module. For example, a single-rank (1R) memory module contains one set of DRAM chips. A dual-rank (2R) memory module has two sets of DRAM chips, therefore doubling the capacity of a single-rank module. Likewise, there are quad-rank (4R) and octa-rank (8R) memory modules available for purchase.
-
-Each rank consists of multiple DRAM chips. Memory *width* defines how wide the bus of each DRAM chip is. And since each rank is 64 bits wide (or 72 bits wide for ECC RAM), it also defines the number of DRAM chips present within the rank. Memory width can be one of three values: `x4`, `x8`, or `x16`, and defines how wide is the bus that goes to each chip. As an example, Figure @fig:Dram_ranks shows the organization of a 2Rx16 dual-rank DRAM DDR4 module, with a total of 2GB capacity. There are four chips in each rank, with a 16-bit wide bus. Combined, the four chips provide 64-bit output. The two ranks are selected one at a time through a rank-select signal.
-
-![Organization of a 2Rx16 dual-rank DRAM DDR4 module with a total capacity of 2GB.](../../img/uarch/DRAM_ranks.png){#fig:Dram_ranks width=90%}
-
-There is no direct answer as to whether the performance of single-rank or dual-rank is better as it depends on the type of application. Single-rank modules generally produce less heat and are less likely to fail. Also, multi-rank modules require a rank select signal to switch from one rank to another, which needs additional clock cycles and may increase the access latency. On the other hand, if a rank is not accessed, it can go through its refresh cycles in parallel while other ranks are busy. As soon as the previous rank completes data transmission, the next rank can immediately start its transmission.
-
-Going further, we can install multiple DRAM modules in a system to not only increase memory capacity but also memory bandwidth. Setups with multiple memory channels are used to scale up the communication speed between the memory controller and the DRAM.
-
-A system with a single memory channel has a 64-bit wide data bus between the DRAM and memory controller. The multi-channel architectures increase the width of the memory bus, allowing DRAM modules to be accessed simultaneously. For example, the dual-channel architecture expands the width of the memory data bus from 64 bits to 128 bits, doubling the available bandwidth, see Figure @fig:Dram_channels. Notice, that each memory module, is still a 64-bit device, but we connect them differently. It is very typical nowadays for server machines to have four or eight memory channels.
-
-![Organization of a dual-channel DRAM setup.](../../img/uarch/DRAM_channels.png){#fig:Dram_channels width=60%}
-
-Alternatively, you could also encounter setups with duplicated memory controllers. For example, a processor may have two integrated memory controllers, each of them capable of supporting several memory channels. The two controllers are independent and only view their own slice of the total physical memory address space.
-
-We can do a quick calculation to determine the maximum memory bandwidth for a given memory technology, using the simple formula below:
 $$
-\textrm{Max. Memory Bandwidth} = \textrm{Data Rate } \times \textrm{ Bytes per cycle }
+\textrm{组（m 路）相联位置} = \textrm{(块地址) mod (缓存中的组数)}
 $$
 
-For example, for a single-channel DDR4 configuration with a data rate of 2400 MT/s and 64 bits (8 bytes) per transfer, the maximum bandwidth equals `2400 * 8 = 19.2 GB/s`. Dual-channel or dual memory controller setups double the bandwidth to 38.4 GB/s. Remember though, those numbers are theoretical maximums that assume that a data transfer will occur at each memory clock cycle, which in fact never happens in practice. So, when measuring actual memory speed, you will always see a value lower than the maximum theoretical transfer bandwidth.
+考虑一个 L1 缓存的示例，其大小为 32 KB，具有 64 字节缓存行、64 组和 8 路。这种缓存中的总缓存行数为 `32 KB / 64 字节 = 512 行`。新行只能插入到其适当的组中（64 个组之一）。一旦确定了组，新行可以放在该组中的 8 路之一中。类似地，当你稍后搜索此缓存行时，你首先确定组，然后只需要检查该组中最多 8 路。
 
-To enable multi-channel configuration, you need to have a CPU and motherboard that support such an architecture and install an even number of identical memory modules in the correct memory slots on the motherboard. The quickest way to check the setup on Windows is by running a hardware identification utility like `CPU-Z` or `HwInfo`; on Linux, you can use the `dmidecode` command. Alternatively, you can run memory bandwidth benchmarks like Intel MLC or Stream.
+这是 Apple M1 处理器缓存组织的另一个示例。每个性能核心内的 L1 数据缓存可以存储 128 KB，具有 256 组，每组 8 路，并在 64 字节行上运行。性能核心形成一个集群并共享 L2 缓存，该缓存可以保持 12 MB，是 12 路组相联的，并在 128 字节行上运行。[@AppleOptimizationGuide]
 
-To make use of multiple memory channels in a system, there is a technique called *interleaving*. It spreads adjacent addresses within a page across multiple memory devices. An example of a 2-way interleaving for sequential memory accesses is shown in Figure @fig:Dram_channel_interleaving. As before, we have a dual-channel memory configuration (channels A and B) with two independent memory controllers. Modern processors interleave per four cache lines (256 bytes), i.e., the first four adjacent cache lines go to channel A, and then the next set of four cache lines go to channel B.
+#### 在缓存中查找数据
 
-![2-way interleaving for sequential memory access.](../../img/uarch/DRAM_channel_interleaving.png){#fig:Dram_channel_interleaving width=80%}
+m 路组相联缓存中的每个块都有一个与之关联的地址标签。此外，标签还包含状态位，例如指示数据是否有效的位。标签还可以包含额外的位来指示访问信息、共享信息等。
 
-Without interleaving, consecutive adjacent accesses would be sent to the same memory controller, not utilizing the second available controller. In contrast, interleaving enables hardware parallelism to better utilize available memory bandwidth. For most workloads, performance is maximized when all the channels are populated as it spreads a single memory region across as many DRAM modules as possible.
+![缓存查找的地址组织。](../../img/uarch/CacheLookup.png){#fig:CacheLookup width=90%}
 
-While increased memory bandwidth is generally good, it does not always translate into better system performance and is highly dependent on the application. On the other hand, it's important to watch out for available and utilized memory bandwidth, because once it becomes the primary bottleneck, the application stops scaling, i.e., adding more cores doesn't make it run faster.
+图 @fig:CacheLookup 显示了从流水线生成的地址如何用于检查缓存。最低有效地址位定义给定块内的偏移量；块偏移位（32 字节缓存行为 5 位，64 字节缓存行为 6 位）。使用基于上述公式的索引位选择组。一旦选择了组，标签位用于与该组中的所有标签进行比较。如果其中一个标签与传入请求的标签匹配且有效位被设置，则产生缓存命中。与该块条目关联的数据（与标签查找并行从缓存的数据数组中读出）提供给执行流水线。当标签不匹配时，会发生缓存未命中。
 
-#### GDDR and HBM
+#### 管理未命中
 
-Besides multi-channel DDR, there are other technologies that target workloads where higher memory bandwidth is required to achieve greater performance. Technologies such as GDDR (Graphics DDR) and HBM (High Bandwidth Memory) are the most notable ones. They find their use in high-end graphics, high-performance computing such as climate modeling, molecular dynamics, and physics simulation, but also autonomous driving, and of course, AI/ML. They are a natural fit there because such applications require moving large amounts of data very quickly.
+当发生缓存未命中时，缓存控制器必须选择缓存中的一个块进行替换，以分配导致未命中的地址。对于直接映射缓存，由于新地址只能分配在单个位置，因此取消分配映射到该位置的先前条目，并将新条目安装在其位置。在组相联缓存中，由于新缓存块可以放在组的任何块中，因此需要替换算法。使用的典型替换算法是 LRU（最近最少使用）策略，其中最近访问最少的块被驱逐以腾出空间给新数据。另一个替代方案是随机选择一个块作为受害者块。
 
-GDDR was primarily designed for graphics and nowadays it is used on virtually every high-performance graphics card. While GDDR shares some characteristics with DDR, it is also quite different. While DRAM DDR is designed for lower latencies, GDDR is built for much higher bandwidth, because it is located in the same package as the processor chip itself. Similar to DDR, the GDDR interface transfers two 32-bit words (64 bits in total) per clock cycle. The latest GDDR6X standard can achieve up to 168 GB/s bandwidth, operating at a relatively low 656 MHz frequency.
+#### 管理写入
 
-HBM is a new type of CPU/GPU memory that vertically stacks memory chips, also called 3D stacking. Similar to GDDR, HBM drastically shortens the distance data needs to travel to reach a processor. The main difference from DDR and GDDR is that the HBM memory bus is very wide: 1024 bits for each HBM stack. This enables HBM to achieve ultra-high bandwidth. The latest HBM3 standard supports up to 665 GB/s bandwidth per package. It also operates at a low frequency of 500 MHz and has a memory density of up to 48 GB per package.
+对缓存的写访问比数据读取频率低。处理缓存中的写入更困难，CPU 实现使用各种技术来处理这种复杂性。软件开发者应特别注意硬件支持的各种写入缓存流程，以确保其代码的最佳性能。
 
-A system with HBM onboard will be a good choice if you want to maximize data transfer throughput. However, at the time of writing, this technology is quite expensive. As GDDR is predominantly used in graphics cards, HBM may be a good option to accelerate certain workloads that run on a CPU. In fact, the first x86 general-purpose server chips with integrated HBM are now available.
+CPU 设计使用两种基本机制来处理在缓存中命中的写入：
+
+* 在写直达缓存中，命中数据同时写入缓存中的块和层次结构的下一个较低级别。
+* 在写回缓存中，命中数据仅写入缓存。随后，层次结构的较低级别包含过时数据。修改行的状态通过标签中的脏位跟踪。当修改的缓存行最终从缓存中驱逐时，写回操作强制数据被写回下一个较低级别。
