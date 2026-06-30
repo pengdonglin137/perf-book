@@ -1,13 +1,13 @@
-## Pipeline Slot {#sec:PipelineSlot}
+## 流水线槽 {#sec:PipelineSlot}
 
-Another important metric that some performance tools use is the concept of a *pipeline slot*. A pipeline slot represents the hardware resources needed to process one $\mu$op. Figure @fig:PipelineSlot demonstrates the execution pipeline of a CPU that has 4 allocation slots every cycle. That means that the core can assign execution resources (renamed source and destination registers, execution port, ROB entries, etc.) to 4 new $\mu$ops every cycle. Such a processor is usually called a *4-wide machine*. During six consecutive cycles on the diagram, only half of the available slots were utilized (highlighted in yellow). From a microarchitecture perspective, the efficiency of executing such code is only 50%.
+一些性能工具使用的另一个重要指标是*流水线槽*的概念。流水线槽表示处理一个 $\mu$op 所需的硬件资源。图 @fig:PipelineSlot 演示了一个每个周期有 4 个分配槽的 CPU 的执行流水线。这意味着核心可以为 4 个新的 $\mu$ops 分配执行资源（重命名的源和目标寄存器、执行端口、ROB 条目等）。这样的处理器通常称为*4 宽机器*。在图中的六个连续周期中，只有一半的可用槽被利用（黄色高亮显示）。从微架构的角度来看，执行此类代码的效率只有 50%。
 
-![Pipeline diagram of a 4-wide CPU.](../../img/terms-and-metrics/PipelineSlot.jpg){#fig:PipelineSlot width=40% }
+![4 宽 CPU 的流水线图。](../../img/terms-and-metrics/PipelineSlot.jpg){#fig:PipelineSlot width=40% }
 
-Intel's Skylake and AMD Zen3 cores have a 4-wide allocation. Intel's Sunny Cove microarchitecture was a 5-wide design. As of the end of 2023, the most recent Golden Cove and Zen4 architectures both have a 6-wide allocation. Apple M1 and M2 designs are 8-wide, and Apple M3 is 9-$\mu$op execution bandwidth see [@AppleOptimizationGuide, Table 4.10]. The width of a machine puts a cap on the IPC. This means that the maximum achievable IPC of a processor equals its width.[^2] For example, when your calculations show more than 6 IPC on a Golden Cove core, you should be suspicious.
+Intel 的 Skylake 和 AMD Zen3 核心具有 4 宽分配。Intel 的 Sunny Cove 微架构是 5 宽设计。截至 2023 年底，最新的 Golden Cove 和 Zen4 架构都具有 6 宽分配。Apple M1 和 M2 设计是 8 宽，Apple M3 是 9-$\mu$op 执行带宽（参见 [@AppleOptimizationGuide, Table 4.10]）。机器的宽度为 IPC 设定了上限。这意味着处理器可实现的最大 IPC 等于其宽度。[^2] 例如，当你的计算显示 Golden Cove 核心上超过 6 IPC 时，你应该持怀疑态度。
 
-Very few applications can achieve the maximum IPC of a machine. For example, Intel Golden Cove core can theoretically execute four integer additions/subtractions, plus one load, plus one store (for a total of six instructions) per clock, but an application is highly unlikely to have the appropriate mix of independent instructions adjacent to each other to exploit all that potential parallelism.
+很少有应用程序能达到机器的最大 IPC。例如，Intel Golden Cove 核心理论上每个时钟可以执行四个整数加法/减法，加上一个加载，加上一个存储（总共六条指令），但应用程序不太可能具有适当的独立指令混合来利用所有这些潜在的并行性。
 
-Pipeline slot utilization is one of the core metrics in Top-down Microarchitecture Analysis (see [@sec:TMA]). For example, Frontend Bound and Backend Bound metrics are expressed as a percentage of unutilized pipeline slots due to various bottlenecks.
+流水线槽利用率是 Top-down 微架构分析（参见 [@sec:TMA]）的核心指标之一。例如，前端绑定和后端绑定指标表示为由于各种瓶颈而未利用的流水线槽的百分比。
 
-[^2]: Although there are some exceptions. For instance, macrofused compare-and-branch instructions only require a single pipeline slot but are counted as two instructions. In some extreme cases, this may cause IPC to be greater than the machine width.
+[^2]: 虽然有一些例外。例如，宏融合的比较-分支指令只需要一个流水线槽，但被计为两条指令。在某些极端情况下，这可能导致 IPC 大于机器宽度。
