@@ -1,10 +1,10 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* Modern processors are very good at predicting branch outcomes. So, I recommend paying attention to branch mispredictions only when the TMA points to a high `Bad Speculation` metric.
-* When branch outcome patterns become hard for the CPU branch predictor to follow, the performance of the application may suffer. In this case, the branchless version of an algorithm can be more performant. In this chapter, I showed how branches could be replaced with lookup tables, arithmetic, and selection.
-* Branchless algorithms are not universally beneficial. Always measure to find out what works better in your specific case.
-* There are indirect ways to reduce the branch misprediction rate by reducing the dynamic number of branch instructions in a program. This approach helps because it alleviates the pressure on branch predictor structures. Examples of such techniques include loop unrolling/vectorization, replacing branches with bitwise operations, and using SIMD instructions.
+* 现代处理器非常擅长预测分支结果。因此，我建议仅当 TMA 指向高 `Bad Speculation` 指标时才关注分支预测错误。
+* 当分支结果模式变得难以遵循 CPU 分支预测器时，应用程序的性能可能会受到影响。在这种情况下，算法的无分支版本可能具有更好的性能。在本章中，我展示了如何用查找表、算术和选择替换分支。
+* 无分支算法并非普遍有益。始终进行测量以找出在你的特定情况下什么更有效。
+* 有间接的方法可以通过减少程序中动态分支指令的数量来降低分支预测错误率。这种方法有帮助，因为它减轻了分支预测器结构的压力。此类技术的示例包括循环展开/向量化、用位操作替换分支以及使用 SIMD 指令。
 
 \sectionbreak
