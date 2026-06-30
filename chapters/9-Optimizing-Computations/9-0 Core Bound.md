@@ -1,10 +1,10 @@
-# Optimizing Computations {#sec:CoreBound}
+# 优化计算 {#sec:CoreBound}
 
-In the previous chapter, we discussed how to clear the path for efficient memory access. Once that is done, it's time to look at how well a CPU works with the data it brings from memory. Modern applications demand a large amount of CPU computations, especially applications involving complex graphics, artificial intelligence, cryptocurrency mining, and big data processing. In this chapter, we will focus on optimizing computations that can reduce the amount of work a CPU needs to do and improve the overall performance of a program.
+在上一章中，我们讨论了如何为高效的内存访问扫清道路。完成后，是时候看看 CPU 如何处理它从内存中获取的数据了。现代应用程序需要大量的 CPU 计算，特别是涉及复杂图形、人工智能、加密货币挖矿和大数据处理的应用程序。在本章中，我们将专注于可以减少 CPU 需要完成的工作量并提高程序整体性能的优化计算。
 
-When the TMA methodology is applied, inefficient computations are usually reflected in the `Core Bound` and, to some extent, in the `Retiring` categories. The `Core Bound` category represents all the stalls inside a CPU out-of-order execution engine that were not caused by memory issues. There are two main categories:
+当应用 TMA 方法时，低效计算通常反映在 `Core Bound` 类别中，以及在一定程度上反映在 `Retiring` 类别中。`Core Bound` 类别表示 CPU 乱序执行引擎中未由内存问题引起的所有停顿。有两个主要类别：
 
-* Data dependencies between software instructions are limiting the performance. For example, a long sequence of dependent operations may lead to low Instruction Level Parallelism (ILP) and wasting many execution slots. The next section discusses data dependency chains in more detail.
-* A shortage in hardware computing resources. This indicates that certain execution units are overloaded (also known as *execution port contention*). This can happen when a workload frequently performs many instructions of the same type. For example, AI algorithms typically perform a lot of multiplications. Scientific applications may run many divisions and square root operations. However, there is a limited number of multipliers and dividers in any given CPU core. Thus when port contention occurs, instructions queue up waiting for their turn to be executed. This type of performance bottleneck is very specific to a particular CPU microarchitecture and usually doesn't have a cure.
+* 软件指令之间的数据依赖限制了性能。例如，一长串依赖操作可能导致低指令级并行（ILP）并浪费许多执行槽。下一节将更详细地讨论数据依赖链。
+* 硬件计算资源短缺。这表明某些执行单元过载（也称为*执行端口争用*）。当工作负载频繁执行许多相同类型的指令时，就会发生这种情况。例如，AI 算法通常执行大量乘法。科学应用程序可能运行许多除法和平方根运算。但是，任何给定 CPU 核心中乘法器和除法器的数量是有限的。因此，当端口争用发生时，指令排队等待轮到它们执行。这种类型的性能瓶颈对于特定的 CPU 微架构非常具体，通常没有治愈方法。
 
-In this chapter, we will take a look at well-known techniques like function inlining, vectorization, and loop optimizations. Those code transformations aim to reduce the total amount of executed instructions or replace them with more efficient ones.
+在本章中，我们将研究著名的技术，如函数内联、向量化和循环优化。这些代码转换旨在减少执行指令的总数或用更有效的指令替换它们。
