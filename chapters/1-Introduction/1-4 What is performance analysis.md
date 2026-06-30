@@ -1,11 +1,11 @@
-## What Is Performance Analysis?
+## 什么是性能分析？
 
-Have you ever found yourself debating with a coworker about the performance of a certain piece of code? Then you probably know how hard it is to predict which code is going to work the best. With so many moving parts inside modern processors, even small tweaks to code can trigger noticeable performance changes. Relying on intuition when optimizing an application typically results in random "fixes" without real performance impact.
+你是否曾经发现自己与同事争论某段代码的性能？那么你可能知道预测哪段代码效果最好有多难。现代处理器中有这么多活动部件，即使对代码的微小调整也可能触发明显的性能变化。在优化应用程序时依赖直觉通常会导致随机的"修复"，而没有真正的性能影响。
 
-Inexperienced developers sometimes make changes in their code and claim it *should* run faster. One such example is replacing `i++` (post-increment) with `++i` (pre-increment) all over the code base (assuming that the previous value of `i` is not used). In the general case, this change will make no difference to the generated code: every decent optimizing compiler will recognize that the previous value of `i` is not used and will eliminate redundant copies anyway. The first piece of advice in this book is: don't solely rely on your intuition. *Always measure.*
+经验不足的开发者有时会更改代码，并声称它*应该*运行得更快。一个这样的例子是在整个代码库中将 `i++`（后递增）替换为 `++i`（前递增）（假设 `i` 的先前值未被使用）。在一般情况下，这种更改不会对生成的代码产生任何影响：每个优秀的优化编译器都会识别出 `i` 的先前值未被使用，并无论如何都会消除冗余副本。本书的第一个建议是：不要仅仅依赖你的直觉。*总是测量。*
 
-Many micro-optimization tricks that circulate around the world were valid in the past, but current compilers have already learned them. Additionally, some people tend to overuse legacy bit-twiddling tricks. One such example is the XOR swap idiom.[^2] In reality, simple `std::swap` produces equivalent or faster code. Such accidental changes likely won’t improve the performance of an application. Finding the right place to tune should be the result of careful performance analysis, not intuition or guessing.
+许多流传于世的微优化技巧在过去是有效的，但当前的编译器已经学会了它们。此外，有些人倾向于过度使用遗留的位操作技巧。其中一个例子是 XOR 交换惯用法。[^2] 实际上，简单的 `std::swap` 会产生等效或更快的代码。这种意外的更改不太可能提高应用程序的性能。找到正确的调优位置应该是仔细性能分析的结果，而不是直觉或猜测。
 
-Performance analysis is a process of collecting information about how a program executes and interpreting it to find optimization opportunities. Any change that ends up being made in the source code of a program should be driven by analyzing and interpreting collected data. We will show you how to use performance analysis techniques to discover optimization opportunities even in a large and unfamiliar codebase. There are many performance analysis methodologies. Depending on the problem, some will be more efficient than others. With experience, you will develop your own strategies about when to use each approach.
+性能分析是收集有关程序执行方式的信息并解释它以找到优化机会的过程。最终在程序源代码中做出的任何更改都应该由分析和解释收集的数据驱动。我们将向你展示如何使用性能分析技术，即使在大型且不熟悉的代码库中也能发现优化机会。有许多性能分析方法。根据问题的不同，其中一些会比其他方法更有效。随着经验的积累，你将发展出自己的策略，了解何时使用每种方法。
 
-[^2]: XOR-based swap idiom - [https://en.wikipedia.org/wiki/XOR_swap_algorithm](https://en.wikipedia.org/wiki/XOR_swap_algorithm)
+[^2]: 基于 XOR 的交换惯用法 - [https://en.wikipedia.org/wiki/XOR_swap_algorithm](https://en.wikipedia.org/wiki/XOR_swap_algorithm)
