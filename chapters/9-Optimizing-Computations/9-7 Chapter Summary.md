@@ -1,8 +1,8 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* Inefficient computations represent a significant portion of the bottlenecks in real-world applications. Modern compilers are very good at removing unnecessary computation overhead by performing many different code transformations. Still, there is a high chance that we can do better than what compilers can offer.
-* In [@sec:CoreBound], we showed how to search performance headrooms in a program by forcing certain code optimizations. We discussed such popular transformations like function inlining, loop optimizations, and vectorization.
+* 低效计算在实际应用程序的瓶颈中占很大比例。现代编译器非常擅长通过执行许多不同的代码转换来消除不必要的计算开销。尽管如此，我们仍然有很大的机会做得比编译器所能提供的更好。
+* 在 [@sec:CoreBound] 中，我们展示了如何通过强制某些代码优化来搜索程序中的性能空间。我们讨论了诸如函数内联、循环优化和向量化等流行的转换。
 
 \sectionbreak
