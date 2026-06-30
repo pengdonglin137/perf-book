@@ -1,11 +1,11 @@
-## Questions and Exercises {.unlisted .unnumbered}
+## 问题和练习 {.unlisted .unnumbered}
 
-\markright{Questions and Exercises}
+\markright{问题和练习}
 
-1. Which performance analysis approaches would you use in the following scenarios?
-- scenario 1: the client support team reports a customer issue: after upgrading to a new version of the application, the performance of a certain operation drops by 10%.
-- scenario 2: the client support team reports a customer issue: some transactions run 2x longer than others with no particular pattern.
-- scenario 3: you're evaluating three different compression algorithms and you want to know what types of performance bottlenecks (memory latency, computations, branch mispredictions, etc) each of them has.
-- scenario 4: there is a new shiny library that claims to be faster than the one you currently have integrated into your project; you've decided to compare their performance.
-- scenario 5: you were asked to analyze the performance of some unfamiliar code, which involves a hot loop; you want to know how many iterations the loop is doing.
-2. Run the application that you're working with daily. Practice doing performance analysis using the approaches we discussed in this chapter. Collect raw counts for various CPU performance events, find hotspots, collect roofline data, and generate and study the compiler optimization report for the hot function(s) in your program.
+1. 在以下场景中，你会使用哪种性能分析方法？
+- 场景 1：客户支持团队报告客户问题：升级到新版本应用程序后，某个操作的性能下降了 10%。
+- 场景 2：客户支持团队报告客户问题：某些事务运行时间比其他事务长 2 倍，没有特定模式。
+- 场景 3：你正在评估三种不同的压缩算法，你想知道每种算法存在哪些类型的性能瓶颈（内存延迟、计算、分支预测错误等）。
+- 场景 4：有一个新的闪亮库声称比你当前集成到项目中的库更快；你决定比较它们的性能。
+- 场景 5：你被要求分析一些不熟悉的代码的性能，这些代码涉及一个热循环；你想知道循环正在执行多少次迭代。
+2. 运行你日常使用的应用程序。使用我们在本章讨论的方法练习进行性能分析。收集各种 CPU 性能事件的原始计数，查找热点，收集 Roofline 数据，并为程序中的热函数生成和研究编译器优化报告。
