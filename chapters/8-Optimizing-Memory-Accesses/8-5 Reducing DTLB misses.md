@@ -1,24 +1,24 @@
-## Reducing DTLB Misses {#sec:secDTLB}
+## 减少 DTLB 未命中 {#sec:secDTLB}
 
-As discussed in [@sec:TLBs], TLB is a fast but finite per-core cache for virtual-to-physical address translations of memory addresses. Without it, every memory access by an application would require a time-consuming page walk of the kernel page table to calculate the correct physical address for each referenced virtual address. In a system with a 5-level page table, it will require accessing at least 5 different memory locations to obtain an address translation. In section [@sec:FeTLB] we will discuss how huge pages can be used for code. Here we will see how they can be used for data.
+如 [@sec:TLBs] 中所讨论的，TLB 是一个快速但有限的每核心缓存，用于虚拟到物理地址的内存地址转换。没有它，应用程序的每次内存访问都将需要耗时的内核页表遍历来计算每个引用虚拟地址的正确物理地址。在具有 5 级页表的系统中，它将需要访问至少 5 个不同的内存位置来获取地址转换。在第 [@sec:FeTLB] 节中，我们将讨论如何将大页用于代码。这里我们将看到如何将它们用于数据。
 
-Any algorithm that does random accesses into a large memory region will likely suffer from DTLB misses. Examples of such applications are binary search in a big array, accessing a large hash table, and traversing a graph. The usage of huge pages has the potential to speed up such applications.
+任何对大内存区域进行随机访问的算法都可能遭受 DTLB 未命中。此类应用程序的例子包括大数组中的二分查找、访问大型哈希表和遍历图。使用大页有潜力加速此类应用程序。
 
-On x86 platforms, the default page size is 4KB. Consider an application that frequently references memory space of 20 MBs. With 4KB pages, the OS needs to allocate many small pages. Also, the process will be touching many 4KB-sized pages, each of which will contend for a limited number of TLB entries. In contrast, using huge 2MB pages, 20MB of memory can be mapped with just ten pages, whereas with 4KB pages, you would need 5120 pages. This means fewer TLB entries are needed when using huge pages, which in turn reduces the number of TLB misses. It will not be a proportional reduction by a factor of 512 since the number of 2MB entries is much less. For example, in Intel's Skylake core families, L1 DTLB has 64 entries for 4KB pages and only 32 entries for 2MB pages. Besides 2MB huge pages, x86-based chips from AMD and Intel also support 1GB gigantic pages for data, but not for instructions. Using 1GB pages instead of 2MB pages reduces TLB pressure even more.
+在 x86 平台上，默认页面大小为 4KB。考虑一个频繁引用 20MB 内存空间的应用程序。使用 4KB 页面，操作系统需要分配许多小页面。此外，该进程将触及许多 4KB 大小的页面，每个页面将争夺有限数量的 TLB 条目。相比之下，使用 2MB 大页，20MB 的内存可以用仅仅 10 个页面映射，而使用 4KB 页面，你需要 5120 个页面。这意味着使用大页时需要更少的 TLB 条目，这反过来减少了 TLB 未命中的数量。由于 2MB 条目的数量少得多，减少不会按 512 的比例。例如，在 Intel 的 Skylake 核心系列中，L1 DTLB 有 64 个 4KB 页面的条目，只有 32 个 2MB 页面的条目。除了 2MB 大页之外，AMD 和 Intel 的 x86 芯片还支持 1GB 巨页用于数据，但不用于指令。使用 1GB 页面而不是 2MB 页面进一步减少了 TLB 压力。
 
-Utilizing huge pages typically leads to fewer page walks, and the penalty for walking the kernel page table in the event of a TLB miss is reduced since the table itself is more compact. Performance gains from utilizing huge pages can sometimes go as high as 30%, depending on how much TLB pressure an application is experiencing. Expecting 2x speedups would be asking too much, as it is quite rare that TLB misses are the primary bottleneck. The paper [@Luo2015] presents the evaluation of using huge pages on the SPEC2006 benchmark suite. Results can be summarized as follows. Out of 29 benchmarks in the suite, 15 have a speedup within 1%, which can be discarded as noise. Six benchmarks have speedups in the range of 1%-4%. Four benchmarks have speedups in the range from 4% to 8%. Two benchmarks have speedups of 10%, and the two benchmarks that gain the most enjoyed 22% and 27% speedups respectively.
+利用大页通常会导致更少的页面遍历，并且由于表本身更紧凑，在 TLB 未命中事件中遍历内核页表的惩罚会降低。利用大页的性能提升有时可以高达 30%，具体取决于应用程序经历的 TLB 压力量。期望 2 倍加速要求太高，因为 TLB 未命中很少是主要瓶颈。论文 [@Luo2015] 介绍了在 SPEC2006 基准测试套件上使用大页的评估。结果可以总结如下。在套件中的 29 个基准测试中，15 个的加速在 1% 以内，可以作为噪声丢弃。六个基准测试的加速在 1%-4% 范围内。四个基准测试的加速在 4% 到 8% 范围内。两个基准测试的加速为 10%，另外两个基准测试分别获得了 22% 和 27% 的加速。
 
-Many real-world applications already take advantage of huge pages, for example, KVM, MySQL, PostgreSQL, Java's JVM, and others. Usually, those software packages provide an option to enable that feature. Whenever you're using a similar application, check its documentation to see if you can enable huge pages.
+许多实际应用程序已经利用了大页，例如 KVM、MySQL、PostgreSQL、Java 的 JVM 等。通常，这些软件包提供启用该功能的选项。每当你使用类似的应用程序时，请检查其文档以查看是否可以启用大页。
 
-Both Windows and Linux allow applications to establish huge-page memory regions. Instructions on how to enable huge pages for Windows and Linux can be found in Appendix B. On Linux, there are two ways of using huge pages in an application: Explicit and Transparent Huge Pages. Windows support is not as rich as Linux and will be discussed later.
+Windows 和 Linux 都允许应用程序建立大页内存区域。如何在 Windows 和 Linux 上启用大页的说明可以在附录 B 中找到。在 Linux 上，有两种方式在应用程序中使用大页：显式大页和透明大页。Windows 的支持不如 Linux 丰富，将在后面讨论。
 
-### Explicit Huge Pages
+### 显式大页
 
-Explicit Huge Pages (EHP) are available as part of the system memory, and are exposed as a huge page file system `hugetlbfs`. EHPs should be reserved either at system boot time or before an application starts. See Appendix B for instructions on how to do that. Reserving EHPs at boot time increases the possibility of successful allocation because the memory has not yet been significantly fragmented. Explicitly preallocated pages reside in a reserved chunk of physical memory and cannot be swapped out under memory pressure. Also, this memory space cannot be used for other purposes, so users should be careful and reserve only the number of pages they require.
+显式大页（EHP）作为系统内存的一部分可用，并作为大页文件系统 `hugetlbfs` 暴露。EHP 应在系统启动时或在应用程序启动之前保留。有关如何操作的说明，请参见附录 B。在启动时保留 EHP 增加了成功分配的可能性，因为内存尚未被严重碎片化。显式预分配的页面驻留在物理内存的保留块中，在内存压力下不能被换出。此外，此内存空间不能用于其他目的，因此用户应小心，只保留他们需要的页面数量。
 
-The simplest method of using EHP in a Linux application is to call `mmap` with `MAP_HUGETLB` as shown in [@lst:ExplicitHugepages1]. In this code, the pointer `ptr` will point to a 2MB region of memory that was explicitly reserved for EHPs. Notice, that allocation may fail if the EHPs were not reserved in advance. Other less popular ways to use EHPs in user code are provided in Appendix B. Also, developers can write their own arena-based allocators that tap into EHPs.
+在 Linux 应用程序中使用 EHP 的最简单方法是使用 `MAP_HUGETLB` 调用 `mmap`，如 [@lst:ExplicitHugepages1] 所示。在此代码中，指针 `ptr` 将指向为 EHP 显式保留的 2MB 内存区域。注意，如果 EHP 没有提前保留，分配可能会失败。在用户代码中使用 EHP 的其他不太流行的方式在附录 B 中提供。此外，开发人员可以编写自己的基于 arena 的分配器来使用 EHP。
 
-Listing: Mapping a memory region from an explicitly allocated huge page.
+清单：从未分配的大页映射内存区域。
 
 ~~~~ {#lst:ExplicitHugepages1 .cpp}
 void ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE,
@@ -29,66 +29,13 @@ if (ptr == MAP_FAILED)
 munmap(ptr, size);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In the past, there was an option to use the [libhugetlbfs](https://github.com/libhugetlbfs/libhugetlbfs)[^1] library, which overrode `malloc` calls used in existing dynamically linked executables, to allocate memory in EHPs. Unfortunately, this project is no longer maintained. It didn't require users to modify the code or to relink the binary. They could simply prepend the command line with `LD_PRELOAD=libhugetlbfs.so HUGETLB_MORECORE=yes <your app command line>` to make use of it. But luckily, other libraries enable the use of huge pages (not EHPs) with `malloc`, which we will discuss next.
+过去，有一个选项可以使用 [libhugetlbfs](https://github.com/libhugetlbfs/libhugetlbfs)[^1] 库，它覆盖了现有动态链接可执行文件中使用的 `malloc` 调用，以在 EHP 中分配内存。不幸的是，这个项目不再维护了。它不需要用户修改代码或重新链接二进制文件。他们只需在命令行前加上 `LD_PRELOAD=libhugetlbfs.so HUGETLB_MORECORE=yes <your app command line>` 即可使用它。但幸运的是，其他库支持使用 `malloc` 的大页（不是 EHP），我们接下来将讨论。
 
-### Transparent Huge Pages
+### 透明大页
 
-Linux also offers Transparent Huge Page Support (THP), which has two modes of operation: system-wide and per-process. When THP is enabled system-wide, the kernel manages huge pages automatically and it is transparent for applications. The OS kernel tries to assign huge pages to any process when large blocks of memory are needed and it is possible to allocate such, so huge pages do not need to be reserved manually. If THP is enabled per process, the kernel only assigns huge pages to individual processes' memory areas attributed to the `madvise` system call. You can check if THP is enabled in the system with:
+Linux 还提供透明大页支持（THP），它有两种操作模式：系统范围和每进程。当 THP 在系统范围启用时，内核自动管理大页，对应用程序透明。当需要大块内存且可以分配时，操作系统内核会尝试将大页分配给任何进程，因此大页不需要手动保留。如果 THP 按进程启用，内核仅将大页分配给归因于 `madvise` 系统调用的单个进程的内存区域。你可以通过以下方式检查 THP 是否在系统中启用：
 
 ```bash
 $ cat /sys/kernel/mm/transparent_hugepage/enabled
 always [madvise] never
 ```
-
-The value shown in brackets is the current setting. If this value is `always` (system-wide) or `madvise` (per-process), then THP is available for your application. A detailed specification for every option can be found in the Linux kernel [documentation](https://www.kernel.org/doc/Documentation/vm/transhuge.txt)[^2] regarding THP. 
-
-When THP is enabled system-wide, huge pages are used automatically for normal memory allocations, without an explicit request from applications. To observe the effect of huge pages on their application, a user just needs to enable system-wide THPs with `echo "always" | sudo tee /sys/kernel/mm/transparent_hugepage/enabled`. It will automatically launch a daemon process named `khugepaged` which starts scanning the application’s memory space to promote regular pages to huge pages. Sometimes the kernel may fail to combine multiple regular pages into a huge page in case it cannot find a contiguous 2MB chunk of memory.
-
-System-wide THPs mode is good for quick experiments to check if huge pages can improve performance. It works automatically, even for applications that are not aware of THPs, so developers don't have to change the code to see the benefit of huge pages for their application. When huge pages are enabled system-wide, applications may end up allocating more memory resources than needed. This is why the system-wide mode is disabled by default. Don't forget to disable system-wide THPs after you've finished your experiments as it may hurt overall system performance.
-
-With the `madvise` (per-process) option, THP is enabled only inside memory regions attributed via the `madvise` system call with the `MADV_HUGEPAGE` flag. As shown in [@lst:TransparentHugepages1], the pointer `ptr` will point to a 2MB region of the anonymous (transparent) memory region, which the kernel allocates dynamically. The `mmap` call will fail if the kernel cannot find a contiguous 2MB chunk of memory.
-
-Listing: Mapping a memory region to a transparent huge page.
-
-~~~~ {#lst:TransparentHugepages1 .cpp}
-void ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE | PROT_EXEC,
-                MAP_PRIVATE | MAP_ANONYMOUS, -1 , 0);
-if (ptr == MAP_FAILED)
-  throw std::bad_alloc{};
-madvise(ptr, size, MADV_HUGEPAGE);
-// use the memory region `ptr`
-munmap(ptr, size);
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Developers can build custom THP allocators based on the code in [@lst:TransparentHugepages1]. But also, it's possible to use THPs inside `malloc` calls that their application is making. Many memory allocation libraries provide that feature by overriding the `libc`'s implementation of `malloc`. Here is an example of using `jemalloc`, which is one of the most popular options. If you have access to the source code of the application, you can relink the binary with an additional `-ljemalloc` option. This will dynamically link your application against the `jemalloc` library, which will handle all the `malloc` calls. Then use the following option to enable THPs for heap allocations:
-
-```bash
-$ MALLOC_CONF="thp:always" <your app command line>
-```
-
-If you don't have access to the source code, you can still make use of `jemalloc` by preloading the dynamic library:
-
-```bash
-$ LD_PRELOAD=/usr/local/libjemalloc.so.2 MALLOC_CONF="thp:always" <your app command line>
-```
-
-Windows only offers using huge pages in a way similar to the Linux THP per-process mode via the `VirtualAlloc` system call. See details in Appendix B.
-
-### Explicit vs. Transparent Huge Pages
-
-Linux users can use huge pages in three different modes:
-
-* Explicit Huge Pages
-* System-wide Transparent Huge Pages
-* Per-process Transparent Huge Pages
-
-Let's compare those options. First, EHPs are reserved in virtual memory upfront, THPs are not. That makes it harder to ship software packages that use EHPs, as they rely on specific configuration settings made by an administrator of a machine. Moreover, EHPs statically sit in memory, consuming precious DRAM, even when they are not used.
-
-System-wide Transparent Huge Pages are great for quick experiments. No changes in the user code are required to test the benefit of using huge pages in your application. However, it will not be wise to ship a software package to the customers and ask them to enable system-wide THPs, as it may negatively affect other running programs on that system. Usually, developers identify allocations in the code that could benefit from huge pages and use `madvise` hints in these places (per-process mode).
-
-Per-process THPs don't have either of the downsides mentioned above, but they have another one. Previously we discussed that THP allocation by the kernel happens transparently to the user. The allocation process can potentially involve several kernel processes responsible for making space in virtual memory, which may include swapping memory to disk, fragmentation, or promoting pages. Background maintenance of transparent huge pages incurs non-deterministic latency overhead from the kernel as it manages the inevitable fragmentation and swapping issues. EHPs are not subject to memory fragmentation and cannot be swapped to disk, so they incur much less latency overhead.
-
-All in all, THPs are easier to use, but incur bigger allocation latency overhead. That is the reason why THPs are not popular in High-Frequency Trading and other ultra-low-latency industries; they prefer to use EHPs instead. On the other hand, virtual machine providers and databases tend to use per-process THPs since requiring additional system configuration can become a burden for their users.
-
-[^1]: libhugetlbfs - [https://github.com/libhugetlbfs/libhugetlbfs](https://github.com/libhugetlbfs/libhugetlbfs).
-[^2]: Linux kernel THP documentation - [https://www.kernel.org/doc/Documentation/vm/transhuge.txt](https://www.kernel.org/doc/Documentation/vm/transhuge.txt)
