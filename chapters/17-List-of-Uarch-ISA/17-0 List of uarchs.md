@@ -1,14 +1,14 @@
 \phantomsection
-# List of the Major CPU Microarchitectures {.unnumbered}
+# 主要 CPU 微架构列表 {.unnumbered}
 
-\markboth{List of the Major CPU Microarchitectures}{List of the Major CPU Microarchitectures}
+\markboth{主要 CPU 微架构列表}{主要 CPU 微架构列表}
 
-In the tables below we present the most recent ISAs and microarchitectures from Intel, AMD, and ARM-based vendors. Of course, not all the designs are listed here. We only include those that we reference in the book or if they represent a big transition in the evolution of the platform.
+在下面的表格中，我们展示了 Intel、AMD 和基于 ARM 的供应商的最新 ISA 和微架构。当然，并非所有设计都在此列出。我们只包含本书中引用的那些，或者它们代表了平台演进中的重大转变。
 
 -----------------------------------------------------------------
-    Name         Three-letter     Year released     Supported ISA
-                  acronym                          client/server
-                                                       chips
+    名称         三字母缩写     发布年份     支持的 ISA
+                  缩写                          客户端/服务器
+                                                       芯片
 --------------  ---------------  ---------------  ---------------
    Nehalem           NHM              2008             SSE4.2
 
@@ -28,56 +28,13 @@ Sandy Bridge         SNB              2011              AVX
 
 -----------------------------------------------------------------
 
-Table: List of the recent Intel Core microarchitectures. {#tbl:IntelUarchs}
+表：最近的 Intel Core 微架构列表。{#tbl:IntelUarchs}
 
 ----------------------------------------------
-    Name       Year released    Supported ISA
+    名称       发布年份    支持的 ISA
 ------------  ---------------  ---------------
  Steamroller       2014              AVX
 
   Excavator        2015              AVX2
 
    Zen             2017              AVX2
-
-   Zen2            2019              AVX2
-
-   Zen3            2020              AVX2
-
-   Zen4            2022             AVX512
-
-   Zen5            2024             AVX512
-
-----------------------------------------------
-
-Table: List of the recent AMD microarchitectures. {#tbl:AMDUarchs}
-
-\newpage
-
-------------------------------------------------------------------
-    ISA        Year of ISA      Arm uarchs         Third-party
-                 release         (latest)            uarchs
-------------  ---------------  --------------   ------------------
-  ARMv8-A          2011          Cortex-A73        Apple A7-A10;
-                                                  Qualcomm Kryo;
-                                                 Samsung M1/M2/M3
-
- ARMv8.2-A         2016         Neoverse N1;         Apple A11;
-                                 Cortex-X1           Samsung M4;
-                                                    Ampere Altra
-
- ARMv8.4-A         2017         Neoverse V1        AWS Graviton3;
-                                                   Apple A13, M1
-
- ARMv9.0-A         2018         Neoverse N2;    Microsoft Cobalt 100;
-(64bit-only)                    Neoverse V2;        NVIDIA Grace;
-                                 Cortex X3          AWS Graviton4;
-
- ARMv8.6-A         2019             ---          Apple A15, A16, M2, M3
-(64bit-only)
-
- ARMv9.2-A         2020          Cortex X4             Apple M4
-------------------------------------------------------------------
-
-Table: List of recent ARM ISAs along with their own and third-party implementations. {#tbl:ARMUarchs}
-
-\bibliography{biblio}
