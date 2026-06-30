@@ -1,7 +1,7 @@
-# Overview of Performance Analysis Tools {#sec:secOverviewPerfTools}
+# 性能分析工具概述 {#sec:secOverviewPerfTools}
 
-In the previous chapter, we explored the features implemented in modern processors to aid performance analysis. However, if you were to start directly using those features, it would become very nuanced very quickly as it requires a lot of low-level programming to make use of them. Luckily, performance analysis tools take care of all the complexity that is required to effectively use these hardware performance monitoring features. This makes profiling go smoothly, but it's still critical to have an intuition of how such tools obtain and interpret the data. That is why we now discuss analysis tools only after we have discussed CPU performance monitoring features.
+在上一章中，我们探讨了现代处理器中为辅助性能分析而实现的功能。但是，如果你要直接开始使用这些功能，它很快就会变得非常微妙，因为需要大量低级编程才能利用它们。幸运的是，性能分析工具负责有效使用这些硬件性能监控功能所需的所有复杂性。这使得分析过程顺利进行，但对这些工具如何获取和解释数据有直觉仍然很重要。这就是为什么我们现在在讨论了 CPU 性能监控功能之后才讨论分析工具。
 
-This chapter gives a quick overview of the most popular performance analysis tools available on major platforms. Some of the tools are cross-platform but the majority are not, so it is important to know what tools are available to you. Profiling tools are usually developed and maintained by hardware vendors themselves because they are the ones who know how to properly use performance monitoring features available on their processors. So, the choice of a tool for advanced performance engineering work depends on which operating system and CPU you're using.
+本章概述了主要平台上可用的最流行的性能分析工具。其中一些工具是跨平台的，但大多数不是，因此了解哪些工具对你可用很重要。分析工具通常由硬件供应商自己开发和维护，因为它们是知道如何正确使用其处理器上可用的性能监控功能的人。因此，高级性能工程工作的工具选择取决于你使用的操作系统和 CPU。
 
-After reading the chapter, take the time to practice using tools that you may eventually use. Familiarize yourself with the interface and workflow of those tools. Profile the application that you work with daily. Even if you don't find any actionable insights, you will be much better prepared when the actual need arises.
+阅读本章后，花时间练习使用你最终可能使用的工具。熟悉这些工具的接口和工作流程。分析你日常使用的应用程序。即使你没有发现任何可操作的见解，当实际需求出现时，你也会有更好的准备。
