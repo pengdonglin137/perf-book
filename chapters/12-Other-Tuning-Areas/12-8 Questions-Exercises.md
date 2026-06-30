@@ -1,11 +1,11 @@
-## Questions and Exercises {.unlisted .unnumbered}
+## 问题和练习 {.unlisted .unnumbered}
 
-\markright{Questions and Exercises}
+\markright{问题和练习}
 
-1. Solve the following lab assignments from the Performance Ninja online course: 
+1. 解决 Performance Ninja 在线课程中的以下实验室作业：
 - `perf-ninja::mem_order_violation_1`
 - `perf-ninja::mem_alignment_1`
 - `perf-ninja::io_opt1`
-2. Study the ISA extensions supported by the processor you're working with. Check if the application that you're working on uses these extensions. If not, can it benefit from them?
-3. Run the application that you're working with daily. Find the hotspot. Check if they suffer from any of the microarchitecture-specific issues that we discussed in this chapter.
-4. Describe how you can avoid page faults on a critical path in your application. 
+2. 研究你使用的处理器支持的 ISA 扩展。检查你正在开发的应用程序是否使用这些扩展。如果没有，它能否从中受益？
+3. 运行你日常使用的应用程序。查找热点。检查它们是否遭受我们在本章中讨论的任何微架构特定问题。
+4. 描述如何避免应用程序关键路径上的页面错误。
