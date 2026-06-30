@@ -1,37 +1,37 @@
-## Continuous Profiling {#sec:ContinuousProfiling}
+## 持续分析 {#sec:ContinuousProfiling}
 
-In [@sec:sec_PerfApproaches], we covered the various approaches available for conducting performance analysis, including but not limited to instrumentation, tracing, and sampling. Among these three approaches, sampling imposes relatively minor runtime overhead and requires the least amount of upfront work while still offering valuable insight into application hotspots. However, this insight is limited to the specific point in time when the samples are gathered. What if we could add a time dimension to this sampling? Instead of knowing that FunctionA consumes 30% of CPU cycles at one particular point in time, what if we could track changes in FunctionA’s CPU usage over days, weeks, or months? Or detect changes in its stack trace over that same timespan, all in production? Continuous Profiling has emerged to turn these goals into reality.
+在 [@sec:sec_PerfApproaches] 中，我们介绍了可用于进行性能分析的各种方法，包括但不限于检测、跟踪和采样。在这三种方法中，采样施加相对较小的运行时开销，并且需要最少的前期工作量，同时仍然提供对应用程序热点的有价值的见解。但是，这种见解仅限于收集样本的特定时间点。如果我们能给这种采样添加一个时间维度呢？与其知道 FunctionA 在某个特定时间点消耗 30% 的 CPU 周期，不如跟踪 FunctionA 的 CPU 使用率在几天、几周或几个月内的变化？或者检测其调用栈在相同时间跨度内的变化，所有这些都在生产环境中？持续分析的出现将这些目标变为现实。
 
-Continuous Profiling (CP) is a systemwide, sample-based profiler that is always on, albeit at a low sample rate to minimize runtime impact. Continuously collecting data from all processes facilitates analysis of why the execution of code was different at different times and also aids debugging of incidents even after they have happened. CP tools provide valuable insights into which code uses the most resources, and this helps engineers reduce resource usage in their production environments and thus save money. Unlike typical profilers like Linux perf or Intel VTune, CP can pinpoint a performance issue from the application stack down to the kernel stack from *any* given date and time and supports call stack comparisons between any two arbitrary dates/times to highlight performance differences.
+持续分析（CP）是一种系统范围的、基于采样的分析器，它始终开启，尽管采样率较低以最小化运行时影响。从所有进程持续收集数据有助于分析为什么代码在不同时间的执行方式不同，并且还有助于在事件发生后调试事件。CP 工具提供了有关哪些代码使用最多资源的有价值见解，这有助于工程师减少生产环境中的资源使用，从而节省资金。与典型的分析器（如 Linux perf 或 Intel VTune）不同，CP 可以从*任何*给定日期和时间精确定位从应用程序堆栈到内核堆栈的性能问题，并支持任意两个日期/时间之间的调用栈比较以突出性能差异。
 
-![Screenshot of the Parca Continuous Profiler Web UI.](../../img/perf-tools/Continuous_profiling.png){#fig:Continuous_profiling width=100%}
+![Parca 持续分析器 Web UI 的截图。](../../img/perf-tools/Continuous_profiling.png){#fig:Continuous_profiling width=100%}
 
-To showcase the look-and-feel of a typical CP tool, let’s look at the Web UI of [Parca](https://github.com/parca-dev/parca),[^1] one of the open-source CP tools, depicted in Figure @fig:Continuous_profiling. The top panel displays a time series graph of the number of CPU samples gathered from various processes on the machine during the period selected from the time window dropdown list, which in this case is "Last 15 minutes". However, to make it fit on the page, the image was cut to show only the last 10 minutes. 
+为了展示典型 CP 工具的外观，让我们看看 [Parca](https://github.com/parca-dev/parca)[^1] 的 Web UI，它是开源 CP 工具之一，如图 @fig:Continuous_profiling 所示。顶部面板显示了从时间窗口下拉列表中选择的期间内，机器上各种进程收集的 CPU 样本数量的时间序列图，在这种情况下是"最后 15 分钟"。但是，为了使其适合页面，图像被裁剪为仅显示最后 10 分钟。
 
-By default, Parca collects 19 samples per second. For each sample, it collects stack traces from all the processes that run on the host system. The more samples are attributed to a certain process, the more CPU activity it had during a period of time. In our example, you can see the hottest process (top line) had a bursty behavior with spikes and dips in CPU activity. If you were the lead developer behind this application you would probably be curious why this happens. When you roll out a new version of your application and suddenly see an unexpected spike in the CPU samples attributed to the process, that is an indication that something is going wrong.
+默认情况下，Parca 每秒收集 19 个样本。对于每个样本，它收集主机系统上运行的所有进程的调用栈。归因于某个进程的样本越多，它在一段时间内的 CPU 活动就越多。在我们的示例中，你可以看到最热的进程（顶线）具有 CPU 活动的突发行为，有尖峰和下降。如果你是这个应用程序背后的首席开发人员，你可能会好奇为什么会发生这种情况。当你推出应用程序的新版本并突然看到归因于该进程的 CPU 样本出现意外尖峰时，这表明出了问题。
 
-Continuous profiling tools make it easier not only to spot the point in time when performance change occurred but also to determine the root cause of the issue. Once you click on any point of interest on the chart, the tool displays an icicle graph associated with that period in the bottom panel. An icicle graph is the upside-down version of a flame graph. Using it, you can compare call stacks before and after to help you find what is causing performance problems.
+持续分析工具不仅使发现性能变化发生的时间点变得更容易，而且还确定问题的根本原因。一旦你点击图表上的任何关注点，工具就会在底部面板中显示与该时段关联的冰柱图。冰柱图是火焰图的倒置版本。使用它，你可以比较前后的调用栈，以帮助你找到导致性能问题的原因。
 
-Imagine, you merged a code change into production and after it has been running for a while, you receive reports of intermittent response time spikes. These may or may not correlate with user traffic or with any particular time of day. This is an area where CP shines. You can pull up the CP Web UI and do a search for stack traces at the dates and times of those response time spikes, and then compare them to stack traces of other dates and times to identify anomalous executions at the application and/or kernel stack level. This type of “visual diff” is supported directly in the UI, like a graphical “perf diff” or a differential flamegraph.[^2]
+想象一下，你将代码更改合并到生产环境中，运行一段时间后，你收到间歇性响应时间尖峰的报告。这些可能与用户流量或一天中的任何特定时间相关，也可能不相关。这就是 CP 发挥作用的地方。你可以打开 CP Web UI，在这些响应时间尖峰的日期和时间搜索调用栈，然后将它们与其他日期和时间的调用栈进行比较，以识别应用程序和/或内核堆栈级别的异常执行。这种类型的"可视 diff"直接在 UI 中支持，如图形化"perf diff"或差分火焰图。[^2]
 
-Google introduced the CP concept in the 2010 paper “Google-Wide Profiling” [@GoogleWideProfiling], which championed the value of always-on profiling in production environments. However, it took nearly a decade before it gained traction in the industry:
+Google 在 2010 年的论文"Google-Wide Profiling"[@GoogleWideProfiling] 中引入了 CP 概念，该论文倡导在生产环境中始终开启分析的价值。然而，它花了近十年时间才在行业中获得关注：
 
-1. In March 2019, Google Cloud released its Continuous Profiler.
-2. In July 2020, AWS released CodeGuru Profiler.
-3. In August 2020, Datadog released its Continuous Profiler.
-4. In December 2020, New Relic acquired the Pixie Continuous Profiler.
-5. In Jan 2021, Pyroscope released its open-source Continuous Profiler.
-6. In October 2021, Elastic acquired Optimyze and its Continuous Profiler (Prodfiler); Polar Signals released its Parca Continuous Profiler. It was open-source in April 2024.
-7. In December 2021, Splunk released its AlwaysOn Profiler.
-8. In March 2022, Intel acquired Granulate and its Continuous Profiler (gProfiler). It was made open-source in March 2024.
+1. 2019 年 3 月，Google Cloud 发布了其持续分析器。
+2. 2020 年 7 月，AWS 发布了 CodeGuru Profiler。
+3. 2020 年 8 月，Datadog 发布了其持续分析器。
+4. 2020 年 12 月，New Relic 收购了 Pixie 持续分析器。
+5. 2021 年 1 月，Pyroscope 发布了其开源持续分析器。
+6. 2021 年 10 月，Elastic 收购了 Optimyze 及其持续分析器（Prodfiler）；Polar Signals 发布了其 Parca 持续分析器。它于 2024 年 4 月开源。
+7. 2021 年 12 月，Splunk 发布了其 AlwaysOn Profiler。
+8. 2022 年 3 月，Intel 收购了 Granulate 及其持续分析器（gProfiler）。它于 2024 年 3 月开源。
 
-New entrants into this space continue to pop up in both open-source and commercial varieties. Some of these offerings require more hand-holding than others. For example, some require source code or configuration file changes to begin profiling. Others require different agents for different language runtimes (e.g., Ruby, Python, Golang, C/C++/Rust). The best of them have crafted a secret sauce around eBPF so that nothing other than simply installing the runtime agent is necessary.
+这个领域的新进入者继续在开源和商业领域涌现。其中一些产品比其他产品需要更多的引导。例如，一些需要源代码或配置文件更改才能开始分析。其他产品需要不同的代理来处理不同的语言运行时（例如，Ruby、Python、Golang、C/C++/Rust）。其中最好的围绕 eBPF 调制了秘制酱料，因此除了简单地安装运行时代理之外，不需要其他任何东西。
 
-They also differ in the number of language runtimes supported, the work required for obtaining debug symbols for readable stack traces, and the type of system resources that can be profiled aside from the CPU (e.g., memory, I/O, or locking). While Continuous Profilers differ in the aforementioned aspects, they all share the common function of providing low-overhead, sample-based profiling for various language runtimes, along with remote stack trace storage for web-based search and query capability.
+它们在支持的语言运行时数量、获取调试符号以获得可读调用栈所需的工作量，以及除 CPU 之外可以分析的系统资源类型（例如，内存、I/O 或锁定）方面也存在差异。虽然持续分析器在上述方面有所不同，但它们都共享为各种语言运行时提供低开销、基于采样的分析以及用于基于 Web 的搜索和查询功能的远程调用栈存储的共同功能。
 
-Where is Continuous Profiling headed? Thomas Dullien, co-founder of Optimyze which developed the innovative Continuous Profiler Prodfiler, delivered the Keynote at QCon London 2023 in which he expressed his wish for a cluster-wide tool that could answer the questions, “Why is this request slow?” or “Why is this request expensive?” In a multithreaded application, one particular function may show up on a profile as the highest CPU and memory consumer, yet its duties might be completely outside an application's critical path, e.g., a housekeeping thread. Meanwhile, another function with such insignificant CPU execution time that it barely registers in a profile may exhibit an outsized effect on overall application latency and/or throughput. Typical profilers fail to address this shortcoming. And since CP tools are basically profilers that run at all times, they inherit this same blind spot.
+持续分析走向何方？Optimyze 的联合创始人 Thomas Dullien（开发了创新的持续分析器 Prodfiler）在 QCon London 2023 上发表了主题演讲，他表达了希望有一个集群范围的工具能够回答"为什么这个请求慢？"或"为什么这个请求昂贵？"的问题。在多线程应用程序中，某个特定函数可能在分析中显示为最高的 CPU 和内存消耗者，但其职责可能完全不在应用程序的关键路径之外，例如，一个维护线程。同时，另一个 CPU 执行时间微不足道以至于在分析中几乎没有注册的函数，可能对整体应用程序延迟和/或吞吐量产生巨大影响。典型的分析器无法解决这个缺点。由于 CP 工具基本上是始终运行的分析器，它们继承了同样的盲点。
 
-Thankfully, a new generation of CP tools has emerged that employ AI with Large Language Model-inspired architectures to process profile samples, analyze the relationships between functions, and finally pinpoint with high accuracy the functions and libraries that directly impact overall throughput and latency. One such company that offers this today is Raven.io. As competition intensifies in this space, innovative capabilities will continue to grow so that CP tooling becomes as powerful and robust as that of typical profilers.
+值得庆幸的是，新一代 CP 工具已经出现，它们采用 AI 和受大型语言模型启发的架构来处理分析样本、分析函数之间的关系，并最终以高精度定位直接影响整体吞吐量和延迟的函数和库。Raven.io 是目前提供这种功能的公司之一。随着这个领域的竞争加剧，创新能力将继续增长，使 CP 工具变得像典型分析器一样强大和稳健。
 
 [^1]: Parca - [https://github.com/parca-dev/parca](https://github.com/parca-dev/parca)
-[^2]: Differential flamegraph - [https://www.brendangregg.com/blog/2014-11-09/differential-flame-graphs.html](https://www.brendangregg.com/blog/2014-11-09/differential-flame-graphs.html)
+[^2]: 差分火焰图 - [https://www.brendangregg.com/blog/2014-11-09/differential-flame-graphs.html](https://www.brendangregg.com/blog/2014-11-09/differential-flame-graphs.html)
