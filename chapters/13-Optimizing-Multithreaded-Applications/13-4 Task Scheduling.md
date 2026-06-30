@@ -1,57 +1,39 @@
-## Task Scheduling
+## 任务调度
 
-With the emergence of hybrid processors, task scheduling becomes very challenging. For example, recent Intel's Meteor Lake chips have three types of cores; all with different performance characteristics. As you will see in this section, it is very easy to pessimize the performance of a multithreaded application by scheduling tasks suboptimally. Implementing a generic task scheduling policy is tricky because it greatly depends on the nature of the running tasks. Here are some examples:
+随着混合处理器的出现，任务调度变得非常具有挑战性。例如，最新的 Intel Meteor Lake 芯片有三种类型的核心；都具有不同的性能特征。正如你将在本节中看到的，通过次优地调度任务，很容易降低多线程应用程序的性能。实现通用任务调度策略很棘手，因为它在很大程度上取决于运行任务的性质。以下是一些示例：
 
-* Compute-intensive lightly-threaded workloads (e.g., data compression) must be served only on P-cores.
-* Background tasks (e.g., video calls) could be run on E-cores to save power.
-* For bursty applications that demand high responsiveness (e.g., productivity software), a system should only use P-cores.
-* Multithreaded programs with sustained performance demand (e.g., video rendering) should utilize both P- and E-cores.
+* 计算密集型轻线程工作负载（例如数据压缩）必须仅在 P 核心上服务。
+* 后台任务（例如视频通话）可以在 E 核心上运行以节省功耗。
+* 对于需要高响应性的突发应用程序（例如生产力软件），系统应仅使用 P 核心。
+* 具有持续性能需求的多线程程序（例如视频渲染）应同时利用 P 和 E 核心。
 
-For the most part, task schedulers in modern operating systems take care of these and many other corner cases. For example, Intel's Thread Director helps monitor and analyze performance data in real-time to seamlessly place the right application thread on the right core. My general recommendation here is to let the operating system do its job and not restrict it too much. The operating system knows how to schedule tasks to minimize contention,  maximize reuse of data in caches, and ultimately maximize performance. This will play a big role if you are developing cross-platform software that is intended to run on different hardware configurations.
+在大多数情况下，现代操作系统中的任务调度器会处理这些以及许多其他边缘情况。例如，Intel 的 Thread Director 帮助实时监控和分析性能数据，以将正确的应用程序线程无缝放置在正确的核心上。我在这里的总体建议是让操作系统完成其工作，不要过度限制它。操作系统知道如何调度任务以最小化争用、最大化缓存中的数据重用，并最终最大化性能。如果你正在开发旨在不同硬件配置上运行的跨平台软件，这将发挥重要作用。
 
-Below I show a few typical pitfalls of task scheduling in asymmetric systems. I took the same system I used in the previous case study: 12th Gen Alder Lake Intel&reg; Core&trade; i7-1260P CPU, which has four P-cores and eight E-cores. For simplicity, I only enabled two P-cores and two E-cores; the rest of the cores were temporarily disabled. I also disabled SMT sibling threads on the two active P-cores. I wrote a simple OpenMP application, where each worker thread runs several bit manipulation operations on every 32-bit integer element of a large array. After a worker thread has finished processing, it hits a barrier and is forced to wait for other threads to finish their parts. After that, the main thread cleans up the array and the processing repeats. The program was compiled with GCC 13.2 and `-O3 -march=core-avx2`, which enables vectorization.
+下面我展示了非对称系统中任务调度的一些典型陷阱。我使用了与前一个案例研究中相同的系统：第 12 代 Alder Lake Intel&reg; Core&trade; i7-1260P CPU，它有四个 P 核心和八个 E 核心。为简单起见，我只启用了两个 P 核心和两个 E 核心；其余核心被暂时禁用。我还禁用了两个活动 P 核心上的 SMT 兄弟线程。我编写了一个简单的 OpenMP 应用程序，其中每个工作线程在大型数组的每个 32 位整数元素上执行几个位操作。工作线程完成处理后，它遇到一个屏障并被迫等待其他线程完成其部分。之后，主数组清理并重复处理。该程序使用 GCC 13.2 和 `-O3 -march=core-avx2` 编译，这启用了向量化。
 
-Figure @fig:OmpScheduling shows three strategies, which highlight common problems that I regularly see in practice. These screenshots were captured with Intel VTune. The bars on the timeline indicate CPU time, i.e., periods when a thread was running. For each software thread, there is one or two corresponding CPU cores. Using this view, we can see on which core each thread was running at any given moment.
+图 @fig:OmpScheduling 显示了三种策略，它们突出了我在实践中经常看到的常见问题。这些屏幕截图是使用 Intel VTune 捕获的。时间线上的条形图表示 CPU 时间，即线程正在运行的时间段。对于每个软件线程，有一个或两个对应的 CPU 核心。使用此视图，我们可以看到每个线程在任何给定时刻在哪个核心上运行。
 
 \begin{figure}[htbp]
 \centering
 
-\subfloat[Static partitioning with pinning threads to the cores:
-\passthrough{\lstinline!\#pragma omp for schedule(static)!} with
-\passthrough{\lstinline!OMP\_PROC\_BIND=true!}.]{\includegraphics[width=0.8\textwidth,height=\textheight]{../../img/mt-perf/OmpAffinity.png}\label{fig:OmpAffinity}}
+\subfloat[静态分区，将线程固定到核心：
+\passthrough{\lstinline!\#pragma omp for schedule(static)!} 配合
+\passthrough{\lstinline!OMP\_PROC\_BIND=true!}。]{\includegraphics[width=0.8\textwidth,height=\textheight]{../../img/mt-perf/OmpAffinity.png}\label{fig:OmpAffinity}}
 
-\subfloat[Static partitioning, no thread affinity:
-\passthrough{\lstinline!\#pragma omp for schedule(static)!}.]{\includegraphics[width=0.8\textwidth,height=\textheight]{../../img/mt-perf/OmpStatic.png}\label{fig:OmpStatic}}
+\subfloat[静态分区，无线程亲和性：
+\passthrough{\lstinline!\#pragma omp for schedule(static)!}。]{\includegraphics[width=0.8\textwidth,height=\textheight]{../../img/mt-perf/OmpStatic.png}\label{fig:OmpStatic}}
 
-\subfloat[Dynamic partitioning with 16 chunks:
-\passthrough{\lstinline!\#pragma omp for schedule(dynamic, N/16)!}.]{\includegraphics[width=0.8\textwidth,height=\textheight]{../../img/mt-perf/OmpDynamic.png}\label{fig:OmpDynamic}}
+\subfloat[动态分区，16 个块：
+\passthrough{\lstinline!\#pragma omp for schedule(dynamic, N/16)!}。]{\includegraphics[width=0.8\textwidth,height=\textheight]{../../img/mt-perf/OmpDynamic.png}\label{fig:OmpDynamic}}
 
-\caption{Typical task scheduling pitfalls: core affinity blocks thread
-migration, partitioning jobs with large granularity fails to maximize
-CPU utilization.}
+\caption{典型的任务调度陷阱：核心亲和性阻止线程
+迁移，大粒度分区作业无法最大化
+CPU 利用率。}
 
 \label{fig:OmpScheduling}
 
 \end{figure}
 
-Our first example uses static partitioning, which divides the processing of our large array into four equal chunks (since I have four cores enabled). For each chunk, the OpenMP runtime spawns a new thread. Also, I used `OMP_PROC_BIND=true`, which instructs OpenMP runtime to pin spawned threads to the CPU cores. Figure @fig:OmpAffinity demonstrates the effect: P-cores are much better at handling SIMD instructions than E-cores and they finish their jobs two times faster (see *Thread 1* and *Thread 2*). However, thread affinity does not allow *Thread 3* and *Thread 4* to migrate to P-cores, which are waiting at the barrier. That results in a high latency, which is limited by the speed of E-cores.
+我们的第一个示例使用静态分区，它将大型数组的处理分成四个相等的块（因为我启用了四个核心）。对于每个块，OpenMP 运行时生成一个新线程。此外，我使用了 `OMP_PROC_BIND=true`，它指示 OpenMP 运行时将生成的线程固定到 CPU 核心。图 @fig:OmpAffinity 演示了效果：P 核心在处理 SIMD 指令方面比 E 核心好得多，它们完成工作快两倍（参见*线程 1*和*线程 2*）。但是，线程亲和性不允许*线程 3*和*线程 4*迁移到等待屏障的 P 核心。这导致高延迟，其速度受 E 核心限制。
 
-My recommendation is to avoid pinning threads to cores. With unbalanced work, pinning might restrict the work stealing, leaving the long execution tail for E-cores. On macOS, it is not possible to pin threads to cores since the operating system does not provide an API for that.
-
-In the second example, I don't pin threads anymore, but the partitioning scheme remains the same (four equal chunks). Figure @fig:OmpStatic illustrates the effect of this change. As in the previous scenario, *Thread 1* and *Thread 4* finished their jobs early, because they were using P-cores. *Thread 2* and *Thread 3* started running on E-cores, but once P-cores became available, they migrated. It solved the problem we had before, but now E-cores remain idle until the end of the processing.
-
-My second piece of advice is to avoid static partitioning on systems with asymmetric cores. Equal-sized chunks will likely be processed faster on P-cores than on E-cores which will introduce dynamic load imbalance.
-
-In the final example, I switch to using dynamic partitioning. With dynamic partitioning, chunks are distributed to threads dynamically. Each thread processes a chunk of elements, then requests another chunk, until no chunks remain to be distributed. Figure @fig:OmpDynamic shows the result of using dynamic partitioning by dividing the array into 16 chunks. With this scheme, each task becomes more granular, which enables OpenMP runtime to balance the work even when P-cores run two times faster than E-cores. However, notice that there is still some idle time on E-cores. 
-
-Performance can be slightly improved if we partition the work into 128 chunks instead of 16. But don't make the jobs too small, otherwise it will result in increased management overhead. The result summary of my experiments is shown in Table @tbl:TaskSchedulingResults. Partitioning the work into 128 chunks turns out to be the sweet spot for our example. Even though this example is very simple, lessons from it can be applied to production-grade multithreaded software.
-
-------------------------------------------------------------------------------------------------
-                               Affinity  Static   Dynamic,    Dynamic,   Dynamic,    Dynamic,
-                                                  4 chunks   16 chunks  128 chunks   1024 chunks
------------------------------ ---------- ------- ---------- ----------- ----------- ------------
-Avg latency of 10 runs, ms     864       567       570         541        517          560
-
-------------------------------------------------------------------------------------------------
-
-Table: Results of the task scheduling experiments. {#tbl:TaskSchedulingResults}
+我的建议是避免将线程固定到核心。在工作不平衡的情况下，固定可能会限制工作窃取，将长执行尾部留给 E 核心。在 macOS 上，无法将线程固定到核心，因为操作系统不提供相应的 API。
