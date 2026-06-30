@@ -1,61 +1,59 @@
-## Pipelining
+## 流水线
 
-Pipelining is a foundational technique used to make CPUs fast, wherein multiple instructions overlap during their execution. Pipelining in CPUs drew inspiration from automotive assembly lines. The processing of instructions is divided into stages. The stages operate in parallel, working on different parts of different instructions. DLX is a relatively simple architecture designed by John L. Hennessy and David A. Patterson in 1994. As defined in [@Hennessy], it has a 5-stage pipeline which consists of:
+流水线是用于使 CPU 变快的基础技术，其中多条指令在执行期间重叠。CPU 中的流水线从汽车装配线中汲取灵感。指令的处理被分为阶段。这些阶段并行运行，处理不同指令的不同部分。DLX 是 John L. Hennessy 和 David A. Patterson 于 1994 年设计的相对简单的架构。如 [@Hennessy] 中定义的，它有一个 5 级流水线，包括：
 
-1. Instruction fetch (IF)
-2. Instruction decode (ID)
-3. Execute (EXE)
-4. Memory access (MEM)
-5. Write back (WB)
+1. 指令取指（IF）
+2. 指令解码（ID）
+3. 执行（EXE）
+4. 内存访问（MEM）
+5. 写回（WB）
 
-![Simple 5-stage pipeline diagram.](../../img/uarch/Pipelining.png){#fig:Pipelining width=80%}
+![简单的 5 级流水线图。](../../img/uarch/Pipelining.png){#fig:Pipelining width=80%}
 
-Figure @fig:Pipelining shows an ideal pipeline view of the 5-stage pipeline CPU. In cycle 1, instruction x enters the IF stage of the pipeline. In the next cycle, as instruction x moves to the ID stage, the next instruction in the program enters the IF stage, and so on. Once the pipeline is full, as in cycle 5 above, all pipeline stages of the CPU are busy working on different instructions. Without pipelining, the instruction `x+1` couldn't start its execution until after instruction `x` had finished its work.
+图 @fig:Pipelining 显示了 5 级流水线 CPU 的理想流水线视图。在周期 1 中，指令 x 进入流水线的 IF 阶段。在下一个周期中，当指令 x 移动到 ID 阶段时，程序中的下一条指令进入 IF 阶段，依此类推。一旦流水线填满，如上面的周期 5 所示，CPU 的所有流水线阶段都忙于处理不同的指令。没有流水线，指令 `x+1` 在指令 `x` 完成其工作之前无法开始执行。
 
-Modern high-performance CPUs have multiple pipeline stages, often ranging from 10 to 20 (sometimes more), depending on the architecture and design goals. This involves a much more complicated design than a simple 5-stage pipeline introduced earlier. For example, the decode stage may be split into several new stages. We may also add new stages before the execute stage to buffer decoded instructions and so on.
+现代高性能 CPU 有多个流水线阶段，通常范围从 10 到 20（有时更多），具体取决于架构和设计目标。这涉及到比前面介绍的简单 5 级流水线复杂得多的设计。例如，解码阶段可能被分成几个新阶段。我们还可以在执行阶段之前添加新阶段来缓冲解码后的指令，等等。
 
-The *throughput* of a pipelined CPU is defined as the number of instructions that complete and exit the pipeline per unit of time. The *latency* for any given instruction is the total time through all the stages of the pipeline. Since all the stages of the pipeline are linked together, each stage must be ready to move to the next instruction in lockstep. The time required to move an instruction from one stage to the next defines the basic machine *cycle* or clock for the CPU. The value chosen for the clock for a given pipeline is defined by the slowest stage of the pipeline. CPU hardware designers strive to balance the amount of work that can be done in a stage as this directly affects the frequency of operation of the CPU.
+流水线 CPU 的*吞吐量*定义为每单位时间完成并退出流水线的指令数。任何给定指令的*延迟*是通过流水线所有阶段的总时间。由于流水线的所有阶段链接在一起，每个阶段必须准备好以锁定步调移动到下一条指令。将指令从一个阶段移动到下一个阶段所需的时间定义了 CPU 的基本机器*周期*或时钟。为给定时钟选择的值由流水线中最慢的阶段定义。CPU 硬件设计者努力平衡阶段中可以完成的工作量，因为这直接影响 CPU 的操作频率。
 
-In real implementations, pipelining introduces several constraints that limit the nicely-flowing execution illustrated in Figure @fig:Pipelining. Pipeline hazards prevent the ideal pipeline behavior, resulting in stalls. The three classes of hazards are structural hazards, data hazards, and control hazards. Luckily for the programmer, in modern CPUs, all classes of hazards are handled by the hardware.
+在实际实现中，流水线引入了几个限制，限制了图 @fig:Pipelining 中所示的流畅执行。流水线冒险阻止了理想的流水线行为，导致停顿。冒险的三类是结构冒险、数据冒险和控制冒险。幸运的是，对于程序员来说，在现代 CPU 中，所有类型的冒险都由硬件处理。
 
 \lstset{linewidth=10cm}
 
-* **Structural hazards**: are caused by resource conflicts, i.e., when there are two instructions competing for the same resource. An example of such a hazard is when two 32-bit addition instructions are ready to execute in the same cycle, but there is only one execution unit available in that cycle. In this case, we need to choose which one of the two instructions to execute and which one will be executed in the next cycle. To a large extent, they could be eliminated by replicating hardware resources, such as using multiple execution units, instruction decoders, multi-ported register files, etc. However, this could potentially become quite expensive in terms of silicon area and power.
+* **结构冒险**：由资源冲突引起，即当两条指令竞争同一资源时。这种冒险的一个例子是当两条 32 位加法指令准备好在同一周期中执行，但该周期中只有一个执行单元可用。在这种情况下，我们需要选择执行两条指令中的哪一条，哪一条将在下一个周期执行。在很大程度上，可以通过复制硬件资源来消除它们，例如使用多个执行单元、指令解码器、多端口寄存器文件等。然而，这在硅面积和功耗方面可能变得相当昂贵。
 
-* **Data hazards**: are caused by data dependencies in the program and are classified into three types:
+* **数据冒险**：由程序中的数据依赖引起，分为三种类型：
 
-  A *read-after-write* (RAW) hazard requires a dependent read to execute after a write. It occurs when instruction `x+1` reads a source before previous instruction `x` writes to the source, resulting in the wrong value being read. CPUs implement data forwarding from a later stage of the pipeline to an earlier stage (called "*bypassing*") to mitigate the penalty associated with the RAW hazard. The idea is that results from instruction `x` can be forwarded to instruction `x+1` before instruction `x` is fully completed. If we take a look at the example:
+  *写后读*（RAW）冒险要求依赖读在写之后执行。当指令 `x+1` 在先前指令 `x` 写入源之前读取源时发生，导致读取错误的值。CPU 实现从流水线的较后阶段到较早阶段的数据转发（称为"*旁路*"），以减轻与 RAW 冒险相关的惩罚。其思想是指令 `x` 的结果可以在指令 `x` 完全完成之前转发给指令 `x+1`。如果我们看一下示例：
 
   ```
   R1 = R0 ADD 1
   R2 = R1 ADD 2
   ```
 
-  There is a RAW dependency for register R1. If we take the value directly after the addition `R0 ADD 1` is done (from the `EXE` pipeline stage), we don't need to wait until the `WB` stage finishes (when the value will be written to the register file). Bypassing helps to save a few cycles. The longer the pipeline, the more effective bypassing becomes.
+  寄存器 R1 存在 RAW 依赖。如果我们直接在加法 `R0 ADD 1` 完成后取值（从 `EXE` 流水线阶段），我们不需要等待 `WB` 阶段完成（当值将被写入寄存器文件时）。旁路有助于节省几个周期。流水线越长，旁路越有效。
 
-  A *write-after-read* (WAR) hazard requires a dependent write to execute after a read. It occurs when an instruction writes a register before an earlier instruction reads the source, resulting in the wrong new value being read. A WAR hazard is not a true dependency and can be eliminated by a technique called *register renaming*. It is a technique that abstracts logical registers from physical registers. CPUs support register renaming by keeping a large number of physical registers. Logical (*architectural*) registers, the ones that are defined by the ISA, are just aliases over a wider register file. With such decoupling of the architectural state, solving WAR hazards is simple: we just need to use a different physical register for the write operation. For example:
+  *写后读*（WAR）冒险要求依赖写在读之后执行。当指令在较早指令读取源之前写入寄存器时发生，导致读取错误的新值。WAR 冒险不是真正的依赖，可以通过称为*寄存器重命名*的技术消除。这是一种将逻辑寄存器与物理寄存器抽象分离的技术。CPU 通过保持大量物理寄存器来支持寄存器重命名。逻辑（*架构*）寄存器（由 ISA 定义的）只是更宽寄存器文件上的别名。通过这种架构状态的解耦，解决 WAR 冒险很简单：我们只需要为写操作使用不同的物理寄存器。例如：
 
   ```
-  ; machine code, WAR hazard              ; after register renaming 
-  ; (architectural registers)             ; (physical registers)
+  ; 机器代码，WAR 冒险              ; 寄存器重命名后 
+  ; （架构寄存器）             ; （物理寄存器）
   R1 = R0 ADD 1                  =>       R101 = R100 ADD 1
   R0 = R2 ADD 2                           R103 = R102 ADD 2
   ```
 
-  In the original assembly code, there is a WAR dependency for register `R0`. For the code on the left, we cannot reorder the execution of the instructions, because it could leave the wrong value in `R1`. However, we can leverage our large pool of physical registers to overcome this limitation. To do that we need to rename all the occurrences of the `R0` register starting from the write operation (`R0 = R2 ADD 2`) and below to use a free register. After renaming, we give these registers new names that correspond to physical registers, say `R103`. By renaming registers, we eliminated a WAR hazard in the initial code, and we can safely execute the two operations in any order.
+  在原始汇编代码中，寄存器 `R0` 存在 WAR 依赖。对于左边的代码，我们不能重新排序指令的执行，因为它可能会在 `R1` 中留下错误的值。但是，我们可以利用我们大量的物理寄存器来克服这个限制。为此，我们需要从写操作（`R0 = R2 ADD 2`）开始重命名 `R0` 寄存器的所有出现，并使用空闲寄存器。重命名后，我们给这些寄存器分配与物理寄存器对应的新名称，比如 `R103`。通过重命名寄存器，我们消除了初始代码中的 WAR 冒险，我们可以安全地以任何顺序执行两个操作。
 
-  A *write-after-write* (WAW) hazard requires a dependent write to execute after a write. It occurs when an instruction writes to a register before an earlier instruction writes to the same register, resulting in the wrong value being stored. WAW hazards are also eliminated by register renaming, allowing both writes to execute in any order while preserving the correct final result. Below is an example of eliminating WAW hazards.
+  *写后写*（WAW）冒险要求依赖写在写之后执行。当指令在较早指令写入同一寄存器之前写入该寄存器时发生，导致存储错误的值。WAW 冒险也通过寄存器重命名消除，允许两个写操作以任何顺序执行，同时保留正确的最终结果。下面是消除 WAW 冒险的示例。
 
   ```
-  ; machine code, WAW hazard              ; after register renaming
-  (architectural registers)               (physical registers)
+  ; 机器代码，WAW 冒险              ; 寄存器重命名后
+  ; （架构寄存器）               ; （物理寄存器）
   R1 = R0 ADD 1                  =>       R101 = R100 ADD 1
   R2 = R1 SUB R3  ; RAW                   R102 = R101 SUB R103 ; RAW
-  R1 = R0 MUL 3   ; WAW and WAR           R104 = R100 MUL 3
+  R1 = R0 MUL 3   ; WAW 和 WAR           R104 = R100 MUL 3
   ```
 
-  You will see similar code in many production programs. In our example, `R1` keeps the temporary result of the `ADD` operation. Once the `SUB` instruction is complete, `R1` is immediately reused to store the result of the `MUL` operation. The original code on the left features all three types of data hazards. There is a RAW dependency over `R1` between `ADD` and `SUB`, and it must survive register renaming. Also, we have WAW and WAR hazards over the same `R1` register for the `MUL` operation. Again, we need to rename registers to eliminate those two hazards. Notice that after register renaming we have a new destination register (`R104`) for the `MUL` operation. Now we can safely reorder `MUL` with the other two operations.
+  你会在许多生产程序中看到类似的代码。在我们的示例中，`R1` 保存 `ADD` 操作的临时结果。一旦 `SUB` 指令完成，`R1` 立即被重用以存储 `MUL` 操作的结果。左边的原始代码具有所有三种类型的数据依赖。`ADD` 和 `SUB` 之间存在 `R1` 上的 RAW 依赖，并且它必须在寄存器重命名后保留。此外，`MUL` 操作的同一 `R1` 寄存器上存在 WAW 和 WAR 冒险。同样，我们需要重命名寄存器来消除这两个冒险。注意，寄存器重命名后，`MUL` 操作有一个新的目标寄存器（`R104`）。现在我们可以安全地将 `MUL` 与其他两个操作重新排序。
 
-* **Control hazards**: are caused due to changes in the program flow. They arise from pipelining branches and other instructions that change the program flow. The branch condition that determines the direction of the branch (taken vs. not taken) is resolved in the execute pipeline stage. As a result, the fetch of the next instruction cannot be pipelined unless the control hazard is eliminated. Techniques such as dynamic branch prediction and speculative execution described in the next section are used to mitigate control hazards.
-
-\lstset{linewidth=\textwidth}
+* **控制冒险**：由程序流的变化引起。它们来自对改变程序流的分支和其他指令的流水线化。确定分支方向（已采取 vs. 未采取）的分支条件在执行流水线阶段中解析。因此，除非控制冒险被消除，否则下一条指令的取指不能流水线化。下一节中描述的动态分支预测和推测执行等技术用于减轻控制冒险。
