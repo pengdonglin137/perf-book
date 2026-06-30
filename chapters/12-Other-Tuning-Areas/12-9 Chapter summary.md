@@ -1,14 +1,13 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* Processors from different vendors are not created equal. They differ in terms of instruction set architecture (ISA) that they support and microarchitecture implementation. Reaching peak performance often requires leveraging the latest ISA extensions and tuning the application for a specific CPU microarchitecture.
-* CPU dispatching is a technique that enables you to introduce platform-specific optimizations. Using it, you can provide a fast path for a specific microarchitecture while keeping a generic implementation for other platforms.
-* We explored several performance corner cases that are caused by the interaction of the application with the CPU microarchitecture. These include memory ordering violations, misaligned memory accesses, cache aliasing, and denormal floating-point numbers.
-* We also discussed a few low-latency tuning techniques that are essential for applications that require fast response times. We showed how to avoid page faults, cache misses, TLB shootdowns, and core throttling on a critical path.
-* System tuning is the last piece of the puzzle. Some knobs and settings may affect the performance of your application. It is crucial to ensure that the system firmware, the OS, or the kernel does not destroy all the efforts put into tuning the application. 
+* 来自不同供应商的处理器并不相同。它们在支持的指令集架构（ISA）和微架构实现方面存在差异。达到峰值性能通常需要利用最新的 ISA 扩展并针对特定 CPU 微架构调整应用程序。
+* CPU 分发是一种技术，使你能够引入平台特定的优化。使用它，你可以为特定微架构提供快速路径，同时为其他平台保留通用实现。
+* 我们探讨了由应用程序与 CPU 微架构的交互引起的几个性能边缘情况。这些包括内存顺序违规、未对齐的内存访问、缓存别名和非规格化浮点数。
+* 我们还讨论了几个低延迟调优技术，这些技术对于需要快速响应时间的应用程序至关重要。我们展示了如何避免关键路径上的页面错误、缓存未命中、TLB 射击和核心节流。
+* 系统调优是拼图的最后一块。一些旋钮和设置可能会影响应用程序的性能。确保系统固件、操作系统或内核不会破坏所有调优工作至关重要。
 
 \sectionbreak
-
 
 
