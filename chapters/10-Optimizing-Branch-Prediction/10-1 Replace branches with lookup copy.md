@@ -1,8 +1,8 @@
-## Replace Branches with Lookup
+## 用查找替换分支
 
-One way to avoid frequently mispredicted branches is to use lookup tables. An example of code when such transformation might be profitable is shown in [@lst:LookupBranches]. As usual, the original version is on the left while the improved version is on the right. Function `mapToBucket` maps values in the `[0-50)` range into corresponding five buckets, and returns `-1` for values that are out of this range. For uniformly distributed values of `v`, we will have an equal probability for `v` to fall into any of the buckets. In the generated assembly for the original version, we will likely see many branches, which could have high misprediction rates. Hopefully, it's possible to rewrite the function `mapToBucket` using a single array lookup, as shown on the right.
+避免频繁预测错误分支的一种方法是使用查找表。[@lst:LookupBranches] 中显示了这种转换可能有益的代码示例。与往常一样，原始版本在左边，改进版本在右边。函数 `mapToBucket` 将 `[0-50)` 范围内的值映射到相应的五个桶，并为超出此范围的值返回 `-1`。对于均匀分布的 `v` 值，`v` 落入任何桶的概率相等。在原始版本的生成汇编中，我们可能会看到许多分支，这些分支可能具有高预测错误率。希望可以使用单个数组查找来重写函数 `mapToBucket`，如右边所示。
 
-Listing: Replacing branches with lookup tables.
+清单：用查找表替换分支。
 
 ~~~~ {#lst:LookupBranches .cpp}
 int8_t mapToBucket(unsigned v) {       int8_t buckets[50] = {
@@ -19,9 +19,9 @@ int8_t mapToBucket(unsigned v) {       int8_t buckets[50] = {
                                        }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For the improved version of `mapToBucket` on the right, a compiler will likely generate a single branch instruction that guards against out-of-bounds access to the `buckets` array. A typical hot path through this function will execute the untaken branch and one load instruction. The branch will be well-predicted by the CPU branch predictor since we expect most of the input values to fall into the range covered by the `buckets` array. The lookup will also be fast since the `buckets` array is small and likely to be in the L1 D-cache.
+对于右边改进版本的 `mapToBucket`，编译器可能会生成单个分支指令来保护对 `buckets` 数组的越界访问。通过此函数的典型热路径将执行未采取的分支和一个加载指令。该分支将被 CPU 分支预测器很好地预测，因为我们期望大多数输入值落入 `buckets` 数组覆盖的范围内。查找也将很快，因为 `buckets` 数组很小，并且可能在 L1 D-cache 中。
 
-If we need to map a bigger range of values, say `[0-1M)`, allocating a very large array is not practical. In this case, we might use interval map data structures that accomplish that goal using much less memory but logarithmic lookup complexity. Readers can find existing implementations of interval map container in [Boost](https://www.boost.org/doc/libs/1_65_0/libs/icl/doc/html/boost/icl/interval_map.html)[^2] and [LLVM](https://llvm.org/doxygen/IntervalMap_8h_source.html)[^3].
+如果我们需要映射更大的值范围，例如 `[0-1M)`，分配一个非常大的数组是不切实际的。在这种情况下，我们可以使用区间映射数据结构，使用更少的内存但对数查找复杂度来实现该目标。读者可以在 [Boost](https://www.boost.org/doc/libs/1_65_0/libs/icl/doc/html/boost/icl/interval_map.html)[^2] 和 [LLVM](https://llvm.org/doxygen/IntervalMap_8h_source.html)[^3] 中找到区间映射容器的现有实现。
 
 [^2]: C++ Boost `interval_map` - [https://www.boost.org/doc/libs/1_65_0/libs/icl/doc/html/boost/icl/interval_map.html](https://www.boost.org/doc/libs/1_65_0/libs/icl/doc/html/boost/icl/interval_map.html)
-[^3]: LLVM's `IntervalMap` - [https://llvm.org/doxygen/IntervalMap_8h_source.html](https://llvm.org/doxygen/IntervalMap_8h_source.html)
+[^3]: LLVM 的 `IntervalMap` - [https://llvm.org/doxygen/IntervalMap_8h_source.html](https://llvm.org/doxygen/IntervalMap_8h_source.html)
