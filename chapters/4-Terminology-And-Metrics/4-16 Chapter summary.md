@@ -1,13 +1,12 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* In this chapter, we introduced the basic metrics in performance analysis such as retired/executed instructions, CPU utilization, IPC/CPI, $\mu$ops, pipeline slots, core/reference clocks, cache misses, and branch mispredictions. We showed how each of these metrics can be collected with Linux `perf`.
-* For more advanced performance analysis, there are many derivative metrics that you can collect. For instance, cache misses per kilo instructions (MPKI), instructions per function call, branch, load, etc. (Ip*), ILP, MLP, and others. The case studies in this chapter show how you can get actionable insights from analyzing these metrics. 
-* Be careful about drawing conclusions just by looking at the aggregate numbers. Don't fall into the trap of "Excel performance engineering", i.e., only collecting performance metrics and never looking at the code. Always seek a second source of data (e.g., performance profiles, discussed later) to verify your ideas.
-* Memory bandwidth and latency are crucial factors in the performance of many production software packages nowadays, including AI, HPC, databases, and many general-purpose applications. Memory bandwidth depends on the DRAM speed (in MT/s) and the number of memory channels. Modern high-end server platforms have 8--12 memory channels and can reach up to 500 GB/s for the whole system and up to 50 GB/s in single-threaded mode. Memory latency nowadays doesn't change a lot, in fact, it is getting slightly worse with new DDR4 and DDR5 generations. The majority of modern client-facing systems fall in the range of 70--110 ns latency per memory access. Server platforms may have higher memory latencies.
+* 在本章中，我们介绍了性能分析中的基本指标，如退休/执行指令、CPU 利用率、IPC/CPI、$\mu$ops、流水线槽、核心/参考时钟、缓存未命中和分支预测错误。我们展示了如何使用 Linux `perf` 收集这些指标。
+* 对于更高级的性能分析，有许多衍生指标可以收集。例如，每千条指令的缓存未命中数（MPKI）、每函数调用指令数、分支、加载等（Ip*）、ILP、MLP 等。本章中的案例研究展示了如何通过分析这些指标获得可操作的见解。
+* 仅通过查看汇总数据就得出结论要小心。不要陷入"Excel 性能工程"的陷阱，即只收集性能指标而从不查看代码。始终寻求第二个数据源（例如，稍后讨论的性能剖析）来验证你的想法。
+* 内存带宽和延迟是当今许多生产软件包性能的关键因素，包括 AI、HPC、数据库和许多通用应用程序。内存带宽取决于 DRAM 速度（以 MT/s 为单位）和内存通道数。现代高端服务器平台有 8-12 个内存通道，整个系统可达 500 GB/s，单线程模式下可达 50 GB/s。内存延迟如今变化不大，事实上，随着新的 DDR4 和 DDR5 代际，它略有恶化。大多数现代面向客户端的系统每次内存访问的延迟范围在 70-110 纳秒。服务器平台可能具有更高的内存延迟。
 
 \sectionbreak
-
 
 
