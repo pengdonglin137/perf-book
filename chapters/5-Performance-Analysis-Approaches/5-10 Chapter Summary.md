@@ -1,23 +1,23 @@
-## Chapter Summary {#sec:secApproachesSummary .unlisted .unnumbered}
+## 章节总结 {#sec:secApproachesSummary .unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* Latency and throughput are often the ultimate metrics of the program performance. When seeking ways to improve them, we need to get more detailed information on how the application executes. Both hardware and software provide data that can be used for performance monitoring.
+* 延迟和吞吐量通常是程序性能的最终指标。当寻求改进它们的方法时，我们需要获得有关应用程序如何执行的更详细信息。硬件和软件都提供可用于性能监控的数据。
 
-* Code instrumentation enables us to track many things in a program but causes relatively large overhead both on the development and runtime side. While most developers are not in the habit of manually instrumenting their code, this approach is still relevant for automated processes, e.g., Profile-Guided Optimizations (PGO).
+* 代码检测使我们能够跟踪程序中的许多事情，但在开发和运行时都会造成相对较大的开销。虽然大多数开发人员不习惯手动检测他们的代码，但这种方法对于自动化过程仍然相关，例如配置文件引导优化（PGO）。
 
-* Tracing is conceptually similar to instrumentation and is useful for exploring anomalies in a system. Tracing enables us to catch the entire sequence of events with timestamps attached to each event.
+* 跟踪在概念上与检测相似，对于探索系统中的异常很有用。跟踪使我们能够捕获带有时间戳的整个事件序列。
 
-* Performance monitoring counters are a very important instrument of low-level performance analysis. They are generally used in two modes: "Counting" or "Sampling". The counting mode is primarily used for calculating various performance metrics. 
+* 性能监控计数器是低级性能分析的重要工具。它们通常以两种模式使用："计数"或"采样"。计数模式主要用于计算各种性能指标。
 
-* Sampling skips most of a program's execution and takes just one sample that is supposed to represent the entire interval. Despite this, sampling usually yields precise enough distributions. The most well-known use case of sampling is finding hotspots in a program. Sampling is the most popular analysis approach since it doesn't require recompilation of a program and has very little runtime overhead.
+* 采样跳过程序的大部分执行，只取一个样本，该样本应该代表整个间隔。尽管如此，采样通常产生足够精确的分布。采样最著名的用例是查找程序中的热点。采样是最流行的分析方法，因为它不需要重新编译程序，并且运行时开销非常小。
 
-* Generally, counting and sampling incur very low runtime overhead (usually below 2%). Counting gets more expensive once you start multiplexing between different events (5--15% overhead), while sampling gets more expensive with increasing sampling frequency [@Nowak2014TheOO].
+* 通常，计数和采样产生的运行时开销非常低（通常低于 2%）。当你开始在不同事件之间多路复用时，计数会变得更昂贵（5-15% 开销），而采样随着采样频率的增加而变得更昂贵 [@Nowak2014TheOO]。
 
-* The Roofline Performance Model is a throughput-oriented performance model that is heavily used in the High Performance Computing (HPC) world. It visualizes the performance of an application against hardware limitations. The Roofline model helps to identify performance bottlenecks, guides software optimizations, and keeps track of optimization progress.
+* Roofline 性能模型是一种面向吞吐量的性能模型，在高性能计算（HPC）领域被广泛使用。它将应用程序的性能可视化为硬件限制。Roofline 模型有助于识别性能瓶颈，指导软件优化，并跟踪优化进度。
 
-* There are tools that try to statically analyze the performance of code. Such tools simulate a piece of code instead of executing it. Many limitations and constraints apply to this approach, but you get a very detailed and low-level report in return.
+* 有一些工具试图静态分析代码的性能。这些工具模拟一段代码而不是执行它。这种方法有许多限制和约束，但你可以得到一个非常详细和底层的报告作为回报。
 
-* Compiler Optimization reports help to find missing compiler optimizations.
+* 编译器优化报告有助于查找缺失的编译器优化。
 
 \sectionbreak
