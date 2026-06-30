@@ -1,39 +1,39 @@
-## Reducing ITLB Misses {#sec:FeTLB}
+## 减少 ITLB 未命中 {#sec:FeTLB}
 
-Another important area of tuning Frontend efficiency is the virtual-to-physical address translation of memory addresses. Primarily those translations are served by the TLB (see [@sec:TLBs]), which caches the most recently used memory page translations in dedicated entries. When TLB cannot serve the translation request, a time-consuming page walk of the kernel page table takes place to calculate the correct physical address for each referenced virtual address. Whenever you see a high percentage of ITLB overhead in the TMA summary, the advice in this section may become handy. 
+调优前端效率的另一个重要领域是内存地址的虚拟到物理地址转换。这些转换主要由 TLB（参见 [@sec:TLBs]）提供服务，TLB 在专用条目中缓存最近使用的内存页转换。当 TLB 无法服务转换请求时，会进行耗时的内核页表遍历，以计算每个引用虚拟地址的正确物理地址。每当你在 TMA 摘要中看到高百分比的 ITLB 开销时，本节中的建议可能会派上用场。
 
-In general, relatively small applications are not susceptible to ITLB misses. For example, Golden Cove microarchitecture can cover memory space up to 1MB in its ITLB. If the machine code of your application fits in 1MB you should not be affected by ITLB misses. The problem starts to appear when frequently executed parts of an application are scattered around in memory. When many functions begin to frequently call each other, they start competing for the entries in the ITLB. One of the examples is the Clang compiler, which at the time of writing, has a code section of ~60MB. ITLB overhead running on a laptop with a mainstream Intel Coffee Lake processor is ~7%, which means that 7% of cycles are spent handling ITLB misses: doing demanded page walks and populating TLB entries.
+通常，相对较小的应用程序不容易受到 ITLB 未命中的影响。例如，Golden Cove 微架构可以在其 ITLB 中覆盖多达 1MB 的内存空间。如果你的应用程序的机器代码适合 1MB，你应该不会受到 ITLB 未命中的影响。当应用程序的频繁执行部分分散在内存中时，问题开始出现。当许多函数开始频繁相互调用时，它们开始争夺 ITLB 中的条目。其中一个例子是 Clang 编译器，在撰写本文时，其代码段约为 60MB。在配备主流 Intel Coffee Lake 处理器的笔记本电脑上运行的 ITLB 开销约为 7%，这意味着 7% 的周期用于处理 ITLB 未命中：执行需要的页面遍历和填充 TLB 条目。
 
-Another set of large memory applications that frequently benefit from using huge pages include relational databases (e.g., MySQL, PostgreSQL, Oracle), managed runtimes (e.g., JavaScript V8, Java JVM), cloud services (e.g., web search), web tooling (e.g., node.js).
+另一组经常受益于使用大页的大型内存应用程序包括关系数据库（例如 MySQL、PostgreSQL、Oracle）、托管运行时（例如 JavaScript V8、Java JVM）、云服务（例如 Web 搜索）、Web 工具（例如 node.js）。
 
-The general idea of reducing ITLB pressure is to map the portions of the performance-critical code of an application onto 2MB (huge) pages. Usually, the entire code section of an application gets remapped for simplicity. The key requirement for that transformation to happen is to have the code section aligned on a 2MB boundary. When on Linux, this can be achieved in two different ways: relinking the binary with an additional linker option or remapping the code sections at runtime. Both options are showcased on the Easyperf[^1] blog. To the best of my knowledge, it is not possible on Windows, so I will only show how to do it on Linux.
+减少 ITLB 压力的总体思想是将应用程序的性能关键代码部分映射到 2MB（大）页上。通常，为了简单起见，应用程序的整个代码段会被重新映射。实现此转换的关键要求是代码段在 2MB 边界上对齐。在 Linux 上，这可以通过两种不同的方式实现：使用额外的链接器选项重新链接二进制文件，或在运行时重新映射代码段。两种选项都在 Easyperf[^1] 博客中进行了展示。据我所知，在 Windows 上不可能，所以我将只展示如何在 Linux 上执行此操作。
 
-The first option can be achieved by linking the binary with the following options: `-Wl,-zcommon-page-size=2097152` `-Wl,-zmax-page-size=2097152`. These options instruct the linker to place the code section at the 2MB boundary in preparation for it to be placed on 2MB pages by the loader at startup. The downside of such placement is that the linker will be forced to insert up to 2MB of padded (wasted) bytes, bloating the binary even more. In the example with the Clang compiler, it increased the size of the binary from 111 MB to 114 MB. After relinking the binary, we set a special bit in the ELF binary header that determines if the text segment should be backed with huge pages by default. The simplest way to do it is using the `hugeedit` or `hugectl` utilities from [libhugetlbfs](https://github.com/libhugetlbfs/libhugetlbfs/blob/master/HOWTO)[^12] package. For example:
+第一个选项可以通过使用以下选项链接二进制文件来实现：`-Wl,-zcommon-page-size=2097152` `-Wl,-zmax-page-size=2097152`。这些选项指示链接器将代码段放置在 2MB 边界处，以便在启动时由加载器放置在 2MB 页上。这种放置的缺点是链接器将被迫插入多达 2MB 的填充（浪费）字节，使二进制文件更加膨胀。在 Clang 编译器的示例中，它将二进制文件的大小从 111 MB 增加到 114 MB。重新链接二进制文件后，我们在 ELF 二进制文件头中设置一个特殊位，该位决定文本段是否应默认使用大页支持。最简单的方法是使用 [libhugetlbfs](https://github.com/libhugetlbfs/libhugetlbfs/blob/master/HOWTO)[^12] 包中的 `hugeedit` 或 `hugectl` 工具。例如：
 
 ```bash
-# Permanently set a special bit in the ELF binary header.
+# 在 ELF 二进制文件头中永久设置特殊位。
 $ hugeedit --text /path/to/clang++
-# Code section will be loaded using huge pages by default.
+# 代码段将默认使用大页加载。
 $ /path/to/clang++ a.cpp
 
-# Overwrite default behavior at runtime.
+# 在运行时覆盖默认行为。
 $ hugectl --text /path/to/clang++ a.cpp
 ```
 
-The second option is to remap the code section at runtime. This option does not require the code section to be aligned to a 2MB boundary and thus can work without recompiling the application. This is especially useful when you don’t have access to the source code. The idea behind this method is to allocate huge pages at the startup of the program and transfer the code section there. The reference implementation of that approach is implemented in the [iodlr](https://github.com/intel/iodlr)[^2] library. One option would be to call that functionality from your `main` function. Another option, which is simpler, is to build the dynamic library and preload it in the command line:
+第二个选项是在运行时重新映射代码段。此选项不需要代码段与 2MB 边界对齐，因此无需重新编译应用程序即可工作。当你无法访问源代码时，这特别有用。此方法背后的思想是在程序启动时分配大页并将代码段转移到那里。此方法的参考实现在 [iodlr](https://github.com/intel/iodlr)[^2] 库中实现。一个选项是从你的 `main` 函数调用该功能。另一个更简单的选项是构建动态库并在命令行中预加载它：
 
 ```bash
 $ LD_PRELOAD=/usr/lib64/liblppreload.so clang++ a.cpp
 ```
 
-While the first method only works with explicit huge pages, the second approach which uses `iodlr` works both with explicit and transparent huge pages. Instructions on how to enable huge pages for Windows and Linux can be found in Appendix B.
+虽然第一种方法仅适用于显式大页，但第二种使用 `iodlr` 的方法同时适用于显式和透明大页。有关如何在 Windows 和 Linux 上启用大页的说明，请参见附录 B。
 
-Mapping code sections onto huge pages can reduce the number of ITLB misses by up to 50% [@IntelBlueprint], which yields speedups of up to 10% for some applications. However, as it is with many other features, huge pages are not for every application. Small programs with an executable file of only a few KB in size would be better off using regular 4KB pages rather than 2MB huge pages; that way, memory is used more efficiently.
+将代码段映射到大页可以将 ITLB 未命中减少多达 50% [@IntelBlueprint]，从而为某些应用程序带来高达 10% 的加速。然而，与许多其他功能一样，大页并不适用于所有应用程序。可执行文件只有几 KB 大小的小程序最好使用常规 4KB 页面而不是 2MB 大页；这样可以更有效地使用内存。
 
-Besides employing huge pages, standard techniques for optimizing I-cache performance can be used to improve ITLB performance. Namely, reordering functions so that hot functions are collocated better, reducing the size of hot regions via Link-Time Optimizations (LTO/IPO), using Profile-Guided Optimizations (PGO) and BOLT, and less aggressive inlining.
+除了使用大页之外，标准的 I-cache 性能优化技术也可用于改善 ITLB 性能。即，重排序函数以使热函数更好地共位，通过链接时优化（LTO/IPO）减小热区域的大小，使用配置文件引导优化（PGO）和 BOLT，以及较少激进的内联。
 
-BOLT provides the `-hugify` option to automatically use huge pages for hot code based on profile data. When this option is used, `llvm-bolt` will inject the code to put hot code on 2MB pages at runtime. The implementation leverages Linux Transparent Huge Pages (THP). The benefit of this approach is that only a small portion of the code is mapped to the huge pages and the number of required huge pages is minimized, and as a consequence, page fragmentation is reduced. 
+BOLT 提供 `-hugify` 选项，根据配置文件数据自动使用大页处理热代码。使用此选项时，`llvm-bolt` 将注入代码以在运行时将热代码放在 2MB 页上。该实现利用了 Linux 透明大页（THP）。这种方法的好处是只有一小部分代码被映射到大页，并且所需的大页数量被最小化，因此页面碎片减少了。
 
-[^1]: "Performance Benefits of Using Huge Pages for Code" - [https://easyperf.net/blog/2022/09/01/Utilizing-Huge-Pages-For-Code](https://easyperf.net/blog/2022/09/01/Utilizing-Huge-Pages-For-Code).
-[^2]: iodlr library, Linux-only - [https://github.com/intel/iodlr](https://github.com/intel/iodlr).
-[^12]: libhugetlbfs - [https://github.com/libhugetlbfs/libhugetlbfs/blob/master/HOWTO](https://github.com/libhugetlbfs/libhugetlbfs/blob/master/HOWTO).
+[^1]: "使用大页处理代码的性能优势" - [https://easyperf.net/blog/2022/09/01/Utilizing-Huge-Pages-For-Code](https://easyperf.net/blog/2022/09/01/Utilizing-Huge-Pages-For-Code)。
+[^2]: iodlr 库，仅限 Linux - [https://github.com/intel/iodlr](https://github.com/intel/iodlr)。
+[^12]: libhugetlbfs - [https://github.com/libhugetlbfs/libhugetlbfs/blob/master/HOWTO](https://github.com/libhugetlbfs/libhugetlbfs/blob/master/HOWTO)。
