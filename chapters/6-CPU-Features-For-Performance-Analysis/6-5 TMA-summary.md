@@ -1,17 +1,17 @@
-### TMA Summary
+### TMA 总结
 
-TMA is great for identifying CPU performance bottlenecks. Ideally, we would like to see the `Retiring` metric at 100%. Although there are exceptions. Having the `Retiring` metric at 100% means a CPU is fully saturated and it crunches instructions at full speed. But it doesn't say anything about the quality of those instructions. A program can spin in a tight loop waiting for a lock; that would show a high `Retiring` metric, but it doesn't do any useful work. 
+TMA 非常适合识别 CPU 性能瓶颈。理想情况下，我们希望看到 `Retiring` 指标达到 100%。虽然有例外。`Retiring` 指标为 100% 意味着 CPU 完全饱和，它以全速处理指令。但这并不能说明这些指令的质量。程序可能在紧密循环中自旋等待锁；这会显示高 `Retiring` 指标，但它不做任何有用的工作。
 
-Another example in which you might see a high `Retiring` metric but slow overall performance is when a program has a hotspot that was not vectorized. You give a processor an "easy" time by letting it run simple non-vectorized operations, but is it an optimal way of using available CPU resources? Of course, no. If a CPU doesn't have problems executing your code, that doesn't mean performance cannot be improved. Watch out for such cases and remember that TMA identifies CPU performance bottlenecks but doesn't correlate them with the performance of your program. You will find it out once you do the necessary experiments.
+另一个你可能会看到高 `Retiring` 指标但整体性能缓慢的例子是当程序有一个未向量化的热点时。你通过让处理器运行简单的非向量化操作给了它一个"轻松"的时间，但这是使用可用 CPU 资源的最佳方式吗？当然不是。如果 CPU 执行你的代码没有问题，这并不意味着性能不能提高。注意这种情况，记住 TMA 识别 CPU 性能瓶颈，但不会将它们与程序的性能相关联。一旦你进行了必要的实验，你就会发现这一点。
 
-While it is possible to achieve `Retiring` close to 100% on a toy program, real-world applications are far from getting there. Figure @fig:TMA_google shows top-level TMA metrics for Google's datacenter workloads along with several [SPEC CPU2006](http://spec.org/cpu2006/)[^13] benchmarks running on Intel's Ivy Bridge server processors. We can see that most data center workloads have a very small fraction in the `Retiring` bucket. This implies that most data center workloads spend time stalled on various bottlenecks. `BackendBound` is the primary source of performance issues. The `FrontendBound` category represents a bigger problem for data center workloads than in SPEC2006 because those applications typically have large codebases with poor locality. Finally, some workloads suffer from branch mispredictions more than others, e.g., `search2` and `445.gobmk`.
+虽然在玩具程序上可以实现接近 100% 的 `Retiring`，但实际应用程序远未达到这一点。图 @fig:TMA_google 显示了 Google 数据中心工作负载的顶级 TMA 指标，以及在 Intel Ivy Bridge 服务器处理器上运行的几个 [SPEC CPU2006](http://spec.org/cpu2006/)[^13] 基准测试。我们可以看到大多数数据中心工作负载在 `Retiring` 桶中占很小的比例。这意味着大多数数据中心工作负载在各种瓶颈上停顿。`BackendBound` 是性能问题的主要来源。`FrontendBound` 类别对数据中心工作负载来说比在 SPEC2006 中是一个更大的问题，因为这些应用程序通常具有较大的代码库且局部性差。最后，一些工作负载比其他工作负载遭受更多的分支预测错误，例如 `search2` 和 `445.gobmk`。
 
-![TMA breakdown of Google's datacenter workloads along with several SPEC CPU2006 benchmarks, *© Source: [@GoogleProfiling]*](../../img/pmu-features/TMA_google.jpg){#fig:TMA_google width=80%}
+![Google 数据中心工作负载与几个 SPEC CPU2006 基准测试的 TMA 分解，*© 来源：[@GoogleProfiling]*](../../img/pmu-features/TMA_google.jpg){#fig:TMA_google width=80%}
 
-Keep in mind that the numbers are likely to change for other CPU generations as architects constantly try to improve the CPU design. The numbers are also likely to change for other instruction set architectures (ISA) and compiler versions.
+请记住，对于其他 CPU 代际，数字可能会发生变化，因为架构师不断尝试改进 CPU 设计。对于其他指令集架构（ISA）和编译器版本，数字也可能发生变化。
 
-A few final thoughts before we move on... As we mentioned at the beginning of this chapter, using TMA on code that has major performance flaws is not recommended because it will likely steer you in the wrong direction, and instead of fixing real high-level performance problems, you will be tuning bad code, which is just a waste of time. Similarly, make sure the environment doesn’t get in the way of profiling. For example, if you drop the filesystem cache and run the benchmark under TMA, it will likely show that your application is Memory Bound, which may in fact be false when the filesystem cache is warmed up.
+在我们继续之前的一些最后想法……正如我们在本章开头所提到的，不建议在具有主要性能缺陷的代码上使用 TMA，因为它可能会将你引向错误的方向，你将不是修复真正的高级性能问题，而是调整糟糕的代码，这只是浪费时间。同样，确保环境不会妨碍分析。例如，如果你丢弃文件系统缓存并在 TMA 下运行基准测试，它可能会显示你的应用程序受内存限制，而当文件系统缓存预热时，这可能实际上是错误的。
 
-Workload characterization provided by TMA can increase the scope of potential optimizations beyond source code. For example, if an application is bound by memory bandwidth and all possible ways to speed it up on the software level have been exhausted, it may be possible to improve performance by upgrading the memory subsystem with faster memory chips. This demonstrates how using TMA to diagnose performance bottlenecks can support your decision to spend money on new hardware.
+TMA 提供的工作负载特征分析可以将潜在优化的范围扩展到源代码之外。例如，如果应用程序受内存带宽限制，并且在软件层面加速它的所有可能方法都已用尽，那么通过用更快的内存芯片升级内存子系统可能提高性能。这展示了使用 TMA 诊断性能瓶颈如何支持你在新硬件上花钱的决定。
 
-[^13]: SPEC CPU 2006 - [http://spec.org/cpu2006/](http://spec.org/cpu2006/).
+[^13]: SPEC CPU 2006 - [http://spec.org/cpu2006/](http://spec.org/cpu2006/)。
