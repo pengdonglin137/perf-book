@@ -1,12 +1,12 @@
-## Collecting Performance Monitoring Events {#sec:counting}
+## 收集性能监控事件 {#sec:counting}
 
-Performance Monitoring Counters (PMCs) are a very important instrument of low-level performance analysis. They can provide unique information about the execution of a program. PMCs are generally used in two modes: "Counting" or "Sampling". The counting mode is primarily used for calculating various performance metrics that we discussed in [@sec:PerfMetrics]. The sampling mode is used for finding hotspots, which we will discuss soon.
+性能监控计数器（PMCs）是低级性能分析的重要工具。它们可以提供关于程序执行的独特信息。PMCs 通常以两种模式使用："计数"或"采样"。计数模式主要用于计算我们在 [@sec:PerfMetrics] 中讨论的各种性能指标。采样模式用于查找热点，我们稍后将讨论。
 
-The idea behind counting is very simple: we want to count the total number of certain performance monitoring events while our program is running. PMCs are heavily used in the Top-down Microarchitecture Analysis (TMA) methodology, which we will closely look at in [@sec:TMA]. Figure @fig:Counting illustrates the process of counting performance events from the start to the end of a program.
+计数背后的思想非常简单：我们想在程序运行时计算某些性能监控事件的总数。PMCs 在 Top-down 微架构分析（TMA）方法中被大量使用，我们将在 [@sec:TMA] 中详细讨论。图 @fig:Counting 说明了从程序开始到结束计算性能事件的过程。
 
-![Counting performance events.](../../img/perf-analysis/CountingFlow.png){#fig:Counting width=80%}
+![计算性能事件。](../../img/perf-analysis/CountingFlow.png){#fig:Counting width=80%}
 
-The steps outlined in Figure @fig:Counting roughly represent what a typical analysis tool will do to count performance events. A similar process is implemented in the `perf stat` tool, which can be used to count various hardware events, like the number of instructions, cycles, cache misses, etc. Below is an example of the output from `perf stat`:
+图 @fig:Counting 中概述的步骤大致代表了典型分析工具计算性能事件的过程。`perf stat` 工具中实现了类似的过程，该工具可用于计算各种硬件事件，如指令数、周期数、缓存未命中数等。以下是 `perf stat` 输出的示例：
 
 ```bash
 $ perf stat -- ./my_program.exe
@@ -16,9 +16,9 @@ $ perf stat -- ./my_program.exe
    239298395  branch-misses  #    7,96% of all branches 
 ```
 
-This data may become quite handy. First of all, it enables us to quickly spot some anomalies, such as a high branch misprediction rate or low IPC. In addition, it might come in handy when you've made a code change and you want to verify that the change has improved performance. Looking at relevant events might help you justify or reject the code change. The `perf stat` utility can be used as a lightweight benchmark wrapper. It may serve as a first step in performance investigation. Sometimes anomalies can be spotted right away, which can save you some analysis time.
+这些数据可能变得非常有用。首先，它使我们能够快速发现一些异常，例如高分支预测错误率或低 IPC。此外，当你进行了代码更改并想验证更改是否提高了性能时，它可能派上用场。查看相关事件可能有助于你证明或拒绝代码更改。`perf stat` 工具可用作轻量级基准测试包装器。它可以作为性能调查的第一步。有时可以立即发现异常，这可以为你节省一些分析时间。
 
-A full list of available event names can be viewed with `perf list`:
+可用事件名称的完整列表可以通过 `perf list` 查看：
 
 ```bash
 $ perf list
@@ -34,33 +34,10 @@ cache:
   ...
 ```
 
-Modern CPUs have hundreds of observable performance events. It's very hard to remember all of them and their meanings. Understanding when to use a particular event is even harder. That is why generally, I don't recommend manually collecting a specific event unless you really know what you are doing. Instead, I recommend using tools like Intel VTune Profiler that automatically collect required events to calculate various metrics.
+现代 CPU 有数百个可观察的性能事件。很难记住所有这些事件及其含义。理解何时使用特定事件更加困难。这就是为什么通常我不建议手动收集特定事件，除非你真的知道自己在做什么。相反，我建议使用 Intel VTune Profiler 等工具，它们可以自动收集所需事件来计算各种指标。
 
-Performance events are not available in every environment since accessing PMCs requires root access, which applications running in a virtualized environment typically do not have. For programs executing in a public cloud, running a PMU-based profiler directly in a guest container does not result in useful output if a virtual machine (VM) manager does not expose the PMU programming interfaces properly to a guest. Thus profilers based on CPU performance monitoring counters do not work well in a virtualized and cloud environment [@PMC_virtual], although the situation is improving. VMware® was one of the first VM managers to enable[^4] virtual Performance Monitoring Counters (vPMC). The AWS EC2 cloud has also enabled[^5] PMCs for dedicated hosts.
+性能事件并非在每个环境中都可用，因为访问 PMCs 需要 root 权限，而虚拟化环境中运行的应用程序通常没有这个权限。对于在公共云中执行的程序，如果虚拟机（VM）管理器没有向客户机正确暴露 PMU 编程接口，直接在客户机容器中运行基于 PMU 的分析器不会产生有用的输出。因此，基于 CPU 性能监控计数器的分析器在虚拟化和云环境中工作得不太好 [@PMC_virtual]，尽管情况正在改善。VMware® 是最早启用[^4]虚拟性能监控计数器（vPMC）的 VM 管理器之一。AWS EC2 云也为专用主机启用了[^5] PMCs。
 
-### Multiplexing and Scaling Events {#sec:secMultiplex}
+[^4]: VMware vPMC - [https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-2E04FD07-8382-4D4E-B7B2-99F1F5AE7F37.html](https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-2E04FD07-8382-4D4E-B7B2-99F1F5AE7F37.html)
 
-There are situations when we want to count many different events at the same time. However, with one counter, it's possible to count only one event at a time. That's why PMUs contain multiple counters (in Intel's recent Golden Cove microarchitecture there are 12 programmable PMCs, 6 per hardware thread). Even then, the number of fixed and programmable counters is not always sufficient. Top-down Microarchitecture Analysis (TMA) methodology requires collecting up to 100 different performance events in a single execution of a program. Modern CPUs don't have that many counters, and here is when multiplexing comes into play.
-
-If you need to collect more events than the number of available PMCs, the analysis tool uses time multiplexing to give each event a chance to access the monitoring hardware. Figure @fig:Multiplexing1 shows an example of multiplexing between 8 performance events with only 4 counters available.
-
-<div id="fig:Multiplexing">
-![](../../img/perf-analysis/Multiplexing1.png){#fig:Multiplexing1 width=70%}
-
-![](../../img/perf-analysis/Multiplexing2.png){#fig:Multiplexing2 width=80%}
-
-Multiplexing between 8 performance events with only 4 PMCs available.
-</div>
-
-With multiplexing, an event is not measured all the time, but rather only during a portion of time. At the end of the run, a profiling tool needs to scale the raw count based on the total time enabled:
-$$
-final~count = raw~count \times ( time~running / time~enabled )
-$$
-Let's take Figure @fig:Multiplexing2 as an example. Say, during profiling, we were able to measure an event from group 1 during three time intervals. Each measurement interval lasted 100ms (`time enabled`). The program running time was 500ms (`time running`). The total number of events for this counter was measured as 10,000 (`raw count`). So, the final count needs to be scaled as follows:
-$$
-final~count = 10,000 \times ( 500ms / ( 100ms \times 3) ) = 16,666
-$$
-This provides an estimate of what the count would have been had the event been measured during the entire run. It is very important to understand that this is still an estimate, not an actual count. Multiplexing and scaling can be used safely on steady workloads that execute the same code during long time intervals. However, if the program regularly jumps between different hotspots, i.e., has different phases, there will be blind spots that can introduce errors during scaling. To avoid scaling, you can reduce the number of events to no more than the number of physical PMCs available. However, you'll have to run the benchmark multiple times to measure all the events.
-
-[^4]: VMware PMCs - [https://www.vladan.fr/what-are-vmware-virtual-cpu-performance-monitoring-counters-vpmcs/](https://www.vladan.fr/what-are-vmware-virtual-cpu-performance-monitoring-counters-vpmcs/)
-[^5]: Amazon EC2 PMCs - [http://www.brendangregg.com/blog/2017-05-04/the-pmcs-of-ec2.html](http://www.brendangregg.com/blog/2017-05-04/the-pmcs-of-ec2.html)
+[^5]: AWS EC2 PMCs - [https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-performance-counters.html](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-performance-counters.html)
