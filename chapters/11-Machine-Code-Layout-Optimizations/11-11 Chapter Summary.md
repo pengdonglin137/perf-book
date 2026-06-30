@@ -1,36 +1,32 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-A summary of CPU Frontend optimizations is presented in Table {@tbl:CPU_FE_OPT}.
+CPU 前端优化的总结如表 {@tbl:CPU_FE_OPT} 所示。
 
 --------------------------------------------------------------------------
-Transform  How transformed?  Why helps?    Works best for        Done by
+转换  如何转换？  为什么有帮助？    最适合          由谁完成
 ---------  ----------------  ------------  --------------------  ---------
-Basic      maintain          not taken     any code, especially  compiler
-block      fall through      branches are  with a lot of 
-placement  hot code          cheaper;      branches
-                             better cache
-                             utilization
+基本块      保持直通        未采取的       任何代码，特别是    编译器
+放置        热代码          分支更便宜；   有很多分支的
+                             更好的缓存     代码
+                             利用率
 
-Basic      shift the hot     better cache  hot loops             compiler
-block      code using NOPs   utilization 
-alignment
+基本块      使用 NOP 移动   更好的缓存    热循环              编译器
+对齐        热代码          利用率
 
-Function   split cold        better cache  functions with        compiler
-splitting  blocks of code    utilization   complex CFG when 
-           and place them                  there are big blocks 
-           in separate                     of cold code between 
-           functions                       hot parts
+函数        分割冷代码块    更好的缓存    具有复杂 CFG 的     编译器
+分割        并将它们放置    利用率        函数，当热部分之
+              在单独的                     间有大块冷代码时
+              函数中
 
-Function   group hot         better cache  many small            linker
-reorder    functions         utilization   hot functions
-           together
+函数        将热函数分组    更好的缓存    许多小热函数        链接器
+重排序      在一起          利用率
 --------------------------------------------------------------------------
 
-Table: Summary of CPU Frontend optimizations. {#tbl:CPU_FE_OPT}
+表：CPU 前端优化总结。{#tbl:CPU_FE_OPT}
 
-* Code layout improvements are often underestimated and overlooked. CPU Frontend performance issues like I-cache and ITLB misses represent a large portion of wasted cycles, especially for applications with large codebases. But even small- and medium-sized applications can benefit from optimizing the machine code layout.
-* It is usually the best option to use LTO, PGO, BOLT, and similar tools to improve the code layout if you can come up with a set of typical use cases for your application. For large applications, it is the only practical option.
+* 代码布局改进通常被低估和忽视。CPU 前端性能问题（如 I-cache 和 ITLB 未命中）占浪费周期的很大一部分，特别是对于具有大代码库的应用程序。但即使是中小型应用程序也可以从优化机器代码布局中受益。
+* 如果你能为应用程序提供一组典型的用例，使用 LTO、PGO、BOLT 和类似工具来改善代码布局通常是最佳选择。对于大型应用程序，这是唯一实用的选择。
 
 \sectionbreak
