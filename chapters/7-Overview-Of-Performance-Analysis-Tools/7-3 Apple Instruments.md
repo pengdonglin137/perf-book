@@ -1,48 +1,40 @@
 ## Apple Xcode Instruments
 
-The most convenient way to do similar performance analysis on MacOS is to use Xcode Instruments. This is an application performance analyzer and visualizer that comes for free with Xcode. The Instruments profiler is built on top of the DTrace tracing framework that was ported to MacOS from Solaris. It has many tools to inspect the performance of an application and enables us to do most of the basic things that other profilers like Intel VTune can do. The easiest way to get the profiler is to install Xcode from the Apple App Store. The tool requires no configuration; once you install it you're ready to go.
+在 MacOS 上进行类似性能分析的最方便方法是使用 Xcode Instruments。这是一个随 Xcode 免费提供的应用程序性能分析器和可视化工具。Instruments 分析器建立在从 Solaris 移植到 MacOS 的 DTrace 跟踪框架之上。它有许多工具来检查应用程序的性能，并使我们能够执行其他分析器（如 Intel VTune）可以执行的大多数基本操作。获取分析器的最简单方法是从 Apple App Store 安装 Xcode。该工具不需要配置；安装后即可使用。
 
-In Instruments, you use specialized tools, known as instruments, to trace different aspects of your apps, processes, and devices over time. Instruments has a powerful visualization mechanism. It collects data as it profiles and presents the results to you in real time. You can gather different types of data and view them side by side, which enables you to see patterns in the execution, correlate system events and find very subtle performance issues. 
+在 Instruments 中，你使用称为 instruments 的专用工具来跟踪应用程序、进程和设备随时间的不同方面。Instruments 具有强大的可视化机制。它在分析时收集数据，并实时向你展示结果。你可以收集不同类型的数据并并排查看它们，这使你能够看到执行中的模式，关联系统事件并发现非常细微的性能问题。
 
-In this chapter, we will only showcase the "CPU Counters" instrument, which is the most relevant for this book. Instruments can also visualize GPU, network, and disk activity, track memory allocations, and releases, capture user events, such as mouse clicks, provide insights into power efficiency, and more. You can read more about those use cases in the Instruments [documentation](https://help.apple.com/instruments/mac/current).[^1]
+在本章中，我们将只展示最与本书相关的"CPU Counters"instrument。Instruments 还可以可视化 GPU、网络和磁盘活动，跟踪内存分配和释放，捕获用户事件（如鼠标点击），提供功耗效率见解等。你可以在 Instruments [文档](https://help.apple.com/instruments/mac/current)中阅读更多关于这些用例的信息。[^1]
 
-### What you can do with it: {.unlisted .unnumbered}
+### 你能用它做什么： {.unlisted .unnumbered}
 
-- Access hardware performance counters on Apple processors.
-- Find hotspots in a program along with their call stacks.
-- Inspect generated ARM assembly code side-by-side with the source code.
-- Filter data for a selected interval on the timeline.
+- 访问 Apple 处理器上的硬件性能计数器。
+- 查找程序中的热点及其调用栈。
+- 将生成的 ARM 汇编代码与源代码并排检查。
+- 过滤时间线上选定间隔的数据。
 
-### What you cannot do with it: {.unlisted .unnumbered}
+### 你不能用它做什么： {.unlisted .unnumbered}
 
-Similar to other sampling-based profilers, Xcode Instruments has the same blind spots as VTune and uProf.
+与其他基于采样的分析器类似，Xcode Instruments 具有与 VTune 和 uProf 相同的盲点。
 
-### Example: Profiling Clang Compilation {.unlisted .unnumbered}
+### 示例：分析 Clang 编译 {.unlisted .unnumbered}
 
-In this example, I will show how to collect hardware performance counters on an Apple Mac mini with the M1 processor, macOS 13.5.1 Ventura, and 16 GB RAM. I took one of the largest files in the LLVM codebase and profiled its compilation using version 15.0 of the Clang C++ compiler. 
+在这个示例中，我将展示如何在配备 M1 处理器、macOS 13.5.1 Ventura 和 16 GB RAM 的 Apple Mac mini 上收集硬件性能计数器。我从 LLVM 代码库中取了最大的文件之一，并使用 Clang C++ 编译器的 15.0 版本分析其编译。
 
-![Xcode Instruments: timeline and statistics panels.](../../img/perf-tools/XcodeInstrumentsView.jpg){#fig:InstrumentsView width=100% }
+![Xcode Instruments：时间线和统计面板。](../../img/perf-tools/XcodeInstrumentsView.jpg){#fig:InstrumentsView width=100% }
 
-Here is the command line that I used:
+以下是我使用的命令行：
 
 ```bash
 $ clang++ -O3 -DNDEBUG -arch arm64 <other options ...> -c llvm/lib/Transforms/Vectorize/LoopVectorize.cpp
 ```
 
-Figure @fig:InstrumentsView shows the main timeline view of Xcode Instruments. This screenshot was taken after the compilation had finished. We will get back to it a bit later, but first, let us show how to start the profiling session.
+图 @fig:InstrumentsView 显示了 Xcode Instruments 的主时间线视图。此截图是在编译完成后拍摄的。我们稍后会回到它，但首先，让我们展示如何启动分析会话。
 
-To begin, open *Instruments* and choose the *CPU Counters* analysis type. The first step you need to do is configure the collection. Click and hold the red target icon (see \circled{1} in Figure @fig:InstrumentsView), then select *Recording Options...* from the menu. It will display the dialog window shown in Figure @fig:InstrumentsDialog. This is where you can add hardware performance monitoring events for collection. Apple has documented its hardware performance monitoring events in its manual [@AppleOptimizationGuide, Section 6.2 Performance Monitoring Events].
+首先，打开 *Instruments* 并选择 *CPU Counters* 分析类型。你需要做的第一步是配置收集。点击并按住红色目标图标（参见图 @fig:InstrumentsView 中的 \circled{1}），然后从菜单中选择 *Recording Options...*。它将显示图 @fig:InstrumentsDialog 中所示的对话框窗口。这是你可以添加硬件性能监控事件进行收集的地方。Apple 在其手册 [@AppleOptimizationGuide, Section 6.2 Performance Monitoring Events] 中记录了其硬件性能监控事件。
 
-![Xcode Instruments: CPU Counters options.](../../img/perf-tools/XcodeInstrumentsDialog.png){#fig:InstrumentsDialog width=70% }
+![Xcode Instruments：CPU Counters 选项。](../../img/perf-tools/XcodeInstrumentsDialog.png){#fig:InstrumentsDialog width=70% }
 
-The second step is to set the profiling target. To do that, click and hold the name of an application (marked \circled{2} in Figure @fig:InstrumentsView) and choose the one you're interested in. Set the arguments and environment variables if needed. Now, you're ready to start the collection; press the red target icon \circled{1}.
+第二步是设置分析目标。为此，点击并按住应用程序的名称（在图 @fig:InstrumentsView 中标记为 \circled{2}）并选择你感兴趣的应用程序。设置参数和环境变量（如果需要）。现在，你可以开始收集了；按红色目标图标 \circled{1}。
 
-Instruments shows a timeline and constantly updates statistics about the running application. Once the program finishes, Instruments will display the results like those shown in Figure @fig:InstrumentsView. The compilation took 7.3 seconds and we can see how the volume of events changed over time. For example, the number of executed branch instructions and mispredictions increased towards the end of the runtime. You can zoom in to that interval on the timeline to examine the functions involved.
-
-The bottom panel shows numerical statistics. To inspect the hotspots similar to Intel VTune's bottom-up view, select *Profile* in the menu \circled{3}, then click the *Call Tree* menu \circled{4} and check the *Invert Call Tree* box. This is exactly what we did in Figure @fig:InstrumentsView.
-
-Instruments show raw counts along with the percentages of the total, which is useful if you want to calculate secondary metrics like IPC, MPKI, etc. On the right side, we have the hottest call stack for the function `llvm::FoldingSetBase::FindNodeOrInsertPos`. If you double-click on a function, you can inspect ARM assembly instructions generated for the source code.
-
-To the best of my knowledge, there are no alternative profiling tools of similar quality available on MacOS platforms. Power users could use the `dtrace` framework itself by writing short (or long) command-line scripts, but a discussion of how to do so is beyond the scope of this book.
-
-[^1]: Instruments documentation - [https://help.apple.com/instruments/mac/current](https://help.apple.com/instruments/mac/current)
+Instruments 显示时间线并不断更新关于正在运行的应用程序的统计信息。程序完成后，Instruments 将显示如图 @fig:InstrumentsView 所示的结果。编译花费了 7.3 秒，我们可以看到事件数量随时间的变化。例如，执行的分支指令和预测错误的数量在运行时接近尾声时增加。你可以在时间线上放大到该间隔以检查涉及的函数。
