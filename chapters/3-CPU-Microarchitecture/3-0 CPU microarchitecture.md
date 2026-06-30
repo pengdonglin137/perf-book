@@ -1,5 +1,3 @@
+# CPU 微架构 {#sec:uarch}
 
-
-# CPU Microarchitecture {#sec:uarch}
-
-This chapter provides a brief summary of the critical CPU microarchitecture features that have a direct impact on software performance. The goal of this chapter is not to cover all the details and trade-offs of CPU architectures, which are already covered extensively in the literature [@Hennessy], [@ShenLipasti]. I provide a recap of features that are present in modern processors to prepare the reader for what comes next in the book.
+本章简要总结了对软件性能有直接影响的关键 CPU 微架构特性。本章的目标不是涵盖 CPU 架构的所有细节和权衡，这些在文献 [@Hennessy]、[@ShenLipasti] 中已有广泛介绍。我提供了现代处理器中特性的回顾，为读者准备本书接下来的内容。
