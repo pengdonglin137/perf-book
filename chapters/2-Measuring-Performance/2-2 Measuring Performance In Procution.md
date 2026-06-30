@@ -1,13 +1,11 @@
+## 在生产环境中度量性能
 
+当应用程序在共享基础设施中运行时，例如在公共云中，通常会有来自其他客户的工作负载在同一服务器上运行。随着虚拟化和容器等技术变得越来越流行，公共云提供商试图充分利用其服务器的容量。不幸的是，这为在此类环境中度量性能制造了额外的障碍。当你的应用程序与邻居进程共享资源时，其性能可能变得非常不可预测。
 
-## Measuring Performance in Production
+通过在实验室中重现特定场景来分析生产工作负载可能非常棘手。有时无法重现"内部"性能测试的确切行为。这就是为什么云提供商和超大规模提供商提供工具来直接在生产系统上监控性能。在实验室环境中表现良好的代码更改不一定在生产中总是表现良好。请咨询你的云服务提供商，了解如何启用生产实例的性能监控。我们在 [@sec:ContinuousProfiling] 中概述了持续分析器。
 
-When an application runs in a shared infrastructure, e.g., in a public cloud, there usually will be workloads from other customers running on the same servers. With technologies like virtualization and containers becoming more popular, public cloud providers try to fully utilize the capacity of their servers. Unfortunately, it creates additional obstacles for measuring performance in such an environment. When your application shares resources with neighbor processes, its performance can become very unpredictable.
+大型服务提供商实施监控用户设备性能的遥测系统正在成为一种趋势。其中一个例子是 Netflix Icarus[^1] 遥测服务，它运行在遍布全球的数千种不同设备上。这样的遥测系统帮助 Netflix 了解用户如何感知 Netflix 应用程序的性能。它使 Netflix 工程师能够分析从许多设备收集的数据，并找到否则不可能找到的问题。这种数据能够就优化工作的重点做出更明智的决策。
 
-Analyzing production workloads by recreating a specific scenario in a lab can be quite tricky. Sometimes it's not possible to reproduce exact behavior for "in-house" performance testing. This is why cloud providers and hyperscalers provide tools to monitor performance directly on production systems. A code change that performs well in a lab environment does not necessarily always perform well in production. Consult with your cloud service provider to see how you can enable performance monitoring of production instances. We provide an overview of continuous profilers in [@sec:ContinuousProfiling].
+监控生产部署的一个重要注意事项是测量开销。因为任何类型的监控都会影响运行服务的性能，我们建议使用轻量级分析方法。根据 [@GoogleWideProfiling]："要在服务真实流量的数据中心机器上进行持续分析，极低的开销至关重要"。通常，可接受的聚合开销被认为低于 1%。通过限制分析的机器集以及更不频繁地捕获数据样本，可以减少性能监控开销。
 
-It's becoming a trend for large service providers to implement telemetry systems that monitor performance on user devices. One such example is the Netflix Icarus[^1] telemetry service, which runs on thousands of different devices spread around the world. Such a telemetry system helps Netflix understand how users perceive Netflix's app performance. It enables Netflix engineers to analyze data collected from many devices and to find issues that otherwise would be impossible to find. This kind of data enables making better-informed decisions on where to focus optimization efforts.
-
-One important caveat of monitoring production deployments is measurement overhead. Because any kind of monitoring affects the performance of a running service, we recommended using lightweight profiling methods. According to [@GoogleWideProfiling]: "To conduct continuous profiling on datacenter machines serving real traffic, extremely low overhead is paramount". Usually, acceptable aggregated overhead is considered below 1%. Performance monitoring overhead can be reduced by limiting the set of profiled machines as well as capturing data samples less frequently.
-
-[^1]: Presented at CMG 2019, [https://www.youtube.com/watch?v=4RG2DUK03_0](https://www.youtube.com/watch?v=4RG2DUK03_0).
+[^1]: 在 CMG 2019 上展示，[https://www.youtube.com/watch?v=4RG2DUK03_0](https://www.youtube.com/watch?v=4RG2DUK03_0)。
