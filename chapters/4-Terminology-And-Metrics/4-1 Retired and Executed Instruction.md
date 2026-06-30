@@ -1,14 +1,14 @@
-## Retired vs. Executed Instruction
+## 退休指令与执行指令
 
-Modern processors typically execute more instructions than the program flow requires. This happens because some instructions are executed speculatively, as discussed in [@sec:SpeculativeExec]. For most instructions, the CPU commits results once they are available, and all preceding instructions have already been retired. But for instructions executed speculatively, the CPU keeps their results without immediately committing their results. When the speculation turns out to be correct, the CPU unblocks such instructions and proceeds as normal. But when the speculation turns out to be wrong, the CPU throws away all the changes done by speculative instructions and does not retire them. So, an instruction processed by the CPU can be executed but not necessarily retired. Taking this into account, we can usually expect the number of executed instructions to be higher than the number of retired instructions.
+现代处理器通常执行的指令比程序流程要求的更多。这是因为某些指令是推测执行的，如 [@sec:SpeculativeExec] 中所讨论的。对于大多数指令，一旦结果可用且所有前序指令已经退休，CPU 就会提交结果。但对于推测执行的指令，CPU 保持其结果而不立即提交。当推测被证明是正确的时，CPU 解除这些指令的阻塞并正常继续。但当推测被证明是错误的时，CPU 丢弃推测指令所做的所有更改，并且不退休它们。因此，CPU 处理的指令可以被执行但不一定被退休。考虑到这一点，我们通常可以预期执行的指令数高于退休的指令数。
 
-There is an exception. Certain instructions are recognized as idioms and are resolved without actual execution. Some examples of this are NOP, move elimination, and zeroing, as discussed in [@sec:uarchBE]. Such instructions do not require an execution unit but are still retired. So, theoretically, there could be a case when the number of retired instructions is higher than the number of executed instructions.
+有一个例外。某些指令被识别为惯用法，在没有实际执行的情况下被解析。其中一些例子是 NOP、移动消除和清零，如 [@sec:uarchBE] 中所讨论的。这些指令不需要执行单元，但仍然会被退休。因此，理论上可能存在退休指令数高于执行指令数的情况。
 
-There is a performance monitoring counter (PMC) in most modern processors that collects the number of retired instructions. There is no performance event to collect executed instructions, though there is a way to collect executed and retired *$\mu$ops* as we shall see soon. The number of retired instructions can be easily obtained with Linux `perf` by running:
+大多数现代处理器中有一个性能监控计数器（PMC），用于收集退休指令的数量。没有性能事件来收集执行指令，但有一种方法可以收集已执行和已退休的 *$\mu$ops*，我们很快就会看到。使用 Linux `perf` 可以轻松获取退休指令数：
 
 ```bash
 $ perf stat -e instructions -- ./a.exe
   2173414  instructions  #    0.80  insn per cycle 
-# or just simply run:
+# 或者简单地运行：
 $ perf stat -- ./a.exe
 ```
