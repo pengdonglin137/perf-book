@@ -1,10 +1,10 @@
-## Tracing
+## 跟踪
 
-Tracing is conceptually very similar to instrumentation, yet slightly different. Code instrumentation assumes that the user has full access to the source code of their application. On the other hand, tracing relies on the existing instrumentation. For example, the `strace` tool enables us to trace system calls and can be thought of as instrumentation of the Linux kernel. Intel Processor Traces (Intel PT, see Appendix C) enable you to log instructions executed by a processor and can be thought of as instrumentation of a CPU. Traces can be obtained from components that were appropriately instrumented in advance and are not subject to change. Tracing is often used as a black-box approach, where a user cannot modify the code of an application, yet they want to get insights into what the program is doing.
+跟踪在概念上与检测非常相似，但略有不同。代码检测假设用户可以完全访问其应用程序的源代码。另一方面，跟踪依赖于现有的检测。例如，`strace` 工具使我们能够跟踪系统调用，可以被视为 Linux 内核的检测。Intel 处理器跟踪（Intel PT，参见附录 C）使你能够记录处理器执行的指令，可以被视为 CPU 的检测。跟踪可以从预先适当检测且不受更改影响的组件中获得。跟踪通常用作黑盒方法，用户无法修改应用程序的代码，但希望了解程序正在做什么。
 
-An example of tracing system calls with the Linux `strace` tool is provided in [@lst:strace], which shows the first several lines of output when running the `git status` command. By tracing system calls with `strace` it's possible to know the timestamp for each system call (the leftmost column), its exit status (after the `=` sign), and the duration of each system call (in angle brackets).
+[@lst:strace] 提供了使用 Linux `strace` 工具跟踪系统调用的示例，显示了运行 `git status` 命令时的前几行输出。通过使用 `strace` 跟踪系统调用，可以知道每个系统调用的时间戳（最左列）、退出状态（`=` 号后）和每个系统调用的持续时间（以尖括号为单位）。
 
-Listing: Tracing system calls with strace.
+清单：使用 strace 跟踪系统调用。
 
 ~~~~ {#lst:strace .bash}
 $ strace -tt -T -- git status
@@ -25,12 +25,12 @@ $ strace -tt -T -- git status
 ...
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The overhead of tracing depends on what exactly we try to trace. For example, if we trace a program that rarely makes system calls, the overhead of running it under `strace` will be close to zero. On the other hand, if we trace a program that heavily relies on system calls, the overhead could be very large, e.g. 100x.[^1] Also, tracing can generate a massive amount of data since it doesn't skip any sample. To compensate for this, tracing tools provide filters that enable you to restrict data collection to a specific time slice or for a specific section of code.
+跟踪的开销取决于我们试图跟踪的具体内容。例如，如果我们跟踪一个很少进行系统调用的程序，在 `strace` 下运行它的开销将接近于零。另一方面，如果我们跟踪一个严重依赖系统调用的程序，开销可能非常大，例如 100 倍。[^1] 此外，跟踪可以生成大量数据，因为它不跳过任何样本。为了补偿这一点，跟踪工具提供过滤器，使你能够将数据收集限制在特定的时间段或特定的代码部分。
 
-Similar to instrumentation, tracing can be used for exploring anomalies in a system. For example, you may want to determine what was going on in an application during a 10s period of unresponsiveness. As you will see later, sampling methods are not designed for this, but with tracing, you can see what leads to the program being unresponsive. For example, with Intel PT, you can reconstruct the control flow of the program and know exactly what instructions were executed.
+与检测类似，跟踪可用于探索系统中的异常。例如，你可能想确定应用程序在 10 秒无响应期间发生了什么。正如你稍后将看到的，采样方法不是为此设计的，但使用跟踪，你可以看到导致程序无响应的原因。例如，使用 Intel PT，你可以重建程序的控制流，并准确知道执行了哪些指令。
 
-Tracing is also very useful for debugging. Its underlying nature enables "record and replay" use cases based on recorded traces. One such tool is the Mozilla [rr](https://rr-project.org/)[^2] debugger, which performs record and replay of processes, supports backward single stepping, and much more. Most tracing tools are capable of decorating events with timestamps, which enables us to find correlations with external events that were happening during that time. That is, when we observe a glitch in a program, we can take a look at the traces of our application and correlate this glitch with what was happening in the whole system during that time.
+跟踪对于调试也非常有用。其底层特性支持基于记录跟踪的"记录和重放"用例。其中一个工具是 Mozilla [rr](https://rr-project.org/)[^2] 调试器，它执行进程的记录和重放，支持向后单步执行等等。大多数跟踪工具能够用时间戳修饰事件，这使我们能够找到与当时发生的外部事件的关联。也就是说，当我们观察到程序中的故障时，我们可以查看应用程序的跟踪，并将该故障与当时整个系统中发生的情况关联起来。
 
-[^1]: An article about `strace` by B. Gregg - [http://www.brendangregg.com/blog/2014-05-11/strace-wow-much-syscall.html](http://www.brendangregg.com/blog/2014-05-11/strace-wow-much-syscall.html)
+[^1]: B. Gregg 关于 `strace` 的文章 - [http://www.brendangregg.com/blog/2014-05-11/strace-wow-much-syscall.html](http://www.brendangregg.com/blog/2014-05-11/strace-wow-much-syscall.html)
 
-[^2]: Mozilla rr debugger - [https://rr-project.org/](https://rr-project.org/).
+[^2]: Mozilla rr 调试器 - [https://rr-project.org/](https://rr-project.org/)。
