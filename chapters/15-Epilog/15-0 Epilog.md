@@ -1,29 +1,29 @@
 \phantomsection
-# Epilog {.unnumbered}
+# 后记 {.unnumbered}
 
-\markboth{Epilog}{Epilog}
+\markboth{后记}{后记}
 
-Thanks for reading through the whole book. I hope you enjoyed it and found it useful. I would be even happier if the book would help you solve a real-world problem. In such a case, I would consider it a success and proof that my efforts were not wasted. Before you continue with your endeavors, let me briefly highlight the essential points of the book and give you final recommendations:
+感谢你阅读整本书。我希望你喜欢它并觉得它有用。如果这本书能帮助你解决现实世界的问题，我会更加高兴。在这种情况下，我会认为这是成功的证明，我的努力没有白费。在你继续你的事业之前，让我简要强调本书的要点并给你最终建议：
 
-* Modern software is massively inefficient. There are significant optimization opportunities to reduce carbon emissions and make a better user experience. People hate using slow software, especially when their productivity goes down because of it. Not all fast software is world-class, but all world-class software is fast. Performance is _the_ killer feature.
-* Single-threaded CPU performance is not increasing as rapidly as it used to a few decades ago. When it's no longer the case that each hardware generation provides a significant performance boost, developers should start optimizing the code of their software.
-* For many years performance engineering was a nerdy niche. But now it is mainstream as software vendors have realized the impact that their poorly optimized software has on their bottom line. Performance tuning is more critical than it has been for the last 40 years. It will be one of the key drivers for performance gains in the near future.
-* The importance of low-level performance tuning should not be underestimated, even if it's just a 1% improvement. The cumulative effect of these small improvements is what makes a difference.
-* There is a famous quote by Donald Knuth: "Premature optimization is the root of all evil".[@Knuth1974StructuredPW] The opposite is often true as well. Postponed performance engineering work may be too late and cause as much evil as premature optimization. Do not neglect performance aspects when designing your future products. Save your project by integrating automated performance benchmarking into your CI/CD pipeline. *Measure early, measure often.*
-* Knowledge of the CPU microarchitecture is required to reach peak performance. However, your mental model can never be as accurate as the actual microarchitecture design of a CPU. So don't solely rely on your intuition when you make a specific change in your code. Predicting the performance of a particular piece of code is nearly impossible. *Always measure!*
-* When measuring performance, understand the underlying technical reasons for the performance results you observe. Always measure one level deeper and collect as many metrics as possible to support your conclusions.
-* Performance engineering is hard because there are no predetermined steps you should follow, no algorithm. Engineers need to tackle problems from different angles. Know performance analysis methods and tools (both hardware and software) available to you. I strongly suggest embracing the Top-down Microarchitecture Analysis (TMA) methodology. It will help you steer your work in the right direction. 
-* When you identify the performance-limiting factor of your application, you are more than halfway through. Based on my experience, the fix is often easier than finding the root cause of the problem.
-In Part 2 we covered some essential optimizations for every type of CPU performance bottleneck: how to optimize memory accesses and computations, how to get rid of branch mispredictions, how to improve machine code layout, and several others. Use chapters from Part 2 as a reference to see what options are available when your application has one of these problems.
-* Processors from different vendors are not created equal. They differ in terms of instruction set architecture (ISA) supported and microarchitectural implementation. Reaching peak performance on a given platform requires utilizing the latest ISA extensions, avoiding common microarchitecture-specific issues, and tuning your code according to the strengths of a particular CPU microarchitecture.
-* Multithreaded programs add one more dimension of complexity to performance tuning. They introduce new types of bottlenecks and require additional tools and methods to analyze and optimize. Examining how an application scales with the number of threads is an effective way to identify bottlenecks in multithreaded programs.
+* 现代软件极其低效。有重大的优化机会可以减少碳排放并提供更好的用户体验。人们讨厌使用慢速软件，尤其是当他们的生产力因此下降时。不是所有快速的软件都是世界级的，但所有世界级的软件都是快速的。性能是_杀手级_特性。
+* 单线程 CPU 性能的增长速度不如几十年前那样快。当硬件每一代不再提供显著的性能提升时，开发者应该开始优化其软件的代码。
+* 多年来，性能工程一直是一个小众领域。但现在随着软件供应商意识到其优化不佳的软件对利润的影响，它已成为主流。性能调优比过去 40 年更重要。它将是未来性能提升的关键驱动力之一。
+* 低级性能调优的重要性不应被低估，即使只是 1% 的改进。这些小改进的累积效应才是造成差异的原因。
+* Donald Knuth 有一句名言："过早优化是万恶之源"。[@Knuth1974StructuredPW] 相反的情况也经常是真的。延迟的性能工程工作可能为时已晚，造成与过早优化同样多的恶果。在设计未来产品时不要忽视性能方面。通过将自动化性能基准测试集成到你的 CI/CD 管道中来挽救你的项目。*尽早测量，经常测量。*
+* 要达到峰值性能，需要了解 CPU 微架构。然而，你的心智模型永远不可能像 CPU 的实际微架构设计那样准确。因此，当在代码中进行特定更改时，不要仅仅依赖你的直觉。预测特定代码片段的性能几乎是不可能的。*总是测量！*
+* 度量性能时，了解你观察到的性能结果的底层技术原因。总是深入一层度量，并收集尽可能多的指标来支持你的结论。
+* 性能工程很困难，因为没有预定的步骤可以遵循，没有算法。工程师需要从不同角度解决问题。了解可用的性能分析方法和工具（硬件和软件）。我强烈建议采用自顶向下微架构分析（TMA）方法。它将帮助你将工作引向正确的方向。
+* 当你识别出应用程序的性能限制因素时，你已经完成了一半以上。根据我的经验，修复通常比找到问题的根本原因更容易。
+在第 2 部分中，我们涵盖了一些针对每种 CPU 性能瓶颈的基本优化：如何优化内存访问和计算、如何消除分支预测错误、如何改善机器代码布局以及其他一些。使用第 2 部分的章节作为参考，了解当你的应用程序遇到这些问题时有哪些选项可用。
+* 来自不同供应商的处理器并不相同。它们在支持的指令集架构（ISA）和微架构实现方面存在差异。在给定平台上达到峰值性能需要利用最新的 ISA 扩展、避免常见的微架构特定问题，并根据特定 CPU 微架构的优势调整代码。
+* 多线程程序为性能调优增加了一个复杂性维度。它们引入了新的瓶颈类型，并需要额外的工具和方法来分析和优化。检查应用程序如何随线程数扩展是识别多线程程序中瓶颈的有效方法。
 
-I hope you now have a better understanding of low-level performance optimizations. Of course, this book doesn't cover every possible scenario you may encounter in your daily job. My goal was to give you a starting point and to show you potential options and strategies for dealing with performance analysis and tuning on modern CPUs. I wish you experience the joy of discovering performance bottlenecks in your application and the satisfaction of fixing them.
+我希望你现在对低级性能优化有了更好的理解。当然，这本书没有涵盖你在日常工作中可能遇到的每一个可能场景。我的目标是给你一个起点，并向你展示在现代 CPU 上处理性能分析和调优的潜在选项和策略。我希望你体验发现应用程序中性能瓶颈的乐趣和修复它们的满足感。
 
-**Happy performance tuning!**
+**快乐的性能调优！**
 
-I will post errata and other information about the book on my blog at the following URL: [https://easyperf.net/blog/2024/11/11/Book-Updates-Errata](https://easyperf.net/blog/2024/11/11/Book-Updates-Errata).
+我将在我的博客上发布本书的勘误表和其他信息，网址为：[https://easyperf.net/blog/2024/11/11/Book-Updates-Errata](https://easyperf.net/blog/2024/11/11/Book-Updates-Errata)。
 
-If you haven't solved the `perf-ninja` exercises yet, I encourage you to take the time to do so. They will help you to solidify your knowledge and prepare you for real-world performance engineering challenges.
+如果你还没有解决 `perf-ninja` 练习，我鼓励你花时间去做。它们将帮助你巩固知识，并为你应对现实世界的性能工程挑战做好准备。
 
-P.S. If you enjoyed reading this book, make sure to pass it on to your friends and colleagues. I would appreciate your help in spreading the word about the book by endorsing it on social media platforms.
+P.S. 如果你喜欢阅读这本书，请确保将其传给你的朋友和同事。我将感激你在社交媒体平台上认可这本书来帮助传播这本书。
