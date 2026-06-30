@@ -1,24 +1,24 @@
-# Machine Code Layout Optimizations {#sec:secFEOpt}
+# 机器代码布局优化 {#sec:secFEOpt}
 
-The CPU Frontend (FE) is responsible for fetching and decoding instructions and delivering them to the out-of-order Backend (BE). As the newer processors get more execution "horsepower", the CPU FE needs to be as powerful to keep the machine balanced. If the FE cannot keep up with supplying instructions, the BE will be underutilized, and the overall performance will suffer. That's why the FE is designed to always run well ahead of the actual execution to smooth out any hiccups that may occur and always have instructions ready to be executed. For example, Intel Skylake, released in 2016, can fetch up to 16 instructions per cycle.
+CPU 前端（FE）负责获取和解码指令并将它们传递给乱序后端（BE）。随着新处理器获得更多的执行"马力"，CPU FE 需要足够强大以保持机器平衡。如果 FE 无法跟上提供指令，BE 将得不到充分利用，整体性能将受到影响。这就是为什么 FE 被设计为始终远在实际执行之前运行，以消除可能发生的任何小问题，并始终有指令准备执行。例如，2016 年发布的 Intel Skylake 每个周期可以获取最多 16 条指令。
 
-Most of the time, inefficiencies in the CPU FE can be described as a situation when the Backend is waiting for instructions to execute, but the Frontend is not able to provide them. As a result, CPU cycles are wasted without doing any actual useful work. Recall that modern CPUs can process multiple instructions every cycle, nowadays ranging from 4- to 9-wide. Situations when not all available slots are filled happen very often. This represents a source of inefficiency for applications in many domains, such as databases, compilers, web browsers, and many others.
+大多数时候，CPU FE 中的低效可以描述为后端等待执行指令但前端无法提供它们的情况。结果，CPU 周期被浪费而没有做任何实际有用的工作。回想一下，现代 CPU 每个周期可以处理多条指令，现在范围从 4 到 9 宽。并非所有可用槽都被填充的情况经常发生。这代表了许多领域应用程序的低效来源，例如数据库、编译器、Web 浏览器等。
 
-The TMA methodology captures FE performance issues in the `Frontend Bound` metric. It represents the percentage of cycles when the CPU FE is not able to deliver instructions to the BE, while it could have accepted them. Most of the real-world applications experience a non-zero 'Frontend Bound' metric, meaning that some percentage of running time will be lost on suboptimal instruction fetching and decoding. Below 10\% is the norm. If you see the "Frontend Bound" metric being more than 20\%, it's worth spending time on it.
+TMA 方法在 `Frontend Bound` 指标中捕获 FE 性能问题。它表示 CPU FE 无法向 BE 提供指令的周期百分比，而 BE 本可以接受这些指令。大多数实际应用程序经历非零的"Frontend Bound"指标，意味着运行时间的一定百分比将因次优的指令获取和解码而损失。低于 10% 是常态。如果你看到"Frontend Bound"指标超过 20%，就值得花时间处理它。
 
-There could be many reasons why FE cannot deliver instructions to the execution units. Most of the time, it is due to suboptimal code layout, which leads to poor I-cache and ITLB utilization. Applications with a large codebase, e.g., millions of lines of code, are especially vulnerable to FE performance issues. In this chapter, we will take a look at some typical optimizations to improve machine code layout.
+FE 无法向执行单元提供指令的原因可能有很多。大多数时候，这是由于次优的代码布局，导致 I-cache 和 ITLB 利用率低下。具有大代码库（例如数百万行代码）的应用程序特别容易受到 FE 性能问题的影响。在本章中，我们将研究一些改进机器代码布局的典型优化。
 
-## Machine Code Layout
+## 机器代码布局
 
-When a compiler translates source code into machine code, it generates a linear byte sequence. [@lst:MachineCodeLayout] shows an example of a binary layout for a small snippet of C++ code. Once the compiler finishes generating assembly instructions, it needs to encode them and lay them out in memory sequentially.
+当编译器将源代码转换为机器代码时，它生成一个线性字节序列。[@lst:MachineCodeLayout] 显示了一个小 C++ 代码片段的二进制布局示例。一旦编译器完成生成汇编指令，它需要编码它们并在内存中按顺序排列它们。
 
-Listing: Example of machine code layout
+清单：机器代码布局示例
 
 ~~~~ {#lst:MachineCodeLayout .cpp}
-  C++ Code      │    Assembly Listing     │    Disassembled Machine Code
+  C++ 代码      │    汇编列表     │    反汇编机器代码
   ........      │    ................     │    ......................... 
-if (a <= b)     │     ; a is in edi       │    401125 cmp esi, edi
-  bar();        │     ; b is in esi       │    401128 jb 401131
+if (a <= b)     │     ; a 在 edi 中       │    401125 cmp esi, edi
+  bar();        │     ; b 在 esi 中       │    401128 jb 401131
 else            │     cmp esi, edi        │    40112a call bar
   baz();        │     jb .label1          │    40112f jmp 401136
                 │     call bar()          │    401131 call baz
@@ -29,4 +29,4 @@ else            │     cmp esi, edi        │    40112a call bar
                 │     ...                 │
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The way code is placed in an object file is called *machine code layout*. Note that for the same program, it's possible to lay out the code in many different ways. For the code in [@lst:MachineCodeLayout], a compiler may decide to reverse the branch in such a way that a call to `baz` will come first. Also, bodies of the functions `bar` and `baz` can be placed in two different orders: we can place `bar` first in the executable image and then `baz` or reverse the order. This affects offsets at which instructions will be placed in memory, which in turn may affect the performance of the generated program as you will see later. In the following sections of this chapter, we will take a look at some typical optimizations for the machine code layout.
+代码在目标文件中的放置方式称为*机器代码布局*。请注意，对于相同的程序，可以以多种不同的方式布局代码。对于 [@lst:MachineCodeLayout] 中的代码，编译器可能决定以某种方式反转分支，使对 `baz` 的调用首先出现。此外，函数 `bar` 和 `baz` 的主体可以按两种不同的顺序放置：我们可以先在可执行映像中放置 `bar`，然后是 `baz`，或者反转顺序。这会影响指令在内存中放置的偏移量，这反过来可能影响生成程序的性能，正如你稍后将看到的。在本章的以下部分中，我们将研究一些机器代码布局的典型优化。
