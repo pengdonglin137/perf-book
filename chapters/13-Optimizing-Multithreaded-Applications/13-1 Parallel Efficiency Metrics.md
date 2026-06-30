@@ -1,42 +1,41 @@
-## Parallel Efficiency Metrics {#sec:secMT_metrics}
+## 并行效率指标 {#sec:secMT_metrics}
 
-Let's start by introducing a few metrics that are important for analyzing the performance of multithreaded applications. When dealing with multithreaded applications, engineers should be careful in analyzing basic metrics, for example, CPU utilization. One of the threads might show high CPU utilization, but it could turn out that the thread was just spinning in a busy-wait loop while waiting for a lock. That's why, when evaluating the parallel efficiency of an application, it's recommended to use *Effective CPU Utilization*, which is based only on the *Effective time*.
+让我们首先介绍一些对分析多线程应用程序性能很重要的指标。在处理多线程应用程序时，工程师在分析基本指标时应小心，例如 CPU 利用率。其中一个线程可能显示高 CPU 利用率，但结果可能是该线程只是在等待锁时在忙等待循环中自旋。这就是为什么在评估应用程序的并行效率时，建议使用*有效 CPU 利用率*，它仅基于*有效时间*。
 
-### Effective CPU Utilization {.unlisted .unnumbered}
+### 有效 CPU 利用率 {.unlisted .unnumbered}
 
-This metric represents how efficiently an application utilizes the available CPUs. It shows the percent of average CPU utilization by all logical CPUs on the system. It is based only on the *Effective time* and does not include the overhead introduced by the parallel runtime system[^11] and Spin time. An *Effective CPU utilization* of 100% means that your application keeps all the logical CPU cores busy for the entire time that it runs.
+此指标表示应用程序利用可用 CPU 的效率。它显示系统上所有逻辑 CPU 的平均 CPU 利用率百分比。它仅基于*有效时间*，不包括并行运行时系统[^1] 和自旋时间引入的开销。*有效 CPU 利用率*为 100% 意味着你的应用程序在其运行的整个时间内使所有逻辑 CPU 核心保持忙碌。
 
-For a specified time interval `T`, *Effective CPU Utilization* can be calculated as
-$$
-\textrm{Effective CPU Utilization} = \frac{\sum_{i=1}^{\textrm{ThreadCount}}\textrm{Effective CPU Time(T,i)}}{\textrm{T}~\times~\textrm{ThreadCount}}
-$$
+对于指定的时间间隔 `T`，*有效 CPU 利用率*可以计算为
 
 $$
-\textrm{Effective CPU Time} = \textrm{CPU Time}~-~(\textrm{Overhead Time}~+~\textrm{Spin Time})
+\textrm{有效 CPU 利用率} = \frac{\sum_{i=1}^{\textrm{线程数}}\textrm{有效 CPU 时间(T,i)}}{\textrm{T}~\times~\textrm{线程数}}
 $$
 
-Measuring overhead and spin time can be challenging, and I recommend using a performance analysis tool like Intel VTune Profiler, which can provide these metrics.
+$$
+\textrm{有效 CPU 时间} = \textrm{CPU 时间}~-~(\textrm{开销时间}~+~\textrm{自旋时间})
+$$
 
-### Thread Count {.unlisted .unnumbered}
+度量开销和自旋时间可能具有挑战性，我建议使用像 Intel VTune Profiler 这样的性能分析工具，它可以提供这些指标。
 
-Most parallel applications have a configurable number of threads, which allows them to run efficiently on platforms with a different number of cores. Running an application using a lower number of threads than is available on the system underutilizes its resources. On the other hand, running an excessive number of threads can cause *oversubscription*; some threads will be waiting for their turn to run.
+### 线程数 {.unlisted .unnumbered}
 
-Besides actual worker threads, multithreaded applications usually have other housekeeping threads: main thread, input/output threads, etc. If those threads consume significant time, they will take execution time away from worker threads, as they too require CPU cores to run. This is why it is important to know the total thread count and configure the number of worker threads properly.
+大多数并行应用程序具有可配置的线程数，这允许它们在具有不同核心数的平台上高效运行。使用比系统上可用的更少的线程数运行应用程序会使其资源利用不足。另一方面，运行过多的线程可能导致*过度订阅*；一些线程将等待轮到它们运行。
 
-To avoid a penalty for thread creation and destruction, engineers usually allocate a [pool of threads](https://en.wikipedia.org/wiki/Thread_pool)[^14] with multiple threads waiting for tasks to be allocated for concurrent execution by the supervising program. This is especially beneficial for executing short-lived tasks.
+除了实际的工作线程之外，多线程应用程序通常还有其他维护线程：主线程、输入/输出线程等。如果这些线程消耗大量时间，它们将从工作线程中夺取执行时间，因为它们也需要 CPU 核心来运行。这就是为什么知道总线程数并正确配置工作线程数很重要的原因。
 
-### Wait Time {.unlisted .unnumbered}
+为了避免线程创建和销毁的惩罚，工程师通常分配一个[线程池](https://en.wikipedia.org/wiki/Thread_pool)[^14]，其中多个线程等待由监督程序分配任务进行并发执行。这对于执行短期任务特别有益。
 
-*Wait Time* occurs when software threads are waiting due to APIs that block or cause a context switch. Wait Time is per thread; therefore, the total *Wait Time* can exceed the application elapsed time.
+### 等待时间 {.unlisted .unnumbered}
 
-A thread can be switched off from execution by the OS scheduler due to either synchronization or preemption. So, *Wait Time* can be further divided into *Sync Wait Time* and *Preemption Wait Time*. A large amount of *Sync Wait Time* likely indicates that the application has highly contended synchronization objects. We will explore how to find them in the following sections. Significant *Preemption Wait Time* can signal a thread oversubscription problem either because of a large number of application threads or a conflict with OS threads or other applications on the system. In this case, the developer should consider reducing the total number of threads or increasing task granularity for every worker thread.
+*等待时间*发生在软件线程因阻塞或导致上下文切换的 API 而等待时。等待时间是按线程计算的；因此，总*等待时间*可以超过应用程序经过的时间。
 
-### Spin Time {.unlisted .unnumbered}
+线程可能由于同步或抢占而被操作系统调度器切换出执行。因此，*等待时间*可以进一步分为*同步等待时间*和*抢占等待时间*。大量的*同步等待时间*可能表明应用程序具有高度争用的同步对象。我们将在以下部分中探讨如何找到它们。显著的*抢占等待时间*可能表示线程过度订阅问题，要么是因为应用程序线程数量过多，要么是因为与系统上的操作系统线程或其他应用程序冲突。在这种情况下，开发人员应考虑减少线程总数或增加每个工作线程的任务粒度。
 
-*Spin time* is *Wait Time*, during which the CPU is busy. This often occurs when a synchronization API causes the CPU to poll while the software thread is waiting. In reality, the implementation of kernel synchronization primitives spins on a lock for some time instead of immediately yielding to another thread. Too much Spin Time, however, can reflect the lost opportunity for productive work. 
+### 自旋时间 {.unlisted .unnumbered}
 
-A list of other parallel efficiency metrics can be found on Intel's VTune [page](https://software.intel.com/en-us/vtune-help-cpu-metrics-reference).[^15]
+*自旋时间*是 CPU 忙碌时的*等待时间*。当同步 API 导致 CPU 在软件线程等待时进行轮询时，通常会发生这种情况。实际上，内核同步原语的实现会在锁上自旋一段时间，而不是立即让出给另一个线程。然而，过多的自旋时间可能反映出productive work 的机会丧失。
 
-[^11]: Threading libraries such as `pthread`, `OpenMP`, and `Intel TBB` incur additional overhead for creating and managing threads.
-[^14]: Thread pool - [https://en.wikipedia.org/wiki/Thread_pool](https://en.wikipedia.org/wiki/Thread_pool)
-[^15]: CPU metrics reference - [https://software.intel.com/en-us/vtune-help-cpu-metrics-reference](https://software.intel.com/en-us/vtune-help-cpu-metrics-reference)
+其他并行效率指标的列表可以在 Intel VTune [页面](https://software.intel.com/en-us/vtune-help-cpu-metrics-reference)上找到。[^15]
+
+[^1]: 像 `pthread`、`OpenMP` 和 `Intel TBB` 这样的线程库会因创建和管理线程而产生额外开销。
