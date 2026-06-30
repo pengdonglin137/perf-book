@@ -1,26 +1,26 @@
-## Mispredicted Branch {#sec:BbMisp}
+## 分支预测错误 {#sec:BbMisp}
 
-Modern CPUs try to predict the outcome of a conditional branch instruction (taken or not taken). For example, when the processor sees code like this:
+现代 CPU 试图预测条件分支指令的结果（已采取或未采取）。例如，当处理器看到这样的代码时：
 
 ```bash
 dec eax
 jz .zero
-# eax is not 0
+# eax 不为 0
 ...
 zero:
-# eax is 0
+# eax 为 0
 ```
 
-In the above example, the `jz` instruction is a conditional branch. To increase performance, modern processors will try to guess the outcome every time they see a branch instruction. This is called *Speculative Execution* which we discussed in [@sec:SpeculativeExec]. The processor will speculate that, for example, the branch will not be taken and will execute the code that corresponds to the situation when `eax is not 0`. However, if the guess is wrong, this is called *branch misprediction*, and the CPU is required to undo all the speculative work that it has done recently. 
+在上面的示例中，`jz` 指令是一个条件分支。为了提高性能，现代处理器每次看到分支指令时都会尝试猜测结果。这称为*推测执行*，我们在 [@sec:SpeculativeExec] 中讨论过。处理器将推测，例如，分支不会被采取，并执行对应于 `eax 不为 0` 情况的代码。但是，如果猜测错误，这称为*分支预测错误*，CPU 需要撤销它最近完成的所有推测工作。
 
-A mispredicted branch typically involves a penalty between 10 and 25 clock cycles. First, all the instructions that were fetched and executed based on the incorrect prediction need to be flushed from the pipeline. After that, some buffers may require cleanup to restore the state from where the bad speculation started.
+分支预测错误通常涉及 10 到 25 个时钟周期的惩罚。首先，所有基于错误预测获取和执行的指令需要从流水线中刷新。之后，某些缓冲区可能需要清理以从错误推测开始的状态恢复。
 
-Linux `perf` users can check the number of branch mispredictions by running:
+Linux `perf` 用户可以通过运行以下命令检查分支预测错误数：
 
 ```bash
 $ perf stat -e branches,branch-misses -- a.exe
    358209  branches
     14026  branch-misses #    3,92% of all branches        
-# or simply do:
+# 或者简单地：
 $ perf stat -- a.exe
 ```
