@@ -1,28 +1,28 @@
-## Static Performance Analysis
+## 静态性能分析
 
-Today we have extensive tooling for static code analysis. For the C and C++ languages, we have well-known tools like Clang static analyzer, Klocwork, Cppcheck, and others. Such tools aim at checking the correctness and semantics of code. Likewise, some tools try to address the performance aspect of code. Static performance analyzers don't execute or profile the program. Instead, they simulate the code as if it is executed on real hardware. Statically predicting performance is almost impossible, so there are many limitations to this type of analysis.
+如今，我们有广泛的静态代码分析工具。对于 C 和 C++ 语言，我们有众所周知的工具，如 Clang 静态分析器、Klocwork、Cppcheck 等。这些工具旨在检查代码的正确性和语义。同样，一些工具试图解决代码的性能方面。静态性能分析器不执行或分析程序。相反，它们模拟代码，就像它在真实硬件上执行一样。静态预测性能几乎是不可能的，因此这种类型的分析有许多限制。
 
-First, it is not possible to statically analyze C/C++ code for performance since we don't know the machine code to which it will be compiled. So, static performance analysis works on assembly code.
+首先，无法对 C/C++ 代码进行静态性能分析，因为我们不知道它将被编译成的机器代码。因此，静态性能分析在汇编代码上工作。
 
-Second, static analysis tools simulate the workload instead of executing it. It is obviously very slow, so it's not possible to statically analyze the entire program. Instead, tools take a snippet of assembly code and try to predict how it will behave on real hardware. The user should pick specific assembly instructions (usually a small loop) for analysis. So, the scope of static performance analysis is very narrow.
+其次，静态分析工具模拟工作负载而不是执行它。这显然非常慢，因此无法静态分析整个程序。相反，工具获取一段汇编代码并尝试预测它在真实硬件上的行为。用户应该选择特定的汇编指令（通常是一个小循环）进行分析。因此，静态性能分析的范围非常窄。
 
-The output of static performance analyzers is fairly low-level and often breaks execution down to CPU cycles. Usually, developers use it for fine-grained tuning of a critical code region in which every CPU cycle matters.
+静态性能分析器的输出相当底层，通常将执行分解为 CPU 周期。通常，开发人员使用它来对关键代码区域进行细粒度调优，其中每个 CPU 周期都很重要。
 
-### Static vs. Dynamic Analyzers {.unlisted .unnumbered}
+### 静态分析器与动态分析器 {.unlisted .unnumbered}
 
-**Static tools**. They don't run actual code but try to simulate the execution, keeping as many microarchitectural details as they can. They are not capable of doing real measurements (execution time, performance counters) because they don't run the code. The upside here is that you don't need to have real hardware and can simulate the code for different CPU generations. Another benefit is that you don't need to worry about the consistency of the results: static analyzers will always give you deterministic output because simulation (in comparison with the execution on real hardware) is not biased in any way. The downside of static tools is that they usually can't predict and simulate everything inside a modern CPU: they are based on a model that may have bugs and limitations. Examples of static performance analyzers are [UICA](https://uica.uops.info/)[^2] and [llvm-mca](https://llvm.org/docs/CommandGuide/llvm-mca.html).[^3]
+**静态工具**。它们不运行实际代码，而是尝试模拟执行，保留尽可能多的微架构细节。它们无法进行实际测量（执行时间、性能计数器），因为它们不运行代码。这里的好处是你不需要实际硬件，可以为不同的 CPU 代际模拟代码。另一个好处是你不需要担心结果的一致性：静态分析器总是给你确定性的输出，因为模拟（与在真实硬件上执行相比）没有任何偏差。静态工具的缺点是它们通常无法预测和模拟现代 CPU 中的所有内容：它们基于可能存在错误和限制的模型。静态性能分析器的例子有 [UICA](https://uica.uops.info/)[^2] 和 [llvm-mca](https://llvm.org/docs/CommandGuide/llvm-mca.html)。[^3]
 
-**Dynamic tools**. They are based on running code on real hardware and collecting all sorts of information about the execution. This is the only 100% reliable method of proving any performance hypothesis. As a downside, usually, you are required to have privileged access rights to collect low-level performance data like PMCs. It's not always easy to write a good benchmark and measure what you want to measure. Finally, you need to filter the noise and different kinds of side effects. Two examples of dynamic microarchitectural performance analyzers are [nanoBench](https://github.com/andreas-abel/nanoBench)[^5] and [uarch-bench](https://github.com/travisdowns/uarch-bench).[^4] 
+**动态工具**。它们基于在真实硬件上运行代码并收集关于执行的各种信息。这是证明任何性能假设的唯一 100% 可靠的方法。作为缺点，通常你需要特权访问权限来收集低级性能数据，如 PMC。编写一个好的基准测试并度量你想度量的内容并不总是容易的。最后，你需要过滤噪声和各种副作用。动态微架构性能分析器的两个例子是 [nanoBench](https://github.com/andreas-abel/nanoBench)[^5] 和 [uarch-bench](https://github.com/travisdowns/uarch-bench)。[^4]
 
-A bigger collection of tools both for static and dynamic microarchitectural performance analysis is available [here](https://github.com/MattPD/cpplinks/blob/master/performance.tools.md#microarchitecture).[^7]
+更完整的静态和动态微架构性能分析工具集合可在 [此处](https://github.com/MattPD/cpplinks/blob/master/performance.tools.md#microarchitecture) 找到。[^7]
 
-### Case Study: Using UICA to Optimize FMA Throughput {#sec:FMAThroughput}
+### 案例研究：使用 UICA 优化 FMA 吞吐量 {#sec:FMAThroughput}
 
-One of the questions developers often ask is: "The latest processors have 10+ execution units; how do I write my code to keep them busy all the time?" This is indeed one of the hardest questions to tackle. Sometimes it requires looking under the microscope at how the program is running. One such microscope is the UICA simulator which helps you gain insights into how your code could be flowing through a modern processor.
+开发人员经常问的问题之一是："最新的处理器有 10 多个执行单元；我如何编写代码来使它们始终保持忙碌？"这确实是最难解决的问题之一。有时它需要仔细研究程序如何运行。UICA 模拟器就是这样一种显微镜，它帮助你深入了解你的代码如何在现代处理器中流动。
 
-Let's look at the code in [@lst:FMAthroughput]. I intentionally try to make the examples as simple as possible. Though real-world codes are of course usually more complicated than this. The code scales every element of array `a` by the floating-point value `B` and accumulates products into `sum`. On the right, I present the machine code for the loop generated by Clang-16 when compiled with `-O3 -ffast-math -march=core-avx2`.
+让我们看看 [@lst:FMAthroughput] 中的代码。我故意尝试使示例尽可能简单。当然，现实世界的代码通常比这更复杂。该代码将数组 `a` 的每个元素缩放浮点值 `B`，并将乘积累加到 `sum` 中。在右边，我展示了 Clang-16 在使用 `-O3 -ffast-math -march=core-avx2` 编译时生成的循环的机器代码。
 
-Listing: FMA throughput
+清单：FMA 吞吐量
 
 ~~~~ {#lst:FMAthroughput .cpp}
 float foo(float * a, float B, int N){  │ .loop:
@@ -35,53 +35,6 @@ float foo(float * a, float B, int N){  │ .loop:
                                        │  jne .loop
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This is a reduction loop, i.e., we need to sum up all the products and in the end, return a single float value. The way this code is written, there is a loop-carry dependency over `sum`. You cannot overwrite `sum` until you accumulate the previous product. A smart way to parallelize this is to have multiple accumulators and roll them up in the end. So, instead of a single `sum`, we could have `sum1` to accumulate results from even iterations and `sum2` from odd iterations. 
+这是一个归约循环，即我们需要将所有乘积相加，最后返回一个浮点值。这段代码的编写方式存在 `sum` 上的循环携带依赖。在累加前一个乘积之前，你不能覆盖 `sum`。并行化这一点的聪明方法是使用多个累加器，最后将它们相加。因此，不是单个 `sum`，我们可以有 `sum1` 来累加偶数迭代的结果，`sum2` 来累加奇数迭代的结果。
 
-This is what Clang-16 has done: it has 4 vectors (`ymm2`-`ymm5`) each holding 8 floating-point accumulators, plus it used FMA to fuse multiplication and addition into a single instruction. The constant `B` is broadcast into the `ymm1` register. The `-ffast-math` option allows a compiler to reassociate floating-point operations; we will discuss how this option can aid optimizations in [@sec:Vectorization].[^9]
-
-The code looks good, but is it optimal? Let's find out. We took the assembly snippet from [@lst:FMAthroughput] to UICA and ran simulations. At the time of writing, Alder Lake (Intel's 12th gen, based on Golden Cove) is not supported by UICA, so we ran it on the latest available, which is Rocket Lake (Intel's 11th gen, based on Sunny Cove). Although the architectures differ, the issue exposed by this experiment is equally visible in both. The result of the simulation is shown in Figure @fig:FMA_tput_UICA. This is a pipeline diagram similar to what we have shown in Chapter 3. We skipped the first two iterations, and show only iterations 2 and 3 (leftmost column "It."). This is when the execution reaches a steady state, and all further iterations look very similar.
-
-![UICA pipeline diagram. `I` = issued, `r` = ready for dispatch, `D` = dispatched, `E` = executed, `R` = retired.](../../img/perf-analysis/fma_tput_uica.png){#fig:FMA_tput_UICA width=100%}
-
-UICA is a very simplified model of the actual CPU pipeline. For example, you may notice that the instruction fetch and decode stages are missing. Also, UICA doesn't account for cache misses and branch mispredictions, so it assumes that all memory accesses always hit in the L1 cache and branches are always predicted correctly, which we know is not the case in modern processors. Again, this is irrelevant to our experiment as we could still use the simulation results to find a way to improve the code. 
-
-Can you see the performance issue? Let's examine the diagram. First of all, every `FMA` instruction is broken into two $\mu$ops (see \circled{1} in Figure @fig:FMA_tput_UICA): a load $\mu$op that goes to ports `{2,3}` and an FMA $\mu$op that can go to ports `{0,1}`. The load $\mu$op has a latency of 5 cycles: it starts at cycle 7 and finishes at cycle 11. The FMA $\mu$op has a latency of 4 cycles: it starts at cycle 15 and finishes at cycle 18. All FMA $\mu$ops depend on load $\mu$ops, as we can see in the diagram: FMA $\mu$ops always start after the corresponding load $\mu$op finishes. Now find two `r` cells at cycle 6, they are ready to be dispatched, but Rocket Lake has only two load ports, and both are already occupied in the same cycle. So, these two loads are issued in the next cycle.
-
-The loop has four cross-iteration dependencies over `ymm2-ymm5`. The FMA $\mu$op from instruction \circled{2} that writes into `ymm2` cannot start execution before instruction \circled{1} from the previous iteration finishes. Notice that the FMA $\mu$op from instruction \circled{2} was dispatched in the same cycle 18 as instruction \circled{1} finished its execution. There is a data dependency between instruction \circled{1} and instruction \circled{2}. You can observe this pattern for other FMA instructions as well.
-
-So, "What is the problem?", you ask. Look at the top right corner of the image. For each cycle, we added the number of executed FMA $\mu$ops (this is not printed by UICA). It goes like `1,2,1,0,1,2,1,...`, or an average of one FMA $\mu$op per cycle. Most of the recent Intel processors have two FMA execution units, thus can issue two FMA $\mu$ops per cycle. Thus, we utilize only half of the available FMA execution throughput. The diagram clearly shows the gap as every fourth cycle there are no FMAs executed. As we figured out before, no FMA $\mu$ops can be dispatched because their inputs (`ymm2-ymm5`) are not ready.
-
-To increase the utilization of FMA execution units from 50% to 100%, we need to double the number of accumulators from 4 to 8, effectively unrolling the loop by a factor of two. Instead of 4 independent data flow chains, we will have 8. I'm not showing simulations of the unrolled version here; you can experiment on your own. Instead, let us confirm the hypothesis by running both versions on real hardware. By the way, it is always a good idea to verify, because static performance analyzers like UICA are not accurate models. Below, we show the output of two [nanoBench](https://github.com/andreas-abel/nanoBench) tests that we ran on an Alder Lake processor. The tool takes provided assembly instructions (`-asm` option) and creates a benchmark kernel. Readers can look up the meaning of other parameters in the nanoBench documentation. The original code on the left executes 4 instructions in 4 cycles, while the improved version can execute 8 instructions in 4 cycles. Now we can be sure we have maximized the FMA execution throughput since the code on the right keeps the FMA units busy all the time.
-
-```
-# ran on Intel Core i7-1260P (Alder Lake)
-$ sudo ./kernel-nanoBench.sh -f    │  $ sudo ./kernel-nanoBench.sh -f 
- -basic -loop 100 -unroll 1000     │   -basic -loop 100 -unroll 1000 
- -warm_up_count 10 -asm "          │   -warm_up_count 10  -asm "
-VFMADD231PS YMM0, YMM1, [R14];     │  VFMADD231PS YMM0, YMM1, [R14];
-VFMADD231PS YMM2, YMM1, [R14+32];  │  VFMADD231PS YMM2, YMM1, [R14+32];
-VFMADD231PS YMM3, YMM1, [R14+64];  │  VFMADD231PS YMM3, YMM1, [R14+64];
-VFMADD231PS YMM4, YMM1, [R14+96];" │  VFMADD231PS YMM4, YMM1, [R14+96];
--asm_init "<not shown>"            │  VFMADD231PS YMM5, YMM1, [R14+128];
-                                   │  VFMADD231PS YMM6, YMM1, [R14+160];
-Instructions retired: 4.00         │  VFMADD231PS YMM7, YMM1, [R14+192];
-Core cycles: 4.00                  │  VFMADD231PS YMM8, YMM1, [R14+224]"
-                                   │  -asm_init "<not shown>"
-                                   │
-                                   │  Instructions retired: 8.00
-                                   │  Core cycles: 4.00
-```
-
-As a rule of thumb, in such situations, the loop must be unrolled by a factor of `T * L`, where `T` is the throughput of an instruction, and `L` is its latency. In our case, we should have unrolled it by `2 * 4 = 8` to achieve maximum FMA port utilization since the throughput of FMA on Alder Lake is 2 and the latency of FMA is 4 cycles. This creates 8 separate data flow chains that can be executed independently.
-
-It's worth mentioning that you will not always see a 2x speedup in practice. This can be achieved only in an idealized environment like UICA or nanoBench. In a real application, even though you maximized the execution throughput of FMA, the gains may be hindered by eventual cache misses and other pipeline hazards. When that happens, the effect of cache misses outweighs the effect of suboptimal FMA port utilization, which could easily result in a much more disappointing 5% speedup. But don't worry; you've still done the right thing. 
-
-As a closing thought, let us remind you that UICA or any other static performance analyzer is not suitable for analyzing large portions of code. But they are great for exploring microarchitectural effects. Also, they help you to build up a mental model of how a CPU works. Another very important use case for UICA is to find critical dependency chains in a loop as described in a [post](https://easyperf.net/blog/2022/05/11/Visualizing-Performance-Critical-Dependency-Chains)[^8] on the Easyperf blog.
-
-[^2]: UICA - [https://uica.uops.info/](https://uica.uops.info/)
-[^3]: LLVM MCA - [https://llvm.org/docs/CommandGuide/llvm-mca.html](https://llvm.org/docs/CommandGuide/llvm-mca.html)
-[^4]: uarch-bench - [https://github.com/travisdowns/uarch-bench](https://github.com/travisdowns/uarch-bench)
-[^5]: nanoBench - [https://github.com/andreas-abel/nanoBench](https://github.com/andreas-abel/nanoBench)
-[^7]: Collection of links for C++ performance tools - [https://github.com/MattPD/cpplinks/blob/master/performance.tools.md#microarchitecture](https://github.com/MattPD/cpplinks/blob/master/performance.tools.md#microarchitecture).
-[^8]: Easyperf blog - [https://easyperf.net/blog/2022/05/11/Visualizing-Performance-Critical-Dependency-Chains](https://easyperf.net/blog/2022/05/11/Visualizing-Performance-Critical-Dependency-Chains)
-[^9]: By the way, it would be possible to sum all the elements in `a` and then multiply it by `B` once outside of the loop. This is an oversight by the programmer, but hopefully, compilers will be able to handle it in the future.
+这就是 Clang-16 所做的：它有 4 个向量（`ymm2`-`ymm5`），每个持有 8 个浮点累加器，加上它使用 FMA 将乘法和加法融合为一条指令。常数 `B` 被广播到 `ymm1` 寄存器。`-ffast-math` 选项允许编译器重新关联浮点操作；我们将在 [@sec:Vectorization] 中讨论此选项如何帮助优化。[^9]
