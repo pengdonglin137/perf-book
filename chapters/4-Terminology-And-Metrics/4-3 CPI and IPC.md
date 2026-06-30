@@ -1,47 +1,40 @@
-## CPI and IPC {#sec:IPC}
+## CPI 和 IPC {#sec:IPC}
 
-Those are two fundamental metrics that stand for:
+这两个基本指标代表：
 
-* Instructions Per Cycle (IPC) - how many instructions were retired per cycle on average.
+* 每周期指令数（IPC）- 平均每个周期退休多少条指令。
 
   $$
   IPC = \frac{INST\_RETIRED.ANY}{CPU\_CLK\_UNHALTED.THREAD},
   $$
 
-where `INST_RETIRED.ANY` counts the number of retired instructions, and `CPU_CLK_UNHALTED.THREAD` counts the number of core cycles while the thread is not in a halt state.
+  其中 `INST_RETIRED.ANY` 计算退休指令数，`CPU_CLK_UNHALTED.THREAD` 计算线程未处于停机状态时的核心周期数。
 
-* Cycles Per Instruction (CPI) - how many cycles it took to retire one instruction on average.
+* 每指令周期数（CPI）- 平均退休一条指令需要多少周期。
 
 $$
 CPI = \frac{1}{IPC}
 $$
 
-Using one or another is a matter of preference. I prefer to use IPC as it is easier to compare. With IPC, we want as many instructions per cycle as possible, so the higher the IPC, the better. With `CPI`, it's the opposite: we want as few cycles per instruction as possible, so the lower the CPI the better. The comparison that uses "the higher the better" metric is simpler since you don't have to do the mental inversion every time. In the rest of the book, we will mostly use IPC, but again, there is nothing wrong with using CPI either.
+使用哪一个取决于个人偏好。我更喜欢使用 IPC，因为它更容易比较。使用 IPC 时，我们希望每个周期有尽可能多的指令，因此 IPC 越高越好。使用 `CPI` 时则相反：我们希望每条指令的周期数尽可能少，因此 CPI 越低越好。使用"越高越好"指标的比较更简单，因为你不必每次都进行心理反转。在本书的其余部分，我们将主要使用 IPC，但同样，使用 CPI 也没有错。
 
-The relationship between IPC and CPU clock frequency is very interesting. In the broad sense, `performance = work / time`, where we can express work as the number of instructions and time as seconds. The number of seconds a program was running can be calculated as `total cycles / frequency`: 
+IPC 和 CPU 时钟频率之间的关系非常有趣。从广义上讲，`性能 = 工作 / 时间`，其中我们可以将工作表示为指令数，时间表示为秒数。程序运行的秒数可以计算为 `总周期数 / 频率`：
 
 $$
 Performance = \frac{instructions \times frequency}{cycles} = IPC \times frequency
 $$
 
-As we can see, performance is proportional to IPC and frequency. If we increase any of the two metrics, the performance of a program will grow.
+如我们所见，性能与 IPC 和频率成正比。如果我们增加这两个指标中的任何一个，程序的性能都会增长。
 
-From the perspective of benchmarking, IPC and frequency are two independent metrics. I've seen some engineers mistakenly mixing them up and thinking that if you increase the frequency, the IPC will also go up. But that's not true. If you clock a processor at 1 GHz instead of 5 GHz, for many applications you will still get the same IPC.[^1] It may sound very confusing, especially since IPC has everything to do with CPU clocks. However, frequency only tells us how fast a single clock cycle is, whereas IPC counts how much work is done every cycle. So, from the benchmarking perspective, IPC solely depends on the design of the processor regardless of the frequency. Out-of-order cores typically have a much higher IPC than in-order cores. When you increase the size of CPU caches or improve branch prediction, the IPC usually goes up.
+从基准测试的角度来看，IPC 和频率是两个独立的指标。我见过一些工程师错误地将它们混淆，认为如果你增加频率，IPC 也会提高。但事实并非如此。如果你将处理器时钟设置为 1 GHz 而不是 5 GHz，对于许多应用程序，你仍然会得到相同的 IPC。[^1] 这可能听起来很令人困惑，特别是 IPC 与 CPU 时钟密切相关。然而，频率只告诉我们单个时钟周期有多快，而 IPC 计算每个周期完成多少工作。因此，从基准测试的角度来看，IPC 完全取决于处理器的设计，与频率无关。乱序核心通常比顺序核心具有更高的 IPC。当你增加 CPU 缓存大小或改进分支预测时，IPC 通常会上升。
 
-Now, if you ask a hardware architect, they will certainly tell you there is a dependency between IPC and frequency. From the CPU design perspective, you can deliberately downclock the processor, which will make every cycle longer and make it possible to squeeze more work into each cycle. In the end, you will get a higher IPC but a lower frequency. Hardware vendors approach this performance equation in different ways. For example, Intel and AMD chips usually have very high frequencies, with the recent Intel 13900KS processor providing a 6 GHz turbo frequency out of the box with no overclocking required. On the other hand, Apple M1/M2 chips have lower frequency but compensate with a higher IPC. Lower frequency facilitates lower power consumption. Higher IPC, on the other hand, usually requires a more complicated design, more transistors, and a larger die size. We will not go into all the design tradeoffs here, as they are topics for a different book.
+现在，如果你问硬件架构师，他们肯定会告诉你 IPC 和频率之间存在依赖关系。从 CPU 设计的角度来看，你可以故意降低处理器时钟，这将使每个周期更长，并使每个周期能够挤入更多工作。最终，你会得到更高的 IPC 但更低的频率。硬件厂商以不同的方式处理这个性能方程。例如，Intel 和 AMD 芯片通常具有非常高的频率，最近的 Intel 13900KS 处理器无需超频即可提供 6 GHz 的 turbo 频率。另一方面，Apple M1/M2 芯片频率较低，但通过更高的 IPC 来补偿。较低的频率有助于降低功耗。而较高的 IPC 通常需要更复杂的设计、更多的晶体管和更大的芯片面积。我们不会在这里讨论所有的设计权衡，因为它们是另一本书的主题。
 
-IPC is useful for evaluating both hardware and software efficiency. Hardware engineers use this metric to compare CPU generations and CPUs from different vendors. Since IPC is the measure of the performance of a CPU microarchitecture, engineers and media use it to express gains over the previous generation. However, to make a fair comparison, you need to run both systems at the same frequency.
+IPC 对于评估硬件和软件效率都很有用。硬件工程师使用此指标比较 CPU 代际和不同供应商的 CPU。由于 IPC 是 CPU 微架构性能的度量，工程师和媒体使用它来表示相对于前一代的收益。但是，为了进行公平的比较，你需要在相同的频率下运行两个系统。
 
-IPC is also a useful metric for evaluating software. It gives you an intuition for how quickly instructions in your application progress through the CPU pipeline. Later in this chapter, you will see several production applications with varying IPCs. Memory-intensive applications usually have a low IPC (0--1), while computationally intensive workloads tend to have a high IPC (4--6).
+IPC 也是评估软件的有用指标。它让你直观地了解应用程序中的指令在 CPU 流水线中进展的速度。在本章后面，你将看到几个具有不同 IPC 的生产应用程序。内存密集型应用程序通常具有较低的 IPC（0-1），而计算密集型工作负载往往具有较高的 IPC（4-6）。
 
-Linux `perf` users can measure the IPC for their workload by running:
+Linux `perf` 用户可以通过运行以下命令来度量其工作负载的 IPC：
 
 ```bash
 $ perf stat -e cycles,instructions -- a.exe
-  2369632  cycles                               
-  1725916  instructions  #    0,73  insn per cycle
-# or as simple as:
-$ perf stat -- ./a.exe
-```
-
-[^1]: When you lower CPU frequency, memory speed becomes faster relative to the CPU. This may hide actual memory bottlenecks and artificially increase IPC.
