@@ -1,12 +1,12 @@
-## Active Benchmarking
+## 主动基准测试
 
-As you have seen in the previous sections, measuring performance is a complex task with many pitfalls along the way. As human beings, we tend to welcome favorable results and ignore unfavorable ones. This often leads to benchmarking done in a "run and forget" style, with no additional analysis, and overlooking any potential problems. Measurements done in this way are likely incomplete, misleading, or even erroneous. Consider the following two scenarios:
+正如你在前面的章节中看到的，度量性能是一项复杂的任务，沿途有许多陷阱。作为人类，我们倾向于欢迎有利的结果并忽略不利的结果。这经常导致以"运行即忘"的风格进行基准测试，没有额外的分析，并忽略了任何潜在的问题。以这种方式进行的测量可能不完整、具有误导性甚至错误。考虑以下两种场景：
 
-* Developer A on a team meeting: "If we add the `final` keyword to the class declaration across our entire C++ codebase, it will make our code 5% faster, with some tests showing up to 30% speedup."
-* Developer B on the next team meeting: "I looked closely at the performance impact of adding the `final` keyword to the class declarations. First, I performed longer tests and haven't measured speedups larger than 5%. The initially observed 30% speedups were outliers caused by test instability. I also noticed that the two machines used for measurements have different configurations: while the CPUs are identical, one of the machines has faster memory modules. I reran the tests on the same machine and observed a performance difference within 1%. I compared the generated machine code before and after the change and found no significant differences. Also, I compared the number of instructions executed, cache misses, page faults, context switches, etc., and haven't found any anomalies. At this point, I concluded that the performance impact of the `final` keyword is negligible compared to other optimizations we could make."
+* 开发者 A 在团队会议上："如果我们在整个 C++ 代码库中的类声明中添加 `final` 关键字，它将使我们的代码快 5%，某些测试显示高达 30% 的加速。"
+* 开发者 B 在下一次团队会议上："我仔细研究了在类声明中添加 `final` 关键字的性能影响。首先，我执行了更长的测试，没有测量到大于 5% 的加速。最初观察到的 30% 加速是由测试不稳定性引起的异常值。我还注意到用于测量的两台机器配置不同：虽然 CPU 相同，但其中一台机器具有更快的内存模块。我在同一台机器上重新运行了测试，观察到 1% 以内的性能差异。我比较了更改前后的生成机器代码，没有发现显著差异。此外，我还比较了执行的指令数、缓存未命中、页面错误、上下文切换等，没有发现任何异常。此时，我得出结论，与我们可以进行的其他优化相比，`final` 关键字的性能影响可以忽略不计。"
 
-Benchmarking done by developer A was done in a passive way. The results were presented without any technical explanation, and the performance impact was exaggerated. In contrast, developer B performed *active benchmarking*.[^1] She ensured proper machine configuration, ran extensive testing, looked one level deeper, and collected as many metrics as possible to support her conclusions. Her analysis explains the underlying technical reason for the performance results she observed.
+开发者 A 进行的基准测试是被动的。结果在没有任何技术解释的情况下呈现，并且性能影响被夸大了。相比之下，开发者 B 执行了*主动基准测试*。[^1] 她确保了适当的机器配置，进行了广泛的测试，深入研究了一层，并收集了尽可能多的指标来支持她的结论。她的分析解释了她观察到的性能结果的底层技术原因。
 
-You should have a good intuition to spot suspicious benchmark results. Whenever you see publications that present benchmark results that look too good to be true and without any technical explanation, you should be skeptical. There is nothing wrong with presenting the results of your measurements, but as John Ousterhout said, "Performance measurements should be considered guilty until proven innocent." [@MeasureOneLevelDeeper] The best way to verify the results is through active benchmarking. Active benchmarking requires much more effort than passive benchmarking, but it is the only way to get reliable results.
+你应该有良好的直觉来发现可疑的基准测试结果。每当你看到呈现看起来好得令人难以置信且没有任何技术解释的基准测试结果的出版物时，你应该持怀疑态度。呈现测量结果没有错，但正如 John Ousterhout 所说，"性能测量在被证明无罪之前应被视为有罪。"[@MeasureOneLevelDeeper] 验证结果的最好方法是通过主动基准测试。主动基准测试比被动基准测试需要更多的努力，但它是获得可靠结果的唯一方法。
 
-[^1]: A term coined by Brendan Gregg - [https://www.brendangregg.com/activebenchmarking.html](https://www.brendangregg.com/activebenchmarking.html).
+[^1]: Brendan Gregg 创造的术语 - [https://www.brendangregg.com/activebenchmarking.html](https://www.brendangregg.com/activebenchmarking.html)。
