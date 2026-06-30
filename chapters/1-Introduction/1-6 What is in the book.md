@@ -1,35 +1,35 @@
-## What Is Discussed in this Book?
+## 本书讨论什么？
 
-This book is written to help developers better understand the performance of their applications, learn to find inefficiencies, and eliminate them. 
+本书旨在帮助开发者更好地理解其应用程序的性能，学会找到低效之处并消除它们。
 
-* Why did my change cause a 2x performance drop? 
-* Our customers complain about the slowness of our application. How should I investigate it?
-* Why does my handwritten compression algorithm perform slower than the conventional one?
-* Have I optimized my program to its full potential? 
-* What performance analysis tools are available on my platform? 
-* What are techniques to reduce the number of cache misses and branch mispredictions?
+* 为什么我的更改导致 2 倍的性能下降？
+* 我们的客户抱怨我们的应用程序太慢。我应该如何调查？
+* 为什么我手写的压缩算法比传统算法慢？
+* 我是否将程序优化到了其全部潜力？
+* 我的平台上有哪些性能分析工具？
+* 有哪些技术可以减少缓存未命中和分支预测错误？
 
-I hope that by the end of this book, you will be able to answer those questions.
+我希望在读完本书后，你将能够回答这些问题。
 
-The book is split into two parts. The first part (chapters 2--7) teaches you how to find performance problems, and the second part (chapters 8--13) teaches you how to fix them.
+本书分为两部分。第一部分（第 2-7 章）教你如何找到性能问题，第二部分（第 8-13 章）教你如何修复它们。
 
-* Chapter 2 discusses fair performance experiments and their analysis. It introduces the best practices for performance testing and comparing results.
-* Chapter 3 introduces CPU microarchitecture, with a close look at Intel's Golden Cove microarchitecture. 
-* Chapter 4 covers terminology and metrics used in performance analysis. At the end of the chapter, we present a case study that features various performance metrics collected on four real-world applications.
-* Chapter 5 explores the most popular performance analysis approaches. We describe how profiling tools work and what sort of data they can collect.
-* Chapter 6 examines features provided by modern Intel, AMD, and ARM-based CPUs to support and enhance performance analysis. It shows how they work and what problems they help to solve.
-* Chapter 7 gives an overview of the most popular performance analysis tools available on Linux, Windows, and MacOS.
-* Chapter 8 is about optimizing memory accesses, cache-friendly code, data structure reorganization, and other techniques.
-* Chapter 9 is about optimizing computations; it explores data dependencies, function inlining, loop optimizations, and vectorization.
-* Chapter 10 is about branchless programming, which is used to avoid branch misprediction.
-* Chapter 11 is about machine code layout optimizations, such as basic block placement, function splitting, and profile-guided optimizations.
-* Chapter 12 contains optimization topics not considered in the previous four chapters, but still important enough to find their place in this book. In this chapter, we discuss CPU-specific optimizations, examine several microarchitecture-related performance problems, explore techniques used for optimizing low-latency applications, and give you advice on tuning your system for the best performance.
-* Chapter 13 discusses techniques for analyzing multithreaded applications. It digs into some of the most important challenges of optimizing multithreaded applications. We provide a case study of five real-world multithreaded applications, where we explain why their performance doesn't scale with the number of CPU threads. We also discuss cache coherency issues (e.g., "false sharing") and a few tools that are designed to analyze multithreaded applications.
+* 第 2 章讨论公平的性能实验及其分析。它介绍了性能测试和比较结果的最佳实践。
+* 第 3 章介绍 CPU 微架构，重点介绍 Intel 的 Golden Cove 微架构。
+* 第 4 章涵盖性能分析中使用的术语和指标。在本章末尾，我们介绍一个案例研究，展示在四个真实应用程序上收集的各种性能指标。
+* 第 5 章探讨最流行的性能分析方法。我们描述分析工具如何工作以及它们可以收集什么样的数据。
+* 第 6 章研究现代 Intel、AMD 和基于 ARM 的 CPU 提供的用于支持和增强性能分析的功能。它展示它们如何工作以及它们帮助解决什么问题。
+* 第 7 章概述 Linux、Windows 和 MacOS 上可用的最流行的性能分析工具。
+* 第 8 章关于优化内存访问、缓存友好代码、数据结构重组和其他技术。
+* 第 9 章关于优化计算；它探讨数据依赖、函数内联、循环优化和向量化。
+* 第 10 章关于无分支编程，用于避免分支预测错误。
+* 第 11 章关于机器代码布局优化，如基本块放置、函数分割和配置文件引导优化。
+* 第 12 章包含前四章未考虑的优化主题，但仍然重要到足以在本书中找到它们的位置。在本章中，我们讨论 CPU 特定的优化，检查几个与微架构相关的性能问题，探讨用于优化低延迟应用程序的技术，并就如何调整系统以获得最佳性能提供建议。
+* 第 13 章讨论分析多线程应用程序的技术。它深入探讨了优化多线程应用程序的一些最重要挑战。我们提供五个真实多线程应用程序的案例研究，解释为什么它们的性能不随 CPU 线程数扩展。我们还讨论缓存一致性问题（如"伪共享"）以及一些旨在分析多线程应用程序的工具。
 
-At the end of the book, there is a glossary and a list of microarchitectures for major CPU vendors. Whenever you see an unfamiliar acronym or you need to refresh your memory on recent Intel, AMD, and ARM chip families, refer to these resources.
+在本书末尾，有一个术语表和主要 CPU 供应商的微架构列表。每当你看到不熟悉的缩写或需要刷新对最近 Intel、AMD 和 ARM 芯片系列的记忆时，请参考这些资源。
 
-Examples provided in this book are primarily based on open-source software: Linux as the operating system, the LLVM-based Clang compiler for C and C++ languages, and various open-source applications and benchmarks[^1] that you can build and run. The reason is not only the popularity of these projects but also the fact that their source code is open, which enables us to better understand the underlying mechanism of how they work. This is especially useful for learning the concepts presented in this book. This doesn't mean that we will never showcase proprietary tools. For example, we extensively use Intel® VTune™ Profiler.
+本书中提供的示例主要基于开源软件：Linux 作为操作系统，基于 LLVM 的 Clang 编译器用于 C 和 C++ 语言，以及各种开源应用程序和基准测试[^1]，你可以构建和运行它们。原因不仅是这些项目的流行，还因为它们的源代码是开放的，这使我们能够更好地理解它们工作原理的底层机制。这对于学习本书中介绍的概念特别有用。这并不意味着我们永远不会展示专有工具。例如，我们广泛使用 Intel® VTune™ Profiler。
 
-Sometimes it's possible to obtain attractive speedups by forcing the compiler to generate desired machine code through various hints. You will find many such examples throughout the book. While prior compiler experience helps a lot in performance work, most of the time you don't have to be a compiler expert to drive performance improvements in your application. The majority of optimizations can be done at a source code level without the need to dig down into compiler sources. 
+有时可以通过各种提示强制编译器生成所需的机器代码来获得有吸引力的加速。你会在本书中找到许多这样的例子。虽然以前的编译器经验对性能工作有很大帮助，但大多数时候你不需要成为编译器专家来推动应用程序的性能改进。大多数优化可以在源代码级别完成，而无需深入研究编译器源代码。
 
-[^1]: Some people don't like when their application is called a "benchmark". They think that a benchmark is something that is synthesized and contrived, and does a poor job of representing real-world scenarios. In this book, we use the terms "benchmark", "workload", and "application" interchangeably and don't mean to offend anyone.
+[^1]: 有些人不喜欢他们的应用程序被称为"基准测试"。他们认为基准测试是合成和人为的，不能很好地代表现实场景。在本书中，我们互换使用"基准测试"、"工作负载"和"应用程序"这些术语，无意冒犯任何人。
