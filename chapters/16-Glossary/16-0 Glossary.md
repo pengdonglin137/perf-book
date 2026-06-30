@@ -1,115 +1,40 @@
 \phantomsection
-# Glossary {.unnumbered}
+# 术语表 {.unnumbered}
 
-\markboth{Glossary}{Glossary}
+\markboth{术语表}{术语表}
 
 \begin{multicols}{2}
 
-\textbf{AOS} Array Of Structures
+\textbf{AOS} 结构数组
 
-\textbf{BB} Basic Block
+\textbf{BB} 基本块
 
-\textbf{BIOS} Basic Input Output System
+\textbf{BIOS} 基本输入输出系统
 
-\textbf{CI/CD} Contiguous Integration/ Contiguous Development
+\textbf{CI/CD} 持续集成/持续开发
 
-\textbf{CFG} Control Flow Graph
+\textbf{CFG} 控制流图
 
-\textbf{CP} Continuous Profiling
+\textbf{CP} 持续分析
 
-\textbf{CPI} Clocks Per Instruction
+\textbf{CPI} 每指令周期数
 
-\textbf{CPU} Central Processing Unit
+\textbf{CPU} 中央处理器
 
-\textbf{DDD} Data-Driven Development
+\textbf{DDD} 数据驱动开发
 
-\textbf{DSB} Decoded Stream Buffer
+\textbf{DSB} 解码流缓冲区
 
-\textbf{DRAM} Dynamic Random-Access Memory
+\textbf{DRAM} 动态随机存取存储器
 
-\textbf{DTLB} Data Translation Lookaside Buffer
+\textbf{DTLB} 数据转换后备缓冲区
 
-\textbf{EBS} Event-Based Sampling
+\textbf{EBS} 基于事件的采样
 
-\textbf{EHP} Explicit Huge Pages
+\textbf{EHP} 显式大页
 
-\textbf{FLOPS} FLoating-point Operations Per Second
+\textbf{FLOPS} 每秒浮点运算次数
 
-\textbf{FMA} Fused Multiply Add
+\textbf{FMA} 融合乘加
 
-\textbf{FPGA} Field-Programmable Gate Array
-
-\textbf{GPU} Graphics processing unit
-
-\textbf{HFT} High-Frequency Trading
-
-\textbf{HPC} High Performance Computing
-
-\textbf{I/O} Input/Output
-
-\textbf{IDE} Integrated Development Environment
-
-\textbf{ILP} Instruction-Level Parallelism
-
-\textbf{IPC} Instructions Per Clock cycle
-
-\textbf{IPO} Inter-Procedural Optimizations
-
-\textbf{ITLB} Instruction Translation Lookaside Buffer
-
-\textbf{LBR} Last Branch Record
-
-\textbf{LLC} Last Level Cache
-
-\textbf{LSD} Loop Stream Detector
-
-\textbf{LTO} Link-Time Optimizations
-
-\textbf{MPI} Message Passing Interface
-
-\textbf{MSR} Model Specific Register
-
-\textbf{MS-ROM} Microcode Sequencer Read-Only Memory
-
-\textbf{NUMA} Non-Uniform Memory Access
-
-\textbf{OOO Execution} Out-of-Order Execution
-
-\textbf{OS} Operating System
-
-\textbf{PEBS} Processor Event-Based Sampling
-
-\textbf{PDB files} Program-Debug Data Base files
-
-\textbf{PGO} Profile-Guided Optimizations
-
-\textbf{PMC} Performance Monitoring Counter
-
-\textbf{PMI} Performance Monitoring Interrupt
-
-\textbf{PMU} Performance Monitoring Unit
-
-\textbf{PT} Processor Traces
-
-\textbf{RAT} Register Alias Table
-
-\textbf{RNG} Random Number Generator
-
-\textbf{ROB} ReOrder Buffer
-
-\textbf{SIMD} Single Instruction Multiple Data
-
-\textbf{SMT} Simultaneous MultiThreading
-
-\textbf{SOA} Structure Of Arrays
-
-\textbf{TLB} Translation Lookaside Buffer
-
-\textbf{TMA} Top-down Microarchitecture Analysis
-
-\textbf{TSC} Time Stamp Counter
-
-\textbf{$\mu$op} MicroOperation
-
-\end{multicols}
-
+\textbf{FPGA} 现场可编程门阵列
