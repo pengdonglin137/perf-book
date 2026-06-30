@@ -1,49 +1,51 @@
-## Manual Performance Testing
+## 手动性能测试
 
-In the previous section, we discussed how CI systems can help with evaluating the performance impact of a code change. However, it may not always be possible to leverage such a system due to reasons such as hardware unavailability, setup being too complicated for the testing infrastructure, a need to collect additional metrics, etc. In this section, we provide basic advice for local performance evaluations.
+在上一节中，我们讨论了 CI 系统如何帮助评估代码更改的性能影响。然而，由于硬件不可用、设置对测试基础设施来说太复杂、需要收集额外指标等原因，可能并不总是能够利用这样的系统。在本节中，我们提供本地性能评估的基本建议。
 
-We typically measure the performance impact of our code change by 1) measuring the baseline performance, 2) measuring the performance of the modified program, and 3) comparing them with each other. For example, we had a program that calculates Fibonacci numbers recursively (baseline), and we decided to rewrite it with a loop (modified). Both versions are functionally correct and yield the same Fibonacci numbers. Now we need to compare the performance of the two versions of the program.
+我们通常通过以下方式度量代码更改的性能影响：1）度量基线性能，2）度量修改后程序的性能，3）将它们相互比较。例如，我们有一个递归计算斐波那契数的程序（基线），我们决定用循环重写它（修改后）。两个版本在功能上都是正确的，并产生相同的斐波那契数。现在我们需要比较两个版本程序的性能。
 
-It is highly recommended to get not just a single measurement but to run the benchmark multiple times. If you make comparisons based on a single measurement, you're increasing the risk of having your numbers skewed by the measurement bias that we discussed in [@sec:secFairExperiments]. So, we collected `N` performance measurements for the baseline and `N` measurements for the modified version of the program. We call a set of performance measurements a *performance distribution*. Now we need to aggregate and compare those two distributions to decide which version of the program is faster.
+强烈建议不仅获取单次测量，而是多次运行基准测试。如果你仅基于单次测量进行比较，你就会增加数字被我们在 [@sec:secFairExperiments] 中讨论的测量偏差扭曲的风险。因此，我们为基线收集了 `N` 次性能测量，为修改后的程序版本收集了 `N` 次测量。我们称一组性能测量为*性能分布*。现在我们需要聚合和比较这两个分布，以决定哪个版本的程序更快。
 
-The most straightforward way to compare two performance distributions is to take the average of `N` measurements from both distributions and calculate the ratio. For the types of code improvements we discuss in this book, this simple method works well in most cases. However, comparing performance distributions is quite nuanced, and there are many ways how you can be fooled by measurements and potentially derive wrong conclusions. We will not get into the details of statistical analysis, instead, we recommend you read a textbook on the subject. A good reference specifically for performance engineers is a book by Dror G. Feitelson, "Workload Modeling for Computer Systems Performance Evaluation",[^12] that has more information on modal distributions, skewness, and other related topics.
+比较两个性能分布最直接的方法是取两个分布中 `N` 次测量的平均值并计算比率。对于我们在本书中讨论的代码改进类型，这种简单方法在大多数情况下效果良好。然而，比较性能分布相当微妙，有许多方式可能被测量愚弄并可能得出错误的结论。我们不会深入探讨统计分析的细节，而是建议你阅读一本关于该主题的教科书。特别推荐给性能工程师的参考书是 Dror G. Feitelson 的《Workload Modeling for Computer Systems Performance Evaluation》，[^12] 其中有关于模态分布、偏斜度和其他相关主题的更多信息。
 
-Data scientists often present measurements by plotting them. This eliminates biased conclusions and allows readers to interpret the data for themselves. One of the popular ways to plot distributions is by using box plots (also known as a box-and-whisker plot). In Figure @fig:BoxPlot, we visualized performance distributions of two versions of the same functional program ("before" and "after"). There are 70 performance data points in each distribution.
+数据科学家通常通过绘图来呈现测量结果。这消除了有偏差的结论，并允许读者自己解释数据。绘制分布的流行方式之一是使用箱线图（也称为箱须图）。在图 @fig:BoxPlot 中，我们可视化了同一功能程序两个版本（"之前"和"之后"）的性能分布。每个分布中有 70 个性能数据点。
 
-![Performance measurements (lower is better) of "Before" and "After" versions of a program presented as box plots.](../../img/measurements/BoxPlots.png){#fig:BoxPlot width=90%}
+![以箱线图呈现的程序"之前"和"之后"版本的性能测量（越低越好）。](../../img/measurements/BoxPlots.png){#fig:BoxPlot width=90%}
 
-Let's describe the terms indicated on the image:
+让我们描述图像上指示的术语：
 
-* The *mean* (often referred to as the *average*) is the sum of all values in a dataset divided by the number of values. Indicated with X.
-* The *median* is the middle value of a dataset when the values are sorted. The same as *50th percentile* (p50).
-* The *25th percentile* (p25) divides the lowest 25% of the data from the highest 75%.
-* The *75th percentile* (p75) divides the lowest 75% of the data from the highest 25%.
-* An *outlier* is a data point that differs significantly from other samples in the dataset. Outliers can be caused by variability in the data or experimental errors.
-* The *min* and *max* (whiskers) represent the most extreme data points that are not considered outliers. 
+* *平均值*（通常称为*平均数*）是数据集中所有值的总和除以值的数量。用 X 表示。
+* *中位数*是数据集排序后的中间值。与*第 50 百分位数*（p50）相同。
+* *第 25 百分位数*（p25）将最低 25% 的数据与最高 75% 分开。
+* *第 75 百分位数*（p75）将最低 75% 的数据与最高 25% 分开。
+* *异常值*是与数据集中其他样本显著不同的数据点。异常值可能由数据中的可变性或实验误差引起。
+* *最小值*和*最大值*（须线）代表不被视为异常值的最极端数据点。
 
-By looking at the box plot in Figure @fig:BoxPlot, we can sense that our code change has a positive impact on performance since "after" samples are generally faster than "before". However, there are some "before" measurements that are faster than "after". Box plots allow comparisons of multiple distributions on the same chart. The benefits of using box plots for visualizing performance distributions are described in a blog post by Stefan Marr.[^13]
+通过查看图 @fig:BoxPlot 中的箱线图，我们可以感觉到我们的代码更改对性能有积极影响，因为"之后"样本通常比"之前"快。但是，有一些"之前"测量比"之后"快。箱线图允许在同一个图表上比较多个分布。使用箱线图可视化性能分布的好处在 Stefan Marr 的博客文章中进行了描述。[^13]
 
-Performance speedups can be calculated by taking a ratio between the two means. In some cases, you can use other metrics to calculate speedups, including median, min, and 95th percentile, depending on which one is more representative of your distribution.
+性能加速可以通过取两个平均值的比率来计算。在某些情况下，你可以使用其他指标来计算加速，包括中位数、最小值和第 95 百分位数，具体取决于哪个更能代表你的分布。
 
-*Standard deviation* quantifies how much the values in a dataset deviate from the mean on average. A low standard deviation indicates that the data points are close to the mean, while a high standard deviation indicates that they are spread out over a wider range. Unless distributions have low standard deviation, do not calculate speedups. If the standard deviation in the measurements is on the same order of magnitude as the mean, the average is not a representative metric. Consider taking steps to reduce noise in your measurements. If that is not possible, present your results as a combination of the key metrics such as mean, median, standard deviation, percentiles, min, max, etc.
+*标准差*量化数据集中的值平均偏离平均值的程度。低标准差表示数据点接近平均值，而高标准差表示它们分布在更广泛的范围内。除非分布具有低标准差，否则不要计算加速。如果测量中的标准差与平均值处于同一数量级，则平均值不是代表性指标。考虑采取措施减少测量中的噪声。如果不可能，请将结果显示为关键指标的组合，如平均值、中位数、标准差、百分位数、最小值、最大值等。
 
-Performance gains are usually represented in two ways: as a speedup factor or percentage improvement. If a program originally took 10 seconds to run, and you optimized it down to 1 second, that's a 10x speedup. We shaved off 9 seconds of running time from the original program, that's a 90% reduction in time. The formula to calculate percentage improvement is shown below. In the book, we will use both ways of representing speedups.
+性能提升通常以两种方式表示：作为加速因子或百分比改进。如果一个程序最初需要 10 秒运行，你将其优化到 1 秒，那就是 10 倍加速。我们从原始程序中减少了 9 秒运行时间，那就是 90% 的时间减少。计算百分比改进的公式如下所示。在本书中，我们将使用两种方式来表示加速。
+
 $$
-\textrm{Percentage Speedup} = (1 - \frac{\textrm{New Time}}{\textrm{Old Time}}) ~\times~100\%
+\textrm{百分比加速} = (1 - \frac{\textrm{新时间}}{\textrm{旧时间}}) ~\times~100\%
 $$
-One of the most important factors in calculating accurate speedup ratios is collecting a rich collection of samples, i.e., running a benchmark a large number of times. This may sound obvious, but it is not always achievable. For example, some of the [SPEC CPU 2017 benchmarks](http://spec.org/cpu2017/Docs/overview.html#benchmarks)[^1] run for more than 10 minutes on a modern machine. That means it would take 1 hour to produce just three samples: 30 minutes for each version of the program. Imagine that you have not just a single benchmark in your suite, but hundreds. It would become very expensive to collect statistically sufficient data even if you distribute the work across multiple machines.
 
-If obtaining new measurements is expensive, don't rush to collect many samples. Often you can learn a lot from just three runs. If you see a very low standard deviation within those three samples, you will probably learn nothing new from collecting more measurements. This is very typical of programs with underlying consistency (e.g., static benchmarks). However, if you see an abnormally high standard deviation, I do not recommend launching new runs and hoping to have "better statistics". You should figure out what is causing performance variance and how to reduce it.
+计算准确加速比最重要的因素之一是收集丰富的样本，即运行基准测试大量次数。这听起来可能很明显，但并不总是可以实现。例如，一些 [SPEC CPU 2017 基准测试](http://spec.org/cpu2017/Docs/overview.html#benchmarks)[^1] 在现代机器上运行超过 10 分钟。这意味着仅产生三个样本就需要 1 小时：每个版本的程序 30 分钟。想象一下，你的套件中不仅有一个基准测试，而是数百个。即使你将工作分配到多台机器上，收集统计上足够的数据也会变得非常昂贵。
 
-In an automated setting, you can implement an adaptive strategy by dynamically limiting the number of benchmark iterations based on standard deviation, i.e., you collect samples until you get a standard deviation that lies in a certain range. The lower the standard deviation in the distribution, the lower the number of samples you need. Once you have a standard deviation lower than the threshold, you can stop collecting measurements. This strategy is explained in more detail in [@Akinshin2019, Chapter 4].
+如果获取新测量很昂贵，不要急于收集大量样本。通常你可以从仅仅三次运行中学到很多。如果你看到这三个样本中的标准差非常低，你可能从收集更多测量中学不到新东西。这对于具有底层一致性的程序（例如静态基准测试）来说非常典型。但是，如果你看到异常高的标准差，我不建议启动新运行并期望获得"更好的统计"。你应该弄清楚是什么导致了性能变化以及如何减少它。
 
-An important thing to watch out for is the presence of outliers. It is OK to discard some samples (for example, cold runs) as outliers, but do not deliberately discard unwanted samples from the measurement set. Outliers can be one of the most important metrics for some types of benchmarks. For example, when benchmarking software that has real-time constraints, the 99 percentile could be very interesting.
+在自动化设置中，你可以通过根据标准差动态限制基准测试迭代次数来实现自适应策略，即你收集样本直到获得落在特定范围内的标准差。分布中的标准差越低，你需要的样本数量越少。一旦你获得低于阈值的标准差，你就可以停止收集测量。这种策略在 [@Akinshin2019, Chapter 4] 中有更详细的解释。
 
-I recommend using benchmarking tools as they automate performance measurements. For example, Hyperfine[^4] is a popular cross platform command-line benchmarking tool that automatically determines the number of runs, and can visualize the results as a table with mean, min, max, or as a box plot.
+需要注意的一件事是异常值的存在。丢弃一些样本（例如冷运行）作为异常值是可以的，但不要故意从测量集中丢弃不需要的样本。异常值可能是某些类型基准测试最重要的指标之一。例如，当对具有实时约束的软件进行基准测试时，第 99 百分位数可能非常有趣。
 
-In the next two sections, we will discuss how to measure wall clock time (latency), which is the most common case. However, sometimes we also may want to measure other things, like the number of requests per second (throughput), heap allocations, context switches, etc.
+我建议使用基准测试工具，因为它们自动化性能测量。例如，Hyperfine[^4] 是一个流行的跨平台命令行基准测试工具，可以自动确定运行次数，并可以将结果可视化为包含平均值、最小值、最大值的表格或箱线图。
 
-[^1]: SPEC CPU 2017 benchmarks - [http://spec.org/cpu2017/Docs/overview.html#benchmarks](http://spec.org/cpu2017/Docs/overview.html#benchmarks)
-[^12]: Book "Workload Modeling for Computer Systems Performance Evaluation" - [https://www.cs.huji.ac.il/~feit/wlmod/](http://cs.huji.ac.il/~feit/wlmod/)
-[^13]: Stefan Marr's blog post about box plots - [https://stefan-marr.de/2024/06/5-reasons-for-box-plots-as-default/](https://stefan-marr.de/2024/06/5-reasons-for-box-plots-as-default/)
+在接下来的两节中，我们将讨论如何度量挂钟时间（延迟），这是最常见的情况。但是，有时我们也可能想要度量其他内容，如每秒请求数（吞吐量）、堆分配、上下文切换等。
+
+[^1]: SPEC CPU 2017 基准测试 - [http://spec.org/cpu2017/Docs/overview.html#benchmarks](http://spec.org/cpu2017/Docs/overview.html#benchmarks)
+[^12]: 书籍《Workload Modeling for Computer Systems Performance Evaluation》- [https://www.cs.huji.ac.il/~feit/wlmod/](http://cs.huji.ac.il/~feit/wlmod/)
+[^13]: Stefan Marr 关于箱线图的博客文章 - [https://stefan-marr.de/2024/06/5-reasons-for-box-plots-as-default/](https://stefan-marr.de/2024/06/5-reasons-for-box-plots-as-default/)
 [^4]: hyperfine - [https://github.com/sharkdp/hyperfine](https://github.com/sharkdp/hyperfine)
