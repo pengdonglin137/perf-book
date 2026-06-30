@@ -1,49 +1,49 @@
-# Preface {.unnumbered .unlisted}
+# 前言 {.unnumbered .unlisted}
 
-## About The Author {.unlisted .unnumbered}
+## 关于作者 {.unlisted .unnumbered}
 
-Denis Bakhvalov is a performance engineer at Intel, where he works on optimizing production applications and benchmarks. Before that, he was a part of the Intel compiler team, that develops C++ compilers for a variety of different architectures. Denis started his career as a software developer in 2008, working on a large C++ enterprise financial application. Before joining Intel, he worked for three years at Nokia, where he was writing embedded software.
+Denis Bakhvalov 是 Intel 的性能工程师，负责优化生产应用程序和基准测试。此前，他是 Intel 编译器团队的一员，该团队为各种不同架构开发 C++ 编译器。Denis 于 2008 年开始职业生涯，担任软件开发人员，参与大型 C++ 企业金融应用程序的开发。在加入 Intel 之前，他在 Nokia 工作了三年，编写嵌入式软件。
 
-Performance engineering and compilers were always among his primary interests. In 2016 Denis started `easyperf.net` blog where he writes about low-level performance optimizations, C/C++ compilers, and CPU microarchitecture. Away from work, Denis enjoys soccer, chess, and traveling.
+性能工程和编译器一直是他的主要兴趣之一。2016 年，Denis 开始撰写 `easyperf.net` 博客，分享关于低级性能优化、C/C++ 编译器和 CPU 微架构的知识。工作之余，Denis 喜欢足球、国际象棋和旅行。
 
-Contacts:
+联系方式：
 
-* Email: dendibakh@gmail.com
-* X (formerly Twitter): [\@dendibakh](https://x.com/dendibakh)
-* LinkedIn: [\@dendibakh](https://www.linkedin.com/in/dendibakh/)
+* 邮箱：dendibakh@gmail.com
+* X（原 Twitter）：[\@dendibakh](https://x.com/dendibakh)
+* LinkedIn：[\@dendibakh](https://www.linkedin.com/in/dendibakh/)
 
-## From The Author {.unlisted .unnumbered}
+## 致读者 {.unlisted .unnumbered}
 
-I started this book with a simple goal: educate software developers to better understand their applications' performance. I know how difficult the topic of low-level performance engineering might be for a beginner or even for an experienced developer. I remember the days when I was starting with performance analysis. I was looking at unfamiliar metrics trying to match data that didn't match, and I was baffled. It took me years until it finally "clicked", and all pieces of the puzzle came together... even though sometimes I still struggle with the same problems.
+我开始写这本书的目标很简单：帮助软件开发者更好地理解其应用程序的性能。我知道低级性能工程这个主题对初学者甚至有经验的开发者来说可能有多难。我记得刚开始学习性能分析的日子。我看着陌生的指标，试图匹配不匹配的数据，感到困惑。花了多年时间才终于"顿悟"，所有拼图碎片都拼在一起了……尽管有时我仍然在同样的问题上挣扎。
 
-When I was taking my first steps in performance engineering, the only good sources of information on the topic were software developer manuals, which are not what mainstream developers like to read. Frankly, I wish I had this book when I was trying to learn low-level performance analysis. In 2016 I started sharing things that I learned on my blog, and received some positive feedback from my readers. Some of them suggested I aggregate this information into a book. This book is their fault.
+当我刚开始学习性能工程时，关于这个主题的唯一优质信息来源是软件开发者手册，这不是主流开发者喜欢阅读的。坦白说，我希望在我尝试学习低级性能分析时就有这本书。2016 年，我开始在我的博客上分享我学到的东西，并收到了读者的一些积极反馈。其中一些人建议我将这些信息汇集成一本书。这本书是他们的功劳。
 
-Many people have asked me why I decided to self-publish. In fact, I initially tried to pitch it to several reputable publishers, but they didn't see the financial benefits of making such a book. However, I really wanted to write it, so I decided to do it anyway. In the end, it turned out quite well, so I decided to self-publish the second edition too.
+很多人问我为什么决定自出版。事实上，我最初尝试向几家知名出版社推销，但他们没有看到制作这样一本书的经济利益。然而，我真的想写它，所以我决定无论如何都要做。最终，它效果相当好，所以我决定自出版第二版。
 
-The first edition was released in November 2020. It was well-received by the community, however, readers gave me a lot of constructive criticism. The most popular feedback was to include exercises for experimentation. Some readers complained that it was too focused on Intel CPUs and didn't cover other architectures like AMD and ARM. Other readers suggested that I should cover system performance, not just CPU performance. The second edition expands in all these and many other directions. It came out to be twice as big as the first book.
+第一版于 2020 年 11 月发布。它受到了社区的欢迎，但读者给了我很多建设性的批评。最普遍的反馈是增加实验练习。一些读者抱怨它过于关注 Intel CPU，没有涵盖 AMD 和 ARM 等其他架构。其他读者建议我应该涵盖系统性能，而不仅仅是 CPU 性能。第二版在所有这些方向和许多其他方向上都有扩展。它的篇幅是第一本书的两倍。
 
-Specifically, I want to highlight the exercises that I added to the second edition of the book. I created a supplementary online course "Performance Ninja" with more than twenty lab assignments. I recommend you use these small puzzles to practice optimization techniques and check your understanding of the material. I consider it the best part that differentiates this book from others. I hope it will make your learning process more entertaining. More details about the online course can be found in [@sec:chapter1Exercises].
+具体来说，我想强调我在第二版中添加的练习。我创建了一个补充在线课程"Performance Ninja"，包含超过二十个实验室作业。我建议你使用这些小谜题来练习优化技术并检查你对材料的理解。我认为这是本书与其他书不同的最佳部分。我希望它能使你的学习过程更加有趣。有关在线课程的更多详细信息，请参见 [@sec:chapter1Exercises]。
 
-I know firsthand that low-level performance optimization is not easy. I tried to explain everything as clearly as possible, but the topic is very complex. It requires experimentation and practice to fully understand the material. I encourage you to take your time, read through the chapters, and experiment with examples provided in the online course.
+我亲身经历知道低级性能优化并不容易。我试图尽可能清晰地解释所有内容，但这个主题非常复杂。需要实验和练习才能完全理解材料。我鼓励你花时间通读各章，并尝试在线课程中提供的示例。
 
-During my career, I never shied away from software optimization tasks. I always got a dopamine hit whenever I managed to make my program run faster. The excitement of discovering something and feeling proud left me even more curious and craving for more. My initial performance work was very unstructured. Now it is my profession, yet I still feel very happy when I make software run faster. I hope you also experience the joy of discovering performance issues, and the satisfaction of fixing them.
+在我的职业生涯中，我从不回避软件优化任务。每当设法使我的程序运行得更快时，我总会获得多巴胺的刺激。发现某事物的兴奋感和自豪感让我更加好奇并渴望更多。我最初的性能工作非常无结构。现在它是我的职业，但当让软件运行得更快时，我仍然感到非常快乐。我希望你也能体验到发现性能问题的乐趣，以及修复它们的满足感。
 
-I sincerely hope that this book will help you learn low-level performance analysis. If you make your application faster as a result, I will consider my mission accomplished.
+我衷心希望这本书能帮助你学习低级性能分析。如果你因此使应用程序更快，我将认为我的使命完成了。
 
-You will find that I use "we" instead of "I" in some places in the book. This is because I received a lot of help from other people. The full list of contributors can be found at the end of the book in the "Acknowledgements" section.
+你会发现我在书中某些地方使用"我们"而不是"我"。这是因为得到了其他人的很多帮助。完整的贡献者名单可以在书末的"致谢"部分找到。
 
-The PDF version of this book and the "Performance Ninja" online course are available for free. This is my way to give back to the community.
+本书的 PDF 版本和"Performance Ninja"在线课程免费提供。这是我回馈社区的方式。
 
-## Target Audience {.unlisted .unnumbered}
+## 目标受众 {.unlisted .unnumbered}
 
-If you're working with performance-critical applications, this book is right for you. It is primarily targeted at software developers in High-Performance Computing (HPC), AI, game development, data center applications (like those at Meta, Google, etc.), High-Frequency Trading (HFT), and other industries where the value of performance optimizations is well known and appreciated.
+如果你正在从事性能关键型应用程序的工作，这本书适合你。它主要面向高性能计算（HPC）、AI、游戏开发、数据中心应用程序（如 Meta、Google 等）、高频交易（HFT）以及其他性能优化价值广为人知和赞赏的行业的软件开发者。
 
-This book will also be useful for any developer who wants to understand the performance of their application better and know how it can be improved. You may just be enthusiastic about performance engineering and want to learn more about it. Or you may want to be the smartest engineer in the room; that's also fine. I hope that the material presented in this book will help you develop new skills that can be applied in your daily work and potentially move your career forward.
+本书也将对任何想要更好地理解其应用程序性能并了解如何改进它的开发者有用。你可能只是对性能工程充满热情，想了解更多。或者你可能想成为房间里最聪明的工程师；那也没问题。我希望本书介绍的材料能帮助你发展新技能，应用于日常工作，并 potentially 推动你的职业生涯发展。
 
-A minimal background in the C and C++ programming languages is necessary to understand the book's examples. The ability to read basic x86/ARM assembly is desirable, but not a strict requirement. I also expect familiarity with basic concepts of computer architecture and operating systems like "CPU", "memory", "process", "thread", "virtual" and "physical memory", "context switch", etc. If any of these terms are new to you, I suggest studying these prerequisites first.
+理解本书示例需要 C 和 C++ 编程语言的最低背景。阅读基本 x86/ARM 汇编的能力是可取的，但不是严格要求。我还期望熟悉计算机架构和操作系统的基本概念，如"CPU"、"内存"、"进程"、"线程"、"虚拟"和"物理内存"、"上下文切换"等。如果这些术语对你来说是新的，我建议先学习这些先决条件。
 
-I suggest you read the book chapter by chapter, starting from the beginning. If you consider yourself a beginner in performance analysis, I do not recommend skipping chapters. After you finish reading, you can use this book as a source of ideas whenever you face a performance issue and are unsure how to fix it. You can skim through the second part of the book to see which optimization techniques can be applied to your code.
+我建议你从头开始逐章阅读本书。如果你认为自己是性能分析的初学者，我不建议跳过章节。阅读完后，当你遇到性能问题且不确定如何修复时，可以使用本书作为想法来源。你可以浏览本书的第二部分，看看哪些优化技术可以应用于你的代码。
 
-I will post errata and other information about the book on my blog at the following URL:  [https://easyperf.net/blog/2024/11/11/Book-Updates-Errata](https://easyperf.net/blog/2024/11/11/Book-Updates-Errata).
+我将在我的博客上发布勘误表和有关本书的其他信息，网址为：[https://easyperf.net/blog/2024/11/11/Book-Updates-Errata](https://easyperf.net/blog/2024/11/11/Book-Updates-Errata)。
 
 \sectionbreak
