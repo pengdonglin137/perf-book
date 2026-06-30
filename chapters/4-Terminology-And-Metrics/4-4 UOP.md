@@ -1,58 +1,38 @@
+## 微操作 {#sec:sec_UOP}
 
+具有 x86 架构的微处理器将复杂的 CISC 指令转换为简单的 RISC 微操作，简称为 $\mu$ops。像 `ADD rax, rbx` 这样的简单寄存器到寄存器加法指令只生成一个 $\mu$op，而像 `ADD rax, [mem]` 这样更复杂的指令可能生成两个：一个用于从 `mem` 内存位置加载到临时（未命名）寄存器，另一个用于将其加到 `rax` 寄存器。指令 `ADD [mem], rax` 生成三个 $\mu$ops：一个用于从内存加载，一个用于加法，一个用于将结果存储回内存。
 
-## Micro-operations {#sec:sec_UOP}
-
-Microprocessors with the x86 architecture translate complex CISC instructions into simple RISC microoperations, abbreviated as $\mu$ops. A simple register-to-register addition instruction such as `ADD rax, rbx` generates only one $\mu$op, while a more complex instruction like `ADD rax, [mem]` may generate two: one for loading from the `mem` memory location into a temporary (unnamed) register, and one for adding it to the `rax` register. The instruction `ADD [mem], rax` generates three $\mu$ops: one for loading from memory, one for adding, and one for storing the result back to memory.
-
-The main advantage of splitting instructions into micro-operations is that $\mu$ops can be executed:
+将指令分解为微操作的主要优点是 $\mu$ops 可以被执行：
 
 \lstset{linewidth=10cm}
 
-* **Out of order**: consider the `PUSH rbx` instruction, which decrements the stack pointer by 8 bytes and then stores the source operand on the top of the stack. Suppose that `PUSH rbx` is "cracked" into two dependent micro-operations after decoding:
+* **乱序**：考虑 `PUSH rbx` 指令，它将栈指针减 8 字节，然后将源操作数存储在栈顶。假设 `PUSH rbx` 在解码后被"破解"为两个依赖的微操作：
   ```
   SUB rsp, 8
   STORE [rsp], rbx
   ```
-  Often, a function prologue saves multiple registers by using multiple `PUSH` instructions. In our case, the next `PUSH` instruction can start executing after the `SUB` $\mu$op of the previous `PUSH` instruction finishes and doesn't have to wait for the `STORE` $\mu$op, which can now execute asynchronously.
+  通常，函数序言通过使用多个 `PUSH` 指令来保存多个寄存器。在我们的例子中，下一个 `PUSH` 指令可以在前一个 `PUSH` 指令的 `SUB` $\mu$op 完成后开始执行，而不必等待 `STORE` $\mu$op，后者现在可以异步执行。
 
-* **In parallel**: consider `HADDPD xmm1, xmm2` instruction, which will sum up (reduce) two double-precision floating-point values from `xmm1` and `xmm2` and store two results in `xmm1` as follows: 
+* **并行**：考虑 `HADDPD xmm1, xmm2` 指令，它将 `xmm1` 和 `xmm2` 中的两个双精度浮点值相加（归约），并将两个结果存储在 `xmm1` 中，如下所示：
   ```
   xmm1[63:0] = xmm2[127:64] + xmm2[63:0]
   xmm1[127:64] = xmm1[127:64] + xmm1[63:0]
   ```
-  One way to microcode this instruction would be to do the following: 1) reduce `xmm2` and store the result in `xmm_tmp1[63:0]`, 2) reduce `xmm1` and store the result in `xmm_tmp2[63:0]`, 3) merge `xmm_tmp1` and `xmm_tmp2` into `xmm1`. Three $\mu$ops in total. Notice that steps 1) and 2) are independent and thus can be done in parallel.
+  对该指令进行微编码的一种方式是：1) 归约 `xmm2` 并将结果存储在 `xmm_tmp1[63:0]` 中，2) 归约 `xmm1` 并将结果存储在 `xmm_tmp2[63:0]` 中，3) 将 `xmm_tmp1` 和 `xmm_tmp2` 合并到 `xmm1` 中。总共三个 $\mu$ops。注意步骤 1) 和 2) 是独立的，因此可以并行完成。
 
-Even though we were just talking about how instructions are split into smaller pieces, sometimes, $\mu$ops can also be fused together. There are two types of fusion in modern x86 CPUs:
+尽管我们刚刚讨论了指令如何被分解为更小的部分，但有时 $\mu$ops 也可以融合在一起。现代 x86 CPU 中有两种融合类型：
 
-* **Microfusion**: fuse $\mu$ops from the same machine instruction. Microfusion can only be applied to two types of combinations: memory write operations and read-modify operations. For example:
+* **微融合**：融合来自同一机器指令的 $\mu$ops。微融合只能应用于两种组合：内存写操作和读-修改操作。例如：
 
   ```bash
   add    eax, [mem]
   ```
-  There are two $\mu$ops in this instruction: 1) read the memory location `mem`, and 2) add it to `eax`. With microfusion, two $\mu$ops are fused into one at the decoding step.
+  该指令中有两个 $\mu$ops：1) 读取内存位置 `mem`，2) 将其加到 `eax`。通过微融合，两个 $\mu$ops 在解码步骤中融合为一个。
   
-* **Macrofusion**: fuse $\mu$ops from different machine instructions. The decoders can fuse arithmetic or logic instructions with a subsequent conditional jump instruction into a single compute-and-branch $\mu$op in certain cases. For example:
+* **宏融合**：融合来自不同机器指令的 $\mu$ops。在某些情况下，解码器可以将算术或逻辑指令与后续的条件跳转指令融合为单个计算-分支 $\mu$op。例如：
 
   ```bash
   .loop:
     dec rdi
     jnz .loop
   ```
-  With macrofusion, two $\mu$ops from the `DEC` and `JNZ` instructions are fused into one. The Zen4 microarchitecture also added support for DIV/IDIV and NOP macrofusion [@amd_zen4, sections 2.9.4 and 2.9.5].
-
-\lstset{linewidth=\textwidth}
-
-Both micro- and macrofusion save bandwidth in all stages of the pipeline, from decoding to retirement. The fused operations share a single entry in the reorder buffer (ROB). The capacity of the ROB is utilized better when a fused $\mu$op uses only one entry. Such a fused ROB entry is later dispatched to two different execution ports but is retired again as a single unit. Readers can learn more about $\mu$op fusion in [@fogMicroarchitecture].
-
-To collect the number of issued, executed, and retired $\mu$ops for an application, you can use Linux `perf` as follows:
-
-```bash
-$ perf stat -e uops_issued.any,uops_executed.thread,uops_retired.slots -- ./a.exe
-  2856278  uops_issued.any             
-  2720241  uops_executed.thread
-  2557884  uops_retired.slots
-```
-
-The way instructions are split into micro-operations may vary across CPU generations. Usually, a lower number of $\mu$ops used for an instruction means that hardware has better support for it and is likely to have lower latency and higher throughput. For the latest Intel and AMD CPUs, the vast majority of instructions generate only one $\mu$op. Latency, throughput, port usage, and the number of $\mu$ops for x86 instructions on recent microarchitectures can be found at the [uops.info](https://uops.info/table.html)[^1] website.
-
-[^1]: x86 instruction latency and throughput - [https://uops.info/table.html](https://uops.info/table.html)
