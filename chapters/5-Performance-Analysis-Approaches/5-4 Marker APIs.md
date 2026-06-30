@@ -1,19 +1,19 @@
-### Using Marker APIs {#sec:MarkerAPI}
+### 使用标记 API {#sec:MarkerAPI}
 
-In certain scenarios, we might be interested in analyzing the performance of a specific code region, not an entire application. This can be a situation when you're developing a new piece of code and want to focus just on that code. Naturally, you would like to track optimization progress and capture additional performance data that will help you along the way. Most performance analysis tools provide specific *marker APIs* that let you do that. Here are two examples:
+在某些场景中，我们可能对分析特定代码区域的性能感兴趣，而不是整个应用程序。当你正在开发一段新代码并希望只关注该代码时，就会出现这种情况。自然地，你希望跟踪优化进度并捕获额外的性能数据来帮助你。大多数性能分析工具提供特定的*标记 API*，让你可以做到这一点。以下是两个例子：
 
-* Intel VTune has `__itt_task_begin / __itt_task_end` functions.
-* AMD uProf has `amdProfileResume / amdProfilePause` functions.
+* Intel VTune 有 `__itt_task_begin / __itt_task_end` 函数。
+* AMD uProf 有 `amdProfileResume / amdProfilePause` 函数。
 
-Such a hybrid approach combines the benefits of instrumentation and performance event counting. Instead of measuring the whole program, marker APIs allow us to attribute performance statistics to code regions (loops, functions) or functional pieces (remote procedure calls (RPCs), input events, etc.). The quality of the data you get back can easily justify the effort. For example, while investigating a performance bug that happens only with a specific type of RPC, you can enable monitoring just for that type of RPC.
+这种混合方法结合了检测和性能事件计数的优点。标记 API 允许我们将性能统计归因于代码区域（循环、函数）或功能部分（远程过程调用（RPC）、输入事件等），而不是度量整个程序。你获得的数据质量很容易证明其价值。例如，在调查仅在特定类型 RPC 中发生的性能错误时，你可以仅为该类型 RPC 启用监控。
 
-Below we provide a very basic example of using [libpfm4](https://sourceforge.net/p/perfmon2/libpfm4/ci/master/tree/),[^1] one of the popular Linux libraries for collecting performance monitoring events. It is built on top of the Linux `perf_events` subsystem, which lets you access performance event counters directly. The `perf_events` subsystem is rather low-level, so the `libpfm4` package is useful here, as it adds both a discovery tool for identifying available events on your CPU and a wrapper library around the raw `perf_event_open` system call. The code listing below shows how you can use `libpfm4` to instrument the `render` function of the [C-Ray](https://openbenchmarking.org/test/pts/c-ray)[^2] benchmark.
+下面我们提供一个使用 [libpfm4](https://sourceforge.net/p/perfmon2/libpfm4/ci/master/tree/) 的非常基本的示例，[^1] 这是用于收集性能监控事件的流行 Linux 库之一。它建立在 Linux `perf_events` 子系统之上，该子系统允许你直接访问性能事件计数器。`perf_events` 子系统相当底层，因此 `libpfm4` 包在这里很有用，因为它添加了一个发现工具来识别 CPU 上可用的事件，以及围绕原始 `perf_event_open` 系统调用的包装库。下面的代码列表显示了如何使用 `libpfm4` 来检测 [C-Ray](https://openbenchmarking.org/test/pts/c-ray)[^2] 基准测试的 `render` 函数。
 
 ```cpp
 +#include <perfmon/pfmlib.h>
 +#include <perfmon/pfmlib_perf_event.h>
 ...
-/* render a frame of xsz/ysz dimensions into the provided framebuffer */
+/* 将 xsz/ysz 维度的一帧渲染到提供的帧缓冲区 */
 void render(int xsz, int ysz, uint32_t *fb, int samples) {
    ...
 +  pfm_initialize();
@@ -38,79 +38,3 @@ void render(int xsz, int ysz, uint32_t *fb, int samples) {
 +  event_fd = perf_event_open(&perf_attr, 0, -1, leader_fd, 0);
 +
 +  struct read_format { uint64_t nr, time_enabled, time_running, values[4]; };
-+  struct read_format before, after;
-
-  for(j=0; j<ysz; j++) {
-    for(i=0; i<xsz; i++) {
-      double r = 0.0, g = 0.0, b = 0.0;
-+     // capture counters before ray tracing
-+     read(event_fd, &before, sizeof(struct read_format));
-
-      for(s=0; s<samples; s++) {
-        struct vec3 col = trace(get_primary_ray(i, j, s), 0);
-        r += col.x;
-        g += col.y;
-        b += col.z;
-      }
-+     // capture counters after ray tracing
-+     read(event_fd, &after, sizeof(struct read_format));
-
-+     // save deltas in separate arrays
-+     nanosecs[j * xsz + i] = after.time_running - before.time_running;
-+     instrs  [j * xsz + i] = after.values[0] - before.values[0];
-+     cycles  [j * xsz + i] = after.values[1] - before.values[1];
-+     branches[j * xsz + i] = after.values[2] - before.values[2];
-+     br_misps[j * xsz + i] = after.values[3] - before.values[3];
-
-      *fb++ = ((uint32_t)(MIN(r * rcp_samples, 1.0) * 255.0) & 0xff) << RSHIFT |
-              ((uint32_t)(MIN(g * rcp_samples, 1.0) * 255.0) & 0xff) << GSHIFT |
-              ((uint32_t)(MIN(b * rcp_samples, 1.0) * 255.0) & 0xff) << BSHIFT;
-  } }
-+ // aggregate statistics and print it
-  ...
-}
-```
-
-In this code example, we first initialize the `libpfm` library and then configure performance events and the format that we will use to read them. In the C-Ray benchmark, the `render` function is only called once. In your own code, be careful about not doing `libpfm` initialization multiple times. 
-
-Then, we choose the code region we want to analyze. In our case, it is a loop with a `trace` function call inside. We surround this code region with two `read` system calls that will capture values of performance counters before and after the loop. Next, we save the deltas for later processing. In this case, we aggregated (code is not shown) it by calculating average, 90th percentile, and maximum values. Running it on an Intel Alder Lake machine, we get the output shown below. Root privileges are not required, but `/proc/sys/kernel/perf_event_paranoid` should be set to less than 1. When reading counters for a thread, the values are for that thread alone. It can optionally include kernel code that was attributed to the thread.
-
-```bash
-$ ./c-ray-f -s 1024x768 -r 2 -i sphfract -o output.ppm
-Per-pixel ray tracing stats:
-                      avg         p90         max
--------------------------------------------------
-nanoseconds   |      4571 |      6139 |     25567
-instructions  |     71927 |     96172 |    165608
-cycles        |     20474 |     27837 |    118921
-branches      |      5283 |      7061 |     12149
-branch-misses |        18 |        35 |       146
-```
-
-Remember, that our instrumentation measures the per-pixel ray tracing stats. Multiplying average numbers by the number of pixels (`1024x768`) should give us roughly the total stats for the program. A good sanity check in this case is to run `perf stat` and compare the overall C-Ray statistics for the performance events that we've collected.
-
-The C-ray benchmark primarily stresses the floating-point performance of a CPU core, which generally should not cause high variance in the measurements, in other words, we expect all the measurements to be very close to each other. However, we see that it's not the case, as `p90` values are 1.33x average numbers and `max` is 5x slower than the average case. The most likely explanation here is that for some pixels the algorithm hits a corner case, executes more instructions, and subsequently runs longer. But it's always good to confirm a hypothesis by studying the source code or extending the instrumentation to capture more data for the "slow" pixels.
-
-The additional instrumentation code in our example causes 17% overhead, which is OK for local experiments, but quite high to run in production. Most large distributed systems aim for less than 1% overhead, and for some up to 5% can be tolerable, but it's unlikely that users would be happy with a 17% slowdown. Managing the overhead of your instrumentation is critical, especially if you choose to enable it in a production environment.
-
-Overhead is usefully calculated as the occurrence rate per unit of time or work (RPC, database query, loop iteration, etc.). If a `read` system call on our system takes roughly 1.6 microseconds of CPU time, and we call it twice for each pixel (iteration of the outer loop), the overhead is 3.2 microseconds of CPU time per pixel.
-
-There are many strategies to bring the overhead down. As a general rule, your instrumentation should always have a fixed cost, e.g., a deterministic syscall, but not a list traversal or dynamic memory allocation. It will otherwise interfere with the measurements. The instrumentation code has three logical parts: collecting the information, storing it, and reporting it. To lower the overhead of the first part (collection), we can decrease the sampling rate, e.g., sample each 10th RPC and skip the rest. For a long-running application, performance can be monitored with a relatively cheap random sampling, i.e., randomly select which RPCs to monitor for each sample. These methods sacrifice collection accuracy but still provide a good estimate of the overall performance characteristics while incurring a very low overhead.
-
-For the second and third parts (storing and aggregating), the recommendation is to collect, process, and retain only as much data as you need to understand the performance of the system. You can avoid storing every sample in memory by using "online" algorithms for calculating mean, variance, min, max, and other metrics. This will drastically reduce the memory footprint of the instrumentation. For instance, variance and standard deviation can be calculated using Knuth's online-variance algorithm. A good implementation[^3] uses less than 50 bytes of memory.
-
-For long routines, you can collect counters at the beginning and end, and some parts in the middle. Over consecutive runs, you can binary search for the part of the routine that performs most poorly and optimize it. Repeat this until all the poorly performing spots are removed. If tail latency is of primary concern, emitting log messages on a particularly slow run can provide useful insights.
-
-In our example, we collected 4 events simultaneously, though the CPU has 6 programmable counters. You can open up additional groups with different sets of events enabled. The kernel will select different groups to run at a time. The `time_enabled` and `time_running` fields indicate the multiplexing. They both indicate duration in nanoseconds. The `time_enabled` field indicates how many nanoseconds the event group has been enabled. The `time_running` field indicates how much of that enabled time the events have been collected. If you had two event groups enabled simultaneously that couldn't fit together on the hardware counters, you might see the running time for both groups converge to `time_running = 0.5 * time_enabled`.
-
-Capturing multiple events simultaneously makes it possible to calculate various metrics that we discussed in Chapter 4. For example, capturing `INSTRUCTIONS_RETIRED` and `UNHALTED_CLOCK_CYCLES` enables us to measure IPC. We can observe the effects of frequency scaling by comparing CPU cycles (`UNHALTED_CORE_CYCLES`) with the fixed-frequency reference clock (`UNHALTED_REFERENCE_CYCLES`). It is possible to detect when the thread wasn't running by requesting CPU cycles consumed (`UNHALTED_CORE_CYCLES`, only counts when the thread is running) and comparing it against wall-clock time. Also, we can normalize the numbers to get the event rate per second/clock/instruction. For instance, by measuring `MEM_LOAD_RETIRED.L3_MISS` and `INSTRUCTIONS_RETIRED` we can get the `L3MPKI` metric. As you can see, this gives a lot of flexibility.
-
-The important property of grouping events is that the counters will be available atomically under the same `read` system call. These atomic bundles are very useful. First, it allows us to correlate events within each group. For example, let's assume we measure IPC for a region of code, and found that it is very low. In this case, we can pair two events (instructions and cycles) with a third one, say L3 cache misses, to check if this event contributes to the low IPC that we're dealing with. If it doesn't, we can continue factor analysis using other events. Second, event grouping helps to mitigate bias in case a workload has different phases. Since all the events within a group are measured at the same time, they always capture the same phase.
-
-In some scenarios, instrumentation may become a part of a functionality or a feature. For example, a developer can implement an instrumentation logic that detects a decrease in IPC (e.g., when there is a busy sibling hardware thread running) or decreasing CPU frequency (e.g., system throttling due to heavy load). When such an event occurs, the application automatically defers low-priority work to compensate for the temporarily increased load.
-
-[^1]: libpfm4 - [https://sourceforge.net/p/perfmon2/libpfm4/ci/master/tree/](https://sourceforge.net/p/perfmon2/libpfm4/ci/master/tree/)
-
-[^2]: C-Ray benchmark - [https://openbenchmarking.org/test/pts/c-ray](https://openbenchmarking.org/test/pts/c-ray)
-
-[^3]: Accurately computing running variance - [https://www.johndcook.com/blog/standard_deviation/](https://www.johndcook.com/blog/standard_deviation/)
