@@ -1,41 +1,40 @@
 ## Linux Perf
 
-Linux Perf is probably the most used performance profiler in the world since it is available on most Linux distributions, which makes it accessible to a wide range of users. Perf is natively supported in many popular Linux distributions, including Ubuntu, Red Hat, and Debian. It is included in the kernel, so you can get OS-level statistics (page faults, CPU migrations, etc.) on any system that runs Linux. As of mid-2024, the profiler supports x86, ARM, PowerPC64, UltraSPARC, and a few other CPU types.[^2] On such platforms, `perf` provides access to the hardware performance monitoring features, for example, performance counters. More information about Linux `perf` is available on its [wiki page](https://perf.wiki.kernel.org/index.php/Main_Page)[^1].
+Linux Perf 可能是世界上使用最多的性能分析器，因为它在大多数 Linux 发行版上可用，这使其可被广泛的用户访问。Perf 在许多流行的 Linux 发行版中被原生支持，包括 Ubuntu、Red Hat 和 Debian。它包含在内核中，因此你可以在任何运行 Linux 的系统上获得操作系统级统计信息（页面错误、CPU 迁移等）。截至 2024 年中，该分析器支持 x86、ARM、PowerPC64、UltraSPARC 和其他几种 CPU 类型。[^2] 在这些平台上，`perf` 提供对硬件性能监控功能的访问，例如性能计数器。有关 Linux `perf` 的更多信息，请参阅其 [wiki 页面](https://perf.wiki.kernel.org/index.php/Main_Page)[^1]。
 
-### How to configure it {.unlisted .unnumbered}
+### 如何配置 {.unlisted .unnumbered}
 
-Installing Linux perf is very simple and can be done with a single command:
+安装 Linux perf 非常简单，可以用一条命令完成：
 
 ```bash
 $ sudo apt-get install linux-tools-common linux-tools-generic linux-tools-`uname -r`
 ```
 
-Also, consider changing the following defaults unless security is a concern:
+另外，除非安全是问题，否则考虑更改以下默认值：
 
 ```bash
-# Allow kernel profiling and access to CPU events for unprivileged users
+# 允许非特权用户进行内核分析和访问 CPU 事件
 $ echo 0 | sudo tee /proc/sys/kernel/perf_event_paranoid
 $ echo kernel.perf_event_paranoid=0 | sudo tee -a /etc/sysctl.d/local.conf
-# Enable kernel modules symbols resolution for unprivileged users
+# 启用非特权用户的内核模块符号解析
 $ echo 0 | sudo tee /proc/sys/kernel/kptr_restrict
 $ echo kernel.kptr_restrict=0 | sudo tee -a /etc/sysctl.d/local.conf
 ```
 
-### What you can do with it: {.unlisted .unnumbered}
+### 你能用它做什么： {.unlisted .unnumbered}
 
-Generally, Linux `perf` can do most of the same things that other profilers can do. Hardware vendors prioritize enabling their features in Linux `perf` so that by the time a new CPU is available on the market, `perf` already supports it. There are two main commands that most people use. The first, `perf stat`, reports a count of specified performance events. The second, `perf record`, profiles an application or system in sampling mode and is often followed by `perf report` to generate a report from the sampling data.
+通常，Linux `perf` 可以做其他分析器可以做的大多数事情。硬件供应商优先在 Linux `perf` 中启用其功能，以便在新 CPU 上市时，`perf` 已经支持它。大多数人使用两个主要命令。第一个 `perf stat` 报告指定性能事件的计数。第二个 `perf record` 在采样模式下分析应用程序或系统，通常后跟 `perf report` 从采样数据生成报告。
 
-The output of the `perf record` command is a raw dump of samples. Many tools, built on top of Linux `perf`, parse raw dump files and provide new analysis types. Here are the most notable ones:
+`perf record` 命令的输出是样本的原始转储。许多建立在 Linux `perf` 之上的工具解析原始转储文件并提供新的分析类型。以下是最值得注意的：
 
-- Flame graphs, discussed in [@sec:secFlameGraphs].
-- [KDAB Hotspot](https://github.com/KDAB/hotspot),[^3] a tool that visualizes Linux `perf` data with an interface very similar to Intel VTune. If you have worked with Intel VTune, KDAB Hotspot will seem very familiar to you.
-- Netflix [Flamescope](https://github.com/Netflix/flamescope).[^4] This tool displays a heat map of sampled events over application runtime. You can observe different phases and patterns in the behavior of a workload. Netflix engineers found some very subtle performance bugs using this tool. Also, you can select a time range on the heat map and generate a flame graph for that time range.
+- 火焰图，在 [@sec:secFlameGraphs] 中讨论。
+- [KDAB Hotspot](https://github.com/KDAB/hotspot)，[^3] 一个使用与 Intel VTune 非常相似的界面可视化 Linux `perf` 数据的工具。如果你使用过 Intel VTune，KDAB Hotspot 会看起来非常熟悉。
+- Netflix [Flamescope](https://github.com/Netflix/flamescope)。[^4] 此工具显示应用程序运行时采样事件的热图。你可以观察工作负载行为中的不同阶段和模式。Netflix 工程师使用此工具发现了一些非常细微的性能错误。此外，你可以在热图上选择时间范围并为该时间范围生成火焰图。
 
-### What you cannot do with it: {.unlisted .unnumbered}
+### 你不能用它做什么： {.unlisted .unnumbered}
 
-Linux perf is a command-line tool and lacks a Graphical User Interface (GUI), which makes it hard to filter data, observe how the workload behavior changes over time, zoom into a portion of the runtime, etc. There is a limited console output provided through the `perf report` command, which is fine for quick analysis, although not as convenient as other GUI profilers. Luckily, as we just mentioned, there are GUI tools that can post-process and visualize the raw output of Linux `perf`.
+Linux perf 是一个命令行工具，缺少图形用户界面（GUI），这使得过滤数据、观察工作负载行为随时间的变化、放大运行时的一部分等变得困难。通过 `perf report` 命令提供了有限的控制台输出，这对于快速分析来说虽然不如其他 GUI 分析器方便，但已经足够了。幸运的是，正如我们刚才提到的，有一些 GUI 工具可以后处理和可视化 Linux `perf` 的原始输出。
 
-[^1]: Linux perf wiki - [https://perf.wiki.kernel.org/index.php/Main_Page](https://perf.wiki.kernel.org/index.php/Main_Page).
-[^2]: RISCV is not supported yet as a part of the official kernel, although custom tools from vendors exist.
-[^3]: KDAB Hotspot - [https://github.com/KDAB/hotspot](https://github.com/KDAB/hotspot).
-[^4]: Netflix Flamescope - [https://github.com/Netflix/flamescope](https://github.com/Netflix/flamescope).
+[^1]: Linux perf wiki - [https://perf.wiki.kernel.org/index.php/Main_Page](https://perf.wiki.kernel.org/index.php/Main_Page)。
+[^2]: RISCV 尚未作为官方内核的一部分支持，尽管供应商存在自定义工具。
+[^3]: KDAB Hotspot - [https://github.com/KDAB/hotspot](https://github.com/KDAB/hotspot)。
