@@ -1,7 +1,7 @@
-## Questions and Exercises {.unlisted .unnumbered}
+## 问题和练习 {.unlisted .unnumbered}
 
-\markright{Questions and Exercises}
+\markright{问题和练习}
 
-1. Solve `perf-ninja::pgo` and `perf-ninja::lto` lab assignments.
-2. Experiment with using Huge Pages for the code section. Take a large application (access to source code is a plus but not necessary), with a binary size of more than 100MB. Try to remap its code section onto huge pages using one of the methods described in [@sec:FeTLB]. Observe any changes in performance, huge page allocation in `/proc/meminfo`, and CPU performance counters that measure ITLB loads and misses.
-3. Run the application that you're working with daily. Apply PGO, llvm-bolt, or Propeller and check the result. Compare "before" and "after" profiles to understand where the speedups are coming from.
+1. 解决 `perf-ninja::pgo` 和 `perf-ninja::lto` 实验室作业。
+2. 尝试为代码段使用大页。取一个大型应用程序（访问源代码是加分项但不是必需的），二进制文件大小超过 100MB。尝试使用 [@sec:FeTLB] 中描述的方法之一将其代码段重新映射到大页上。观察性能、`/proc/meminfo` 中的大页分配以及度量 ITLB 加载和未命中的 CPU 性能计数器的任何变化。
+3. 运行你日常使用的应用程序。应用 PGO、llvm-bolt 或 Propeller 并检查结果。比较"之前"和"之后"的配置文件以了解加速来自哪里。
