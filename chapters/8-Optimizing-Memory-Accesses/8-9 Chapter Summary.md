@@ -1,9 +1,9 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 章节总结 {.unlisted .unnumbered}
 
-\markright{Summary}
+\markright{总结}
 
-* Most real-world applications experience memory-related performance bottlenecks. Emerging application domains, such as machine learning and big data, are particularly demanding in terms of memory bandwidth and latency.
-* The performance of the memory subsystem is not growing as fast as the CPU performance. Yet, memory accesses are a frequent source of performance problems in many applications. Speeding up such programs requires revising the way they access memory.
-* In [@sec:MemBound], we discussed frequently used recipes for developing cache-friendly data structures, explored data reorganization techniques, learned how to utilize huge memory pages to improve DTLB performance, and how to use explicit memory prefetching to reduce the number of cache misses.
+* 大多数实际应用程序都经历与内存相关的性能瓶颈。新兴的应用程序领域，如机器学习和大数据，在内存带宽和延迟方面要求特别高。
+* 内存子系统的性能增长不如 CPU 性能快。然而，内存访问是许多应用程序中性能问题的常见来源。加速此类程序需要修改它们访问内存的方式。
+* 在 [@sec:MemBound] 中，我们讨论了开发缓存友好数据结构的常用方法，探索了数据重组技术，学习了如何利用大内存页来提高 DTLB 性能，以及如何使用显式内存预取来减少缓存未命中的数量。
 
 \sectionbreak
