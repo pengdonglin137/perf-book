@@ -39,3 +39,24 @@ if (cond) [[unlikely]]
 if (UNLIKELY(cond)) // NOT 
   coldFunc();
 ```
+
+优化编译器在遇到 "likely/unlikely" 提示时不仅会改进代码布局。它们还会在其他地方利用此信息。例如，当应用 `[[unlikely]]` 属性时，编译器将阻止内联 `coldFunc`，因为它现在知道该函数不太可能经常执行，优化其大小更有利，即只留下一个 `CALL` 调用此函数。
+
+在 switch 语句中也可以插入 `[[likely]]` 属性，如 [@lst:BuiltinSwitch] 所示。使用此提示，编译器将能够以稍有不同的方式重排代码，并优化热 switch 以更快地处理 `ADD` 指令。
+
+Listing: switch 语句中使用 likely 属性
+
+~~~~ {#lst:BuiltinSwitch .cpp}
+for (;;) {
+  switch (instruction) {
+               case NOP: handleNOP(); break;
+    [[likely]] case ADD: handleADD(); break;
+               case RET: handleRET(); break;
+    // handle other instructions
+  }
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[^2]: However, there is a special small loop optimization that allows very small loops to have one taken branch per cycle.
+[^3]: More about builtin-expect here: [https://llvm.org/docs/BranchWeightMetadata.html#builtin-expect](https://llvm.org/docs/BranchWeightMetadata.html#builtin-expect).
+[^10]: C++ standard `[[likely]]` attribute: [https://en.cppreference.com/w/cpp/language/attributes/likely](https://en.cppreference.com/w/cpp/language/attributes/likely).
