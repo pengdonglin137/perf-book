@@ -38,3 +38,68 @@ float calcSum(float* a, unsigned N) {
 内置函数比内联汇编更好，因为编译器执行类型检查，负责寄存器分配，并进行进一步的优化，例如窥孔转换和指令调度。然而，它们通常仍然冗长且难以阅读。
 
 当你使用不可移植的平台特定内置函数编写代码时，你还应该为其他架构提供后备选项。Intel 平台上所有可用内置函数的列表可以在这个[参考](https://software.intel.com/sites/landingpage/IntrinsicsGuide/)[^11]中找到。对于 ARM，你可以在 Arm 的网站上找到这样的列表。[^14]
+
+### 内置函数的包装库 {#sec:secIntrinsicLibraries}
+
+在低工作量但不可预测的自动向量化，和冗长/不可读但可预测的内置函数之间，有一条中间道路，你可以使用内置函数的包装库。这些库往往更具可读性，提供可移植性，同时仍然给开发人员对生成代码的控制。存在许多这样的库，它们在对最新或"特殊"操作的覆盖范围以及支持的平台数量方面有所不同。
+
+ISPC 的一次编写、多目标模型很有吸引力。然而，你可能希望与 C++ 程序更紧密地集成。例如，与模板的互操作性，或避免单独的构建步骤并使用相同的编译器。相反，内置函数提供更多控制，但开发成本更高。
+
+包装库结合了两者的优点并避免了缺点，使用所谓的嵌入式领域特定语言，其中向量操作表示为普通的 C++ 函数。你可以将这些函数视为"可移植的内置函数"。甚至将代码编译多次，每个指令集一次，可以在普通的 C++ 库中完成，通过使用预处理器用不同的编译器设置"重复"你的代码，但在唯一的命名空间中。此类库的一个例子是 Highway，[^12] 它只需要 C++11 标准。
+
+[@lst:HWY_code] 展示了 Highway 版本的数组元素求和。`ScalableTag<float> d` 是一个类型描述符，表示"可扩展"类型，意味着它可以调整到目标硬件上的可用向量宽度（例如 AVX2 或 NEON）。`Zero(d)` 将 `sum` 初始化为填充零的向量。此变量将在函数遍历 `array` 时存储累加的和。for 循环一次处理 `Lanes(d)` 个元素，其中 `Lanes(d)` 表示可以加载到单个 SIMD 向量中的浮点数数量。`LoadU` 操作从 `array` 加载 `Lanes(d)` 个连续元素。`Add` 操作执行加载的值与当前 `sum` 的逐元素加法，将结果累加到 `sum` 中。
+
+Listing: Highway 版本的数组元素求和。
+
+~~~~ {#lst:HWY_code .cpp}
+#include <hwy/highway.h>
+
+float calcSum(const float* HWY_RESTRICT array, size_t count) {
+  const ScalableTag<float> d;  // 类型描述符；没有实际数据
+  auto sum = Zero(d);
+  size_t i = 0;
+  for (; i + Lanes(d) <= count; i += Lanes(d)) {
+    sum = Add(sum, LoadU(d, array + i));
+  }
+  sum = Add(sum, MaskedLoad(FirstN(d, count - i), d, array + i));
+  return ReduceSum(d, sum);
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+注意循环处理向量大小 `Lanes(d)` 的倍数后对余数的显式处理。虽然这更冗长，但它使实际发生的事情可见，并允许优化，如重叠最后一个向量而不是依赖 `MaskedLoad`，甚至在已知 `count` 是向量大小的倍数时完全跳过余数。最后，`ReduceSum` 操作通过将向量 `sum` 中的所有元素相加来将其归约为单个标量值。
+
+与 ISPC 一样，Highway 也支持检测最佳可用指令集，分组为"集群"，在 x86 上对应于 Intel Core（S-SSE3）、Nehalem（SSE4.2）、Haswell（AVX2）、Skylake（AVX-512）或 Icelake/Zen4（带扩展的 AVX-512）。然后它从相应的命名空间调用你的代码。与内置函数不同，代码保持可读性（没有每个函数上的前缀/后缀）和可移植性。
+
+当你使用内置函数或包装库时，仍然建议使用 C++ 编写初始实现。这允许快速原型设计和正确性验证，通过将原始代码的结果与新的向量化实现进行比较。
+
+Highway 支持 200 多种操作，可以分为以下几类：
+
+\begin{multicols}{2}
+\begin{itemize}
+\tightlist
+\item 初始化
+\item 获取/设置 lane
+\item 获取/设置块
+\item 打印
+\item 元组
+\item 算术
+\item 逻辑
+\item 掩码
+\item 比较
+\item 内存
+\item 缓存控制
+\item 类型转换
+\item 合并
+\item 混洗/排列
+\item 128 位块内的混洗
+\item 归约
+\item 加密
+\end{itemize}
+\end{multicols}
+
+完整操作列表请参见其文档。[^13] Highway 不是此类的唯一库。其他库包括 nsimd、SIMDe、VCL 和 xsimd。注意，从 Vc 库开始的 C++ 标准化工作产生了 std::experimental::simd，然而，它提供了一组非常有限的操作，截至撰写本文时并非所有主要编译器都支持。
+
+[^11]: Intel 内置函数指南 - [https://software.intel.com/sites/landingpage/IntrinsicsGuide/](https://software.intel.com/sites/landingpage/IntrinsicsGuide/)。
+[^12]: Highway 库：[https://github.com/google/highway](https://github.com/google/highway)
+[^13]: Highway 快速参考 - [https://github.com/google/highway/blob/master/g3doc/quick_reference.md](https://github.com/google/highway/blob/master/g3doc/quick_reference.md)
+[^14]: ARM 内置函数指南 - [https://developer.arm.com/architectures/instruction-sets/intrinsics/](https://developer.arm.com/architectures/instruction-sets/intrinsics/)
