@@ -27,8 +27,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install natsort
-        pip install pandoc-fignos pandoc-tablenos
+        python3 -m pip install --upgrade pip
+        python3 -m pip install natsort pandoc-fignos pandoc-tablenos
 
     - name: Install pandoc
       run: |
@@ -37,7 +37,6 @@ jobs:
 
     - name: Build PDF
       run: |
-        export PATH=/usr/bin:$PATH
         python3 export_book.py
         xelatex -interaction=nonstopmode book.tex
         mv book.pdf perf-book-zh.pdf
