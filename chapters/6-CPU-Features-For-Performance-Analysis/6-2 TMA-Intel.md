@@ -38,4 +38,142 @@ $ perf stat -- ./benchmark.exe
 
 ```bash
 $ ~/pmu-tools/toplev.py --core S0-C0 -l2 -v --no-desc taskset -c 0 ./benchmark.exe
+...
+# Level 1
+S0-C0  Frontend_Bound:                13.92 % Slots
+S0-C0  Bad_Speculation:                0.23 % Slots
+S0-C0  Backend_Bound:                 53.39 % Slots
+S0-C0  Retiring:                      32.49 % Slots
+# Level 2
+S0-C0  Frontend_Bound.FE_Latency:     12.11 % Slots
+S0-C0  Frontend_Bound.FE_Bandwidth:    1.84 % Slots
+S0-C0  Bad_Speculation.Branch_Mispred: 0.22 % Slots
+S0-C0  Bad_Speculation.Machine_Clears: 0.01 % Slots
+S0-C0  Backend_Bound.Memory_Bound:    44.59 % Slots <==
+S0-C0  Backend_Bound.Core_Bound:       8.80 % Slots
+S0-C0  Retiring.Base:                 24.83 % Slots
+S0-C0  Retiring.Microcode_Sequencer:   7.65 % Slots
 ```
+
+在此命令中，我们将进程固定到 CPU0（使用 `taskset -c 0`）并将 `toplev` 的输出限制到此核心（`--core S0-C0`）。选项 `-l2` 告诉工具收集第 2 级指标。选项 `--no-desc` 禁用每个指标的描述。
+
+我们可以看到应用程序的性能受内存访问限制（`Backend_Bound.Memory_Bound`）。几乎一半的 CPU 执行资源在等待内存请求完成时被浪费了。现在让我们再深入一层：[^17]
+
+```bash
+$ ~/pmu-tools/toplev.py --core S0-C0 -l3 -v --no-desc taskset -c 0 ./benchmark.exe
+...
+# Level 1
+S0-C0    Frontend_Bound:                 13.91 % Slots
+S0-C0    Bad_Speculation:                 0.24 % Slots
+S0-C0    Backend_Bound:                  53.36 % Slots
+S0-C0    Retiring:                       32.41 % Slots
+# Level 2
+S0-C0    FE_Bound.FE_Latency:            12.10 % Slots
+S0-C0    FE_Bound.FE_Bandwidth:           1.85 % Slots
+S0-C0    BE_Bound.Memory_Bound:          44.58 % Slots
+S0-C0    BE_Bound.Core_Bound:             8.78 % Slots
+# Level 3
+S0-C0-T0 BE_Bound.Mem_Bound.L1_Bound:     4.39 % Stalls
+S0-C0-T0 BE_Bound.Mem_Bound.L2_Bound:     2.42 % Stalls
+S0-C0-T0 BE_Bound.Mem_Bound.L3_Bound:     5.75 % Stalls
+S0-C0-T0 BE_Bound.Mem_Bound.DRAM_Bound:  47.11 % Stalls <==
+S0-C0-T0 BE_Bound.Mem_Bound.Store_Bound:  0.69 % Stalls
+S0-C0-T0 BE_Bound.Core_Bound.Divider:     8.56 % Clocks
+S0-C0-T0 BE_Bound.Core_Bound.Ports_Util: 11.31 % Clocks
+```
+
+我们发现瓶颈在 `DRAM_Bound`。这告诉我们许多内存访问在所有级别的缓存中都未命中，一路到达主内存。如果我们收集程序的 L3 缓存未命中绝对数量，也可以确认这一点。对于 Skylake 架构，`DRAM_Bound` 指标使用 `CYCLE_ACTIVITY.STALLS_L3_MISS` 性能事件计算。让我们手动收集它：
+
+```bash
+$ perf stat -e cycles,cycle_activity.stalls_l3_miss -- ./benchmark.exe
+  32226253316  cycles
+  19764641315  cycle_activity.stalls_l3_miss
+```
+
+`CYCLE_ACTIVITY.STALLS_L3_MISS` 事件计算执行停顿的周期，同时 L3 缓存未命中需求加载处于未完成状态。我们可以看到大约 60% 的周期是这样的，这非常糟糕。
+
+### 第 2 步：定位代码中的位置 {.unlisted .unnumbered}
+
+TMA 过程的第二步是定位在代码中已识别的性能事件发生最频繁的位置。为此，你应该使用在第 1 步中识别的瓶颈类型对应的事件对工作负载进行采样。
+
+找到此类事件的推荐方法是运行带有 `--show-sample` 选项的 `toplev` 工具，该选项将建议可用于定位问题的 `perf record` 命令行。为了理解 TMA 的机制，我们还展示了手动查找与特定性能瓶颈关联的事件的方法。性能瓶颈与用于确定源代码中瓶颈位置的性能事件之间的对应关系可以在 [TMA metrics](https://github.com/intel/perfmon/blob/main/TMA_Metrics.xlsx)[^2] 表中找到。`Locate-with` 列表示用于定位问题发生的确切代码位置的性能事件。在我们的案例中，要找到导致 `DRAM_Bound` 指标如此高值（L3 缓存未命中）的内存访问，我们应该对 `MEM_LOAD_RETIRED.L3_MISS_PS` 精确事件进行采样。以下是示例命令：
+
+```bash
+$ perf record -e cpu/event=0xd1,umask=0x20,name=MEM_LOAD_RETIRED.L3_MISS/ppp -- ./benchmark.exe
+$ perf report -n --stdio
+...
+# Samples: 33K of event 'MEM_LOAD_RETIRED.L3_MISS'
+# Event count (approx.): 71363893
+# Overhead   Samples  Shared Object   Symbol
+# ........  ......... ..............  .................
+#
+    99.95%    33811   benchmark.exe   [.] foo
+     0.03%       52   [kernel]        [k] get_page_from_freelist
+     0.01%        3   [kernel]        [k] free_pages_prepare
+     0.00%        1   [kernel]        [k] free_pcppages_bulk
+```
+
+几乎所有的 L3 未命中都是由可执行文件 `benchmark.exe` 中函数 `foo` 中的内存访问引起的。现在是时候看看基准测试的源代码了，可以在 [GitHub](https://github.com/dendibakh/dendibakh.github.io/tree/master/_posts/code/TMAM) 上找到。[^8]
+
+为了避免编译器优化，函数 `foo` 用汇编语言实现，如 [@lst:TMA_asm] 所示。基准测试的"驱动"部分在 `main` 函数中实现，如 [@lst:TMA_cpp] 所示。我们分配一个足够大的数组 `a`，使其无法放入 6MB 的 L3 缓存。基准测试生成数组 `a` 的随机索引，并将此索引与数组 `a` 的地址一起传递给 `foo` 函数。随后 `foo` 函数读取此随机内存位置。[^11]
+
+Listing: 函数 foo 的汇编代码。
+
+~~~~ {#lst:TMA_asm .bash}
+$ perf annotate --stdio -M intel foo
+Percent |  Disassembly of benchmark.exe for MEM_LOAD_RETIRED.L3_MISS
+------------------------------------------------------------
+        :  Disassembly of section .text:
+        :
+        :  0000000000400a00 <foo>:
+        :  foo():
+   0.00 :    400a00:  nop  DWORD PTR [rax+rax*1+0x0]
+   0.00 :    400a08:  nop  DWORD PTR [rax+rax*1+0x0]
+                 ...  # more NOPs
+ 100.00 :    400e07:  mov  rax,QWORD PTR [rdi+rsi*1] <==
+                 ...
+   0.00 :    400e13:  xor  rax,rax
+   0.00 :    400e16:  ret
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Listing: 函数 main 的源代码。
+
+~~~~ {#lst:TMA_cpp .cpp}
+extern "C" { void foo(char* a, int n); }
+const int _200MB = 1024*1024*200;
+int main() {
+  char* a = new char[_200MB]; // 200 MB buffer
+  ...
+  for (int i = 0; i < 100000000; i++) {
+    int random_int = distribution(generator);
+    foo(a, random_int);
+  }
+  ...
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+通过查看 [@lst:TMA_asm]，我们可以看到函数 `foo` 中所有的 L3 缓存未命中都标记到了一条指令上。现在我们知道是哪条指令导致了如此多的 L3 未命中，让我们来修复它。
+
+### 第 3 步：修复问题 {.unlisted .unnumbered}
+
+在 `foo` 函数的开头有 NOP 模拟的虚拟工作。这在我们获取下一个将要访问的地址和实际加载指令之间创建了一个时间窗口。时间窗口的存在使我们能够在虚拟工作的同时并行预取内存位置。[@lst:TMA_prefetch] 展示了这个思想的实际应用。有关显式内存预取技术的更多信息可以在 [@sec:memPrefetch] 中找到。
+
+Listing: 在 main 中插入内存预取。
+
+~~~~ {#lst:TMA_prefetch .cpp}
+  for (int i = 0; i < 100000000; i++) {
+    int random_int = distribution(generator);
++   __builtin_prefetch ( a + random_int, 0, 1);
+    foo(a, random_int);
+  }
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+这个显式内存预取提示将执行时间从 8.5 秒减少到 6.5 秒。同时，`CYCLE_ACTIVITY.STALLS_L3_MISS` 事件的数量减少了近十倍：从 190 亿下降到 20 亿。
+
+TMA 是一个迭代过程，因此一旦我们修复了一个问题，我们需要从第 1 步开始重复该过程。很可能它会将瓶颈转移到另一个桶中，在这种情况下是 `Retiring`。这是一个演示 TMA 方法工作流程的简单示例。分析真实世界的应用程序不太可能那么容易。本书第二部分的章节组织得方便与 TMA 过程一起使用。特别是，第 8 章涵盖了`内存绑定`类别，第 9 章涵盖了`核心绑定`，第 10 章涵盖了`错误推测`，第 11 章涵盖了`前端绑定`。这样的结构旨在形成一个清单，当你遇到某个性能瓶颈时可以用来驱动代码更改。
+
+[^2]: TMA metrics - [https://github.com/intel/perfmon/blob/main/TMA_Metrics.xlsx](https://github.com/intel/perfmon/blob/main/TMA_Metrics.xlsx).
+[^7]: PMU tools - [https://github.com/andikleen/pmu-tools](https://github.com/andikleen/pmu-tools).
+[^8]: Case study example - [https://github.com/dendibakh/dendibakh.github.io/tree/master/_posts/code/TMAM](https://github.com/dendibakh/dendibakh.github.io/tree/master/_posts/code/TMAM).
+[^11]: 根据 x86 Linux 调用约定（[https://en.wikipedia.org/wiki/X86_calling_conventions](https://en.wikipedia.org/wiki/X86_calling_conventions)），前 2 个参数分别放在 `rdi` 和 `rsi` 寄存器中。
+[^17]: 或者，我们可以使用 `-l2 --nodes L1_Bound,L2_Bound,L3_Bound,DRAM_Bound,Store_Bound` 选项代替 `-l3` 来限制收集，因为我们知道应用程序受内存限制。
