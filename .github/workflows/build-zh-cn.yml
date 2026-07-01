@@ -20,37 +20,24 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
     - name: Install dependencies
       run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-xetex texlive-lang-chinese texlive-bibtex-extra fonts-noto-cjk
         python3 -m pip install --upgrade pip
         python3 -m pip install natsort
-
-    - name: Install pandoc and pandoc-crossref
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y texlive-xetex texlive-lang-chinese fonts-noto-cjk
-        curl -fsSL https://github.com/jgm/pandoc/releases/download/3.9.0.2/pandoc-3.9.0.2-1-amd64.deb -o pandoc.deb
-        sudo dpkg -i pandoc.deb
+        PANDOC_VERSION=3.9.0.2
+        curl -fsSL https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb -o /tmp/pandoc.deb
+        sudo dpkg -i /tmp/pandoc.deb
         curl -fsSL https://github.com/lierdakil/pandoc-crossref/releases/download/v0.3.24a/pandoc-crossref-Linux-X64.tar.xz | tar xJ
         sudo mv pandoc-crossref /usr/local/bin/
 
     - name: Build PDF
       run: |
-        python3 export_book.py
-        xelatex -interaction=nonstopmode book.tex || true
-        bibtex book || true
-        xelatex -interaction=nonstopmode book.tex || true
-        xelatex -interaction=nonstopmode book.tex || true
+        python3 export_book.py && xelatex -interaction=nonstopmode book.tex && bibtex book && xelatex -interaction=nonstopmode book.tex && xelatex -interaction=nonstopmode book.tex
         mv book.pdf perf-book-zh.pdf
-      timeout-minutes: 10
 
-    - name: Upload PDF
-      uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4
       with:
         name: perf-book-chinese
         path: perf-book-zh.pdf

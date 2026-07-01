@@ -158,6 +158,9 @@ with open(editTexFile, 'w') as g:
                 for chref in chapterRefs:
                     if chref in line:
                         line = line.replace("Section~\\ref" + chref, "Chapter~\\ref" + chref)
+            # Inject \bibliography before \end{document}
+            if "\\end{document}" in line:
+                g.write("\\bibliography{biblio}\n")
             g.write(line)
 
 os.remove('book.tex')
