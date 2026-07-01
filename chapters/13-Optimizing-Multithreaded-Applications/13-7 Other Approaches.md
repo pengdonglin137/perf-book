@@ -8,7 +8,7 @@
 
 [Coz](https://github.com/plasma-umass/coz)[^16] 是一个解决此问题的分析器。它使用一种称为*因果分析*的新技术，通过在应用程序运行时通过虚拟加速代码段来预测某些优化的总体效果来进行实验。它通过插入暂停来减慢所有其他同时运行的代码来实现这些"虚拟加速"。此外，Coz 量化了优化的潜在影响。[@CozPaper]
 
-图 @fig:CozProfile 显示了将 Coz 分析器应用于 [C-Ray](https://github.com/jtsiomb/c-ray)[^15] 基准测试的示例。根据图表，如果我们将 `c-ray-mt.c` 中第 540 行的性能提高 20%，Coz 预计 C-Ray 基准测试的整体应用程序性能将相应增加约 17%。一旦我们在该行上达到约 45% 的改进，根据 Coz 的估计，对应用程序的影响将趋于平稳。有关此示例的更多详细信息，请参见 Easyperf 博客上的[文章](https://easyperf.net/blog/2020/02/26/coz-vs-sampling-profilers)[^17]。
+@fig:CozProfile 显示了将 Coz 分析器应用于 [C-Ray](https://github.com/jtsiomb/c-ray)[^15] 基准测试的示例。根据图表，如果我们将 `c-ray-mt.c` 中第 540 行的性能提高 20%，Coz 预计 C-Ray 基准测试的整体应用程序性能将相应增加约 17%。一旦我们在该行上达到约 45% 的改进，根据 Coz 的估计，对应用程序的影响将趋于平稳。有关此示例的更多详细信息，请参见 Easyperf 博客上的[文章](https://easyperf.net/blog/2020/02/26/coz-vs-sampling-profilers)[^17]。
 
 ![C-Ray 基准测试的 Coz 配置文件。](../../img/mt-perf/CozProfile.png){#fig:CozProfile width=60%}
 

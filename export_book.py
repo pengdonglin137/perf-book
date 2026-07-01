@@ -175,21 +175,34 @@ import glob as _glob
 def _fix_file_scope_labels(tex_path):
     with open(tex_path, 'r') as f:
         content = f.read()
-    # Build a map: short_label -> full_label  (from \label{...} definitions)
-    # Labels look like: chapters__dir__file.md__sec:X  or  file.md__sec:X
-    # We want to strip everything before the type prefix (sec:/fig:/tbl:/lst:)
+
+    # Strip file-scope prefixes from labels.
+    # Labels can appear in three forms:
+    #   1. \label{chapters__dir__file.md__sec:X}
+    #   2. \hypertarget{chapters__dir__file.md__sec:X}{...}
+    #   3. label=chapters__dir__file.md__lst:X  (inside lstlisting options)
+    # We strip everything before the type prefix (sec:/fig:/tbl:/lst:).
+
+    def _strip_prefix(full):
+        return re.sub(r'^.*?(?=(?:sec|fig|tbl|lst):)', '', full)
+
+    # Collect all prefixed labels from \label{}, \hypertarget{}, and label=
     label_map = {}
-    for m in re.finditer(r'\\label\{([^}]*?(?:sec|fig|tbl|lst):[^}]+)\}', content):
-        full = m.group(1)
-        short = re.sub(r'^.*?(?=(?:sec|fig|tbl|lst):)', '', full)
-        if short != full:
-            label_map[short] = full
-    # Replace long labels with short ones
+    for pattern in [
+        r'\\label\{([^}]*?(?:sec|fig|tbl|lst):[^}]+)\}',
+        r'\\hypertarget\{([^}]*?(?:sec|fig|tbl|lst):[^}]+)\}\{',
+        r'label=([^\s,\]]*(?:sec|fig|tbl|lst):[^\s,\]]+)',
+    ]:
+        for m in re.finditer(pattern, content):
+            full = m.group(1)
+            short = _strip_prefix(full)
+            if short != full:
+                label_map[short] = full
+
+    # Replace all occurrences
     for short, full in label_map.items():
-        content = content.replace('\\label{' + full + '}', '\\label{' + short + '}')
-    # Also fix \hypertarget targets that use the long form
-    for short, full in label_map.items():
-        content = content.replace('\\hypertarget{' + full + '}{', '\\hypertarget{' + short + '}{')
+        content = content.replace(full, short)
+
     with open(tex_path, 'w') as f:
         f.write(content)
 

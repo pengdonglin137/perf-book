@@ -1,6 +1,6 @@
 ## 火焰图 {#sec:secFlameGraphs}
 
-火焰图是可视化分析数据和程序中最频繁代码路径的流行方式。它使我们能够看到哪些函数调用占用了执行时间的最大部分。图 @fig:FlameGraph 显示了 [x264](https://openbenchmarking.org/test/pts/x264) 视频编码基准测试的火焰图示例，由 Brendan Gregg 开发的开源 [scripts](https://github.com/brendangregg/FlameGraph)[^1] 生成。如今，几乎所有的分析器都可以自动生成火焰图，只要在分析会话期间收集了调用栈。
+火焰图是可视化分析数据和程序中最频繁代码路径的流行方式。它使我们能够看到哪些函数调用占用了执行时间的最大部分。@fig:FlameGraph 显示了 [x264](https://openbenchmarking.org/test/pts/x264) 视频编码基准测试的火焰图示例，由 Brendan Gregg 开发的开源 [scripts](https://github.com/brendangregg/FlameGraph)[^1] 生成。如今，几乎所有的分析器都可以自动生成火焰图，只要在分析会话期间收集了调用栈。
 
 ![x264 基准测试的火焰图。](../../img/perf-tools/Flamegraph.jpg){#fig:FlameGraph width=100%}
 

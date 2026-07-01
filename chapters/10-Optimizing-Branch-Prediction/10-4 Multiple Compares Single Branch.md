@@ -38,3 +38,4 @@ uint32_t longestLine(const std::string &str) {
     // 加载输入字符串的 8 字节块。
     uint64_t vect = *((const uint64_t*)(buf + pos));
     // 检查此块中的所有字符。
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -19,7 +19,7 @@ VSZ: 200K + 500K + 2500K = 3200K
 RSS: 100K + 400K + 1000K = 1500K
 ```
 
-开发人员可以使用标准 `top` 工具在 Linux 上观察 RSS 和 VSZ，但是，这两个指标可能变化得非常快。幸运的是，一些工具可以记录和可视化随时间变化的内存使用情况。图 @fig:MemoryUsageAIBench 显示了 PSPNet 图像分割算法的内存使用情况，它是 [AI Benchmark Alpha](https://ai-benchmark.com/alpha.html) 的一部分。[^5] 此图表是基于名为 [memory_profiler](https://github.com/pythonprofilers/memory_profiler)[^6] 的工具的输出创建的，这是一个建立在跨平台 [psutil](https://github.com/giampaolo/psutil)[^7] 包之上的 Python 库。
+开发人员可以使用标准 `top` 工具在 Linux 上观察 RSS 和 VSZ，但是，这两个指标可能变化得非常快。幸运的是，一些工具可以记录和可视化随时间变化的内存使用情况。@fig:MemoryUsageAIBench 显示了 PSPNet 图像分割算法的内存使用情况，它是 [AI Benchmark Alpha](https://ai-benchmark.com/alpha.html) 的一部分。[^5] 此图表是基于名为 [memory_profiler](https://github.com/pythonprofilers/memory_profiler)[^6] 的工具的输出创建的，这是一个建立在跨平台 [psutil](https://github.com/giampaolo/psutil)[^7] 包之上的 Python 库。
 
 ![AI_bench PSPNet 图像分割的 RSS 和 VSZ 内存利用率。](../../img/memory-access-opts/MemoryUsageAIBench.png){#fig:MemoryUsageAIBench width=100%}
 

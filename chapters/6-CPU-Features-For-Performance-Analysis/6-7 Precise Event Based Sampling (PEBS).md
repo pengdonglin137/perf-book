@@ -4,7 +4,7 @@
 
 ### Intel 平台上的 PEBS {#sec:secPEBS}
 
-与 Last Branch Record 功能类似，PEBS 在分析程序时用于在每个收集的样本中捕获附加数据。当性能计数器配置为 PEBS 时，处理器保存一组附加数据，该数据具有定义的格式，称为 PEBS 记录。Intel Skylake CPU 的 PEBS 记录格式如图 @fig:PEBS_record 所示。它包含通用寄存器的状态（`EAX`、`EBX`、`ESP` 等）、`EventingIP`、`Data Linear Address` 和 `Latency value`，以及其他一些字段。PEBS 记录的内容布局因微架构而异，参见 [@IntelOptimizationManual, Volume 3B, Chapter 20 Performance Monitoring]。
+与 Last Branch Record 功能类似，PEBS 在分析程序时用于在每个收集的样本中捕获附加数据。当性能计数器配置为 PEBS 时，处理器保存一组附加数据，该数据具有定义的格式，称为 PEBS 记录。Intel Skylake CPU 的 PEBS 记录格式如@fig:PEBS_record 所示。它包含通用寄存器的状态（`EAX`、`EBX`、`ESP` 等）、`EventingIP`、`Data Linear Address` 和 `Latency value`，以及其他一些字段。PEBS 记录的内容布局因微架构而异，参见 [@IntelOptimizationManual, Volume 3B, Chapter 20 Performance Monitoring]。
 
 ![第 6 代、第 7 代和第 8 代 Intel Core 处理器系列的 PEBS 记录格式。*© 来源：[@IntelOptimizationManual, Volume 3B, Chapter 20]。*](../../img/pmu-features/PEBS_record.png){#fig:PEBS_record width=100%}
 

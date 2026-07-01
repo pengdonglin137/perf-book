@@ -32,7 +32,7 @@ a.c:5:3: remark: unrolled loop by a factor of 8 with run-time trip count [-Rpass
   ^
 ```
 
-通过检查上面的优化报告，我们可以看到该循环没有被向量化，而是被展开了。对于开发人员来说，识别 [@lst:optReport] 中第 6 行循环中的循环携带依赖并不总是容易的。`c[i-1]` 加载的值依赖于前一次迭代的存储（参见图 @fig:VectorDep 中的操作 \circled{2} 和 \circled{3}）。可以通过手动展开循环的前几次迭代来揭示依赖关系：
+通过检查上面的优化报告，我们可以看到该循环没有被向量化，而是被展开了。对于开发人员来说，识别 [@lst:optReport] 中第 6 行循环中的循环携带依赖并不总是容易的。`c[i-1]` 加载的值依赖于前一次迭代的存储（参见@fig:VectorDep 中的操作 \circled{2} 和 \circled{3}）。可以通过手动展开循环的前几次迭代来揭示依赖关系：
 
 ```cpp
  

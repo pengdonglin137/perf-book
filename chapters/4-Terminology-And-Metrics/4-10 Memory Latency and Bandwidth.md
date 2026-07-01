@@ -18,7 +18,7 @@ Each iteration took 31.1 base frequency clocks (	12.5	ns)
 
 选项 `--idle_latency` 在不加载系统的情况下度量读取延迟。此外，MLC 有 `--loaded_latency` 选项来度量当其他线程产生内存流量时的延迟。选项 `-c0` 将度量线程固定到逻辑 CPU 0，该 CPU 位于 P 核心上。选项 `-L` 启用大页以限制我们度量中的 TLB 影响。选项 `-b10m` 告诉 MLC 使用 10MB 缓冲区，该缓冲区将适合我们系统上的 L3 缓存。
 
-图 @fig:MemoryLatenciesCharts 显示了 L1、L2 和 L3 缓存的读取延迟。图表上有四个不同的区域。左侧从 1 KB 到 48 KB 缓冲区大小的第一个区域对应于 L1 D-cache，它是每个物理核心私有的。我们可以观察到 E 核心的延迟为 0.9 纳秒，P 核心略高为 1.1 纳秒。此外，我们可以使用此图表来确认缓存大小。注意 E 核心延迟在缓冲区大小超过 32 KB 后开始攀升，而 P 核心延迟在 48 KB 之前保持恒定。这确认了 E 核心中的 L1 D-cache 大小为 32 KB，P 核心中为 48 KB。
+@fig:MemoryLatenciesCharts 显示了 L1、L2 和 L3 缓存的读取延迟。图表上有四个不同的区域。左侧从 1 KB 到 48 KB 缓冲区大小的第一个区域对应于 L1 D-cache，它是每个物理核心私有的。我们可以观察到 E 核心的延迟为 0.9 纳秒，P 核心略高为 1.1 纳秒。此外，我们可以使用此图表来确认缓存大小。注意 E 核心延迟在缓冲区大小超过 32 KB 后开始攀升，而 P 核心延迟在 48 KB 之前保持恒定。这确认了 E 核心中的 L1 D-cache 大小为 32 KB，P 核心中为 48 KB。
 
 ![Intel Core i7-1260P 上的 L1/L2/L3 缓存读取延迟（越低越好），使用 MLC 工具测量，启用大页。](../../img/terms-and-metrics/MemLatencies.png){#fig:MemoryLatenciesCharts width=100% }
 

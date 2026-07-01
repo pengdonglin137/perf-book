@@ -2,9 +2,9 @@
 
 遵循前面章节中描述的原则，可以将热函数分组在一起，以进一步改善 CPU 前端缓存的利用率。当热函数分组时，它们开始共享缓存行，这减少了*代码占用*，即 CPU 需要获取的缓存行总数。
 
-图 @fig:FunctionGrouping 给出了重排序热函数 `foo`、`bar` 和 `zoo` 的图形表示。图像上的箭头显示最频繁的调用模式，即 `foo` 调用 `zoo`，而 `zoo` 又调用 `bar`。在默认布局中（参见图 @fig:FuncGroup_default），热函数彼此不相邻，一些冷函数放置在它们之间。因此，两个函数调用的序列（`foo` → `zoo` → `bar`）需要四次缓存行读取。[^4]
+@fig:FunctionGrouping 给出了重排序热函数 `foo`、`bar` 和 `zoo` 的图形表示。图像上的箭头显示最频繁的调用模式，即 `foo` 调用 `zoo`，而 `zoo` 又调用 `bar`。在默认布局中（参见@fig:FuncGroup_default），热函数彼此不相邻，一些冷函数放置在它们之间。因此，两个函数调用的序列（`foo` → `zoo` → `bar`）需要四次缓存行读取。[^4]
 
-我们可以重新排列函数的顺序，使热函数彼此靠近（参见图 @fig:FuncGroup_better）。在改进版本中，`foo`、`bar` 和 `zoo` 函数的代码适合三个缓存行。另外，请注意函数 `zoo` 现在根据函数调用的顺序放置在 `foo` 和 `bar` 之间。当我们从 `foo` 调用 `zoo` 时，`zoo` 的开头已经在 I-cache 中了。
+我们可以重新排列函数的顺序，使热函数彼此靠近（参见@fig:FuncGroup_better）。在改进版本中，`foo`、`bar` 和 `zoo` 函数的代码适合三个缓存行。另外，请注意函数 `zoo` 现在根据函数调用的顺序放置在 `foo` 和 `bar` 之间。当我们从 `foo` 调用 `zoo` 时，`zoo` 的开头已经在 I-cache 中了。
 
 <div id="fig:FunctionGrouping">
 ![默认布局](../../img/cpu_fe_opts/FunctionGrouping_Default.png){#fig:FuncGroup_default width=50%}

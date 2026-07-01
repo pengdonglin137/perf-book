@@ -31,6 +31,6 @@ void foo(bool cond1,                void foo(bool cond1,
 将冷代码分割到单独的函数中。
 </div>
 
-图 @fig:FunctionSplitting 给出了此转换的图形表示。在改进的布局中，我们在热路径中只保留了一个 `CALL` 指令，下一个热指令很可能与前一个位于同一缓存行中。这改善了 CPU 前端数据结构（如 I-cache 和 $\mu$op-cache）的利用率。
+@fig:FunctionSplitting 给出了此转换的图形表示。在改进的布局中，我们在热路径中只保留了一个 `CALL` 指令，下一个热指令很可能与前一个位于同一缓存行中。这改善了 CPU 前端数据结构（如 I-cache 和 $\mu$op-cache）的利用率。
 
 轮廓化函数应该创建在 `.text` 段之外，例如在 `.text.cold` 中。如果函数从未被调用，这可以改善内存占用，因为它不会在运行时加载到内存中。

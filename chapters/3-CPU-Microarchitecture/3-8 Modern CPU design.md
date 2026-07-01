@@ -1,6 +1,6 @@
 ## 现代 CPU 设计
 
-为了了解本章讨论的所有概念在实践中如何应用，让我们来看看 Intel 第 12 代核心 Golden Cove 的实现，它于 2021 年发布。该核心被用作 Alder Lake 和 Sapphire Rapids 平台中的 P-core（性能核心）。图 @fig:Goldencove_diag 展示了 Golden Cove 核心的框图。注意，本节只描述单个核心，而非整个处理器。因此，我们将跳过关于频率、核心数量、L3 缓存、核心互联、内存延迟和带宽的讨论。
+为了了解本章讨论的所有概念在实践中如何应用，让我们来看看 Intel 第 12 代核心 Golden Cove 的实现，它于 2021 年发布。该核心被用作 Alder Lake 和 Sapphire Rapids 平台中的 P-core（性能核心）。@fig:Goldencove_diag 展示了 Golden Cove 核心的框图。注意，本节只描述单个核心，而非整个处理器。因此，我们将跳过关于频率、核心数量、L3 缓存、核心互联、内存延迟和带宽的讨论。
 
 ![Intel Golden Cove 微架构的 CPU 核心框图。](../../img/uarch/goldencove_block_diagram.png){#fig:Goldencove_diag width=100%}
 
@@ -26,7 +26,7 @@ CPU 前端每个周期从 L1 I-cache 取指 32 字节的 x86 指令。如果启�
 
 ### CPU 后端 {#sec:uarchBE}
 
-CPU 后端采用乱序执行引擎来执行指令并存储结果。我在图 @fig:Goldencove_OOO 中复制了描绘 Golden Cove 乱序引擎的部分框图。
+CPU 后端采用乱序执行引擎来执行指令并存储结果。我在@fig:Goldencove_OOO 中复制了描绘 Golden Cove 乱序引擎的部分框图。
 
 乱序引擎的核心是 512 条目的重排序缓冲区（ReOrder Buffer，ROB）。它有以下几个用途。首先，它提供寄存器重命名（Register Renaming）[^5]。虽然只有 16 个通用整数寄存器和 32 个浮点/SIMD 架构寄存器，但物理寄存器的数量要多得多。[^1] 物理寄存器位于一个称为物理寄存器文件（Physical Register File，PRF）的结构中。整数和浮点/SIMD 寄存器各有独立的 PRF。架构可见寄存器到物理寄存器的映射保存在寄存器别名表（Register Alias Table，RAT）中。
 
@@ -45,7 +45,7 @@ CPU 后端采用乱序执行引擎来执行指令并存储结果。我在图 @fi
 
 "调度器/保留站"（Scheduler / Reservation Station，RS）是追踪给定 $\mu$op 所有资源可用性并在其就绪时将 $\mu$op 分派到*执行端口*的结构。执行端口是连接调度器与执行单元的通路。每个执行端口可连接多个执行单元。当一条指令进入 RS 时，调度器开始追踪其数据依赖关系。一旦所有源操作数可用，RS 就尝试将 $\mu$op 分派到空闲的执行端口。RS 的条目数比 ROB 少。[^4] 它每周期最多可分派 6 个 $\mu$op。
 
-我在图 @fig:Goldencove_BE_LSU 中复制了描绘 Golden Cove 执行引擎和加载-存储单元的部分框图。共有 12 个执行端口：
+我在@fig:Goldencove_BE_LSU 中复制了描绘 Golden Cove 执行引擎和加载-存储单元的部分框图。共有 12 个执行端口：
 
 * 端口 0、1、5、6 和 10 提供整数（INT）操作，其中部分端口还处理浮点和向量（FP/VEC）操作。
 * 端口 2、3 和 11 用于地址生成（AGU）和加载操作。
@@ -111,7 +111,7 @@ Load R1, MEM_LOC
 
 ### TLB 层次结构
 
-回顾 [@sec:TLBs] 中的内容，虚拟地址到物理地址的转换被缓存在 TLB 中。Golden Cove 的 TLB 层次结构如图 @fig:GLC_TLB 所示。与常规数据缓存类似，它有两级，其中一级为指令（ITLB）和数据（DTLB）分别设有独立实例。L1 ITLB 有 256 个条目用于常规 4K 页面，覆盖 1MB 内存；L1 DTLB 有 96 个条目，覆盖 384 KB。
+回顾 [@sec:TLBs] 中的内容，虚拟地址到物理地址的转换被缓存在 TLB 中。Golden Cove 的 TLB 层次结构如@fig:GLC_TLB 所示。与常规数据缓存类似，它有两级，其中一级为指令（ITLB）和数据（DTLB）分别设有独立实例。L1 ITLB 有 256 个条目用于常规 4K 页面，覆盖 1MB 内存；L1 DTLB 有 96 个条目，覆盖 384 KB。
 
 ![Intel Golden Cove 微架构的 TLB 层次结构。](../../img/uarch/GLC_TLB_hierarchy.png){#fig:GLC_TLB width=60%}
 
