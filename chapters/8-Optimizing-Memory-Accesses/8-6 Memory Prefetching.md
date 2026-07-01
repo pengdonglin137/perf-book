@@ -38,3 +38,47 @@ for (int i = 0; i < N; ++i) {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 这种转换的图形说明如@fig:SWmemprefetch2 所示。我们利用软件流水线为下一次迭代生成随机数。换句话说，在迭代 `M` 上，我们生成一个将在迭代 `M+1` 上使用的随机数。这使我们能够提前发出内存请求，因为我们已经知道数组中的下一个索引。这种转换使我们的预取窗口大得多，并完全隐藏了缓存未命中的延迟。在迭代 `M+1` 上，实际加载有很大的机会命中缓存，因为它在迭代 `M` 上被预取了。
+
+![通过与其他执行重叠来隐藏缓存未命中延迟。](../../img/memory-access-opts/SWmemprefetch2.png){#fig:SWmemprefetch2 width=80%}
+
+注意 [`__builtin_prefetch`](https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html)[^4] 的使用，开发者可以用这个特殊提示显式请求 CPU 预取某个内存位置。另一个选项是使用编译器内建函数。在 x86 平台上有 `_mm_prefetch` 内建函数，在 ARM 平台上有 `__pld` 内建函数。编译器将为 x86 生成 `PREFETCH` 指令，为 ARM 生成 `pld` 指令。
+
+有些情况下软件内存预取是不可能的。例如，当遍历链表时，预取窗口非常小，无法隐藏指针追踪的延迟。
+
+在 [@lst:MemPrefetch2] 中我们看到了为下一次迭代预取的示例，但你也可能经常遇到需要为 2、4、8 次甚至更多迭代预取的情况。[@lst:MemPrefetch3] 中的代码就是其中一个可能有益的场景。它展示了一个用边填充图的典型代码。如果图非常稀疏且有大量顶点，访问 `this->out_neighbors` 和 `this->in_neighbors` 向量很可能经常在缓存中未命中。这是因为每条边都可能连接当前不在缓存中的新顶点。
+
+此代码与前一个示例不同，因为每次迭代没有大量的计算，所以缓存未命中的惩罚很可能主导每次迭代的延迟。但我们可以利用我们知道将来要访问的所有元素这一事实。向量 `edges` 的元素是顺序访问的，因此很可能被硬件预取器及时带到 L1 缓存中。我们这里的目标是将缓存未命中的延迟与执行足够的迭代重叠，以完全隐藏它。
+
+一般规则是，为了使预取提示有效，它必须提前很早插入，以便在加载的值用于其他计算时，它已经在缓存中。但是，它也不应该插入得太早，因为可能会用很长时间不使用的数据污染缓存。注意，在 [@lst:MemPrefetch3] 中，`lookAhead` 是一个模板参数，使程序员可以尝试不同的值并查看哪个给出最佳性能。更高级的用户可以尝试使用 [@sec:timed_lbr] 中描述的方法来估计预取窗口；使用此方法的示例可以在 Easyperf 博客上找到。[^5]
+
+Listing: 为接下来 8 次迭代进行软件预取的示例。
+
+~~~~ {#lst:MemPrefetch3 .cpp}
+template <int lookAhead = 8>
+void Graph::update(const std::vector<Edge>& edges) {
+  for(int i = 0; i + lookAhead < edges.size(); i++) {
+    VertexID v = edges[i].from;
+    VertexID u = edges[i].to;
+    this->out_neighbors[u].push_back(v);
+    this->in_neighbors[v].push_back(u);
+
+    // prefetch elements for future iterations
+    VertexID v_next = edges[i + lookAhead].from;
+    VertexID u_next = edges[i + lookAhead].to;
+    __builtin_prefetch(this->out_neighbors.data() + v_next);
+    __builtin_prefetch(this->in_neighbors.data()  + u_next);
+  }
+  // process the remainder of the vector `edges` ...
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+显式内存预取最常用于循环中，但你也可以将这些提示插入到父函数中；这完全取决于可用的预取窗口。
+
+这项技术是一个强大的武器，但应极其谨慎地使用，因为它不容易做好。首先，显式内存预取不具有可移植性，这意味着如果它在一个平台上获得性能提升，并不保证在另一个平台上有类似的加速。它非常依赖于具体实现，平台不必遵守这些提示。在这种情况下，它很可能会降低性能。我的建议是验证影响在所有可用工具上都是积极的。不仅要检查性能数据，还要确保缓存未命中数量（特别是 L3）有所下降。一旦更改提交到代码库中，在你运行应用程序的所有平台上监控性能，因为它可能对周围代码的更改非常敏感。如果收益不能抵消潜在的维护负担，请考虑放弃这个想法。
+
+对于一些复杂的场景，确保代码预取正确的内存位置。当循环的当前迭代依赖于前一次迭代时，这可能变得棘手，例如存在 `continue` 语句或要处理的下一个元素的更改由 `if` 条件保护。在这种情况下，我的建议是插装代码以测试预取提示的准确性。因为使用不当时，它可能通过驱逐其他有用数据来降低缓存的性能。
+
+最后，显式预取增加代码大小并给 CPU 前端增加压力。预取提示只是一个进入内存子系统的假加载，没有目标寄存器。就像任何其他指令一样，它消耗 CPU 资源。极其谨慎地使用它，因为使用错误时，它可能会使程序性能变差。
+
+[^4]: GCC builtins - [https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html](https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html).
+[^5]: "Precise timing of machine code with Linux perf" - [https://easyperf.net/blog/2019/04/03/Precise-timing-of-machine-code-with-Linux-perf#application-estimating-prefetch-window](https://easyperf.net/blog/2019/04/03/Precise-timing-of-machine-code-with-Linux-perf#application-estimating-prefetch-window).
