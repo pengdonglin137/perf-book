@@ -163,4 +163,33 @@ with open(editTexFile, 'w') as g:
 os.remove('book.tex')
 os.rename('book_edit.tex', 'book.tex')
 
+# Fix cross-references broken by --file-scope.
+# pandoc --file-scope prefixes labels with the file path (e.g.,
+# "chapters__foo__bar.md__sec:X") but references keep the short form
+# ("sec:X").  We strip the prefix from every \label so they match.
+import glob as _glob
+
+def _fix_file_scope_labels(tex_path):
+    with open(tex_path, 'r') as f:
+        content = f.read()
+    # Build a map: short_label -> full_label  (from \label{...} definitions)
+    # Labels look like: chapters__dir__file.md__sec:X  or  file.md__sec:X
+    # We want to strip everything before the type prefix (sec:/fig:/tbl:/lst:)
+    label_map = {}
+    for m in re.finditer(r'\\label\{([^}]*?(?:sec|fig|tbl|lst):[^}]+)\}', content):
+        full = m.group(1)
+        short = re.sub(r'^.*?(?=(?:sec|fig|tbl|lst):)', '', full)
+        if short != full:
+            label_map[short] = full
+    # Replace long labels with short ones
+    for short, full in label_map.items():
+        content = content.replace('\\label{' + full + '}', '\\label{' + short + '}')
+    # Also fix \hypertarget targets that use the long form
+    for short, full in label_map.items():
+        content = content.replace('\\hypertarget{' + full + '}{', '\\hypertarget{' + short + '}{')
+    with open(tex_path, 'w') as f:
+        f.write(content)
+
+_fix_file_scope_labels('book.tex')
+
 # now we don't have URLs. Compare with natbib to figure out the differences

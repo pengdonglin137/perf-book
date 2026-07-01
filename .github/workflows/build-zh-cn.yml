@@ -43,6 +43,9 @@ jobs:
       run: |
         python3 export_book.py
         xelatex -interaction=nonstopmode book.tex
+        bibtex book || true
+        xelatex -interaction=nonstopmode book.tex
+        xelatex -interaction=nonstopmode book.tex
         mv book.pdf perf-book-zh.pdf
       timeout-minutes: 10
 
