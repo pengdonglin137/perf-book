@@ -1,16 +1,13 @@
-## Chapter Summary {.unlisted .unnumbered}
+## 本章小结 {.unlisted .unnumbered}
 
 \markright{Summary}
 
-* Modern systems have nondeterministic performance. Eliminating nondeterminism in a system is helpful for well-defined, stable performance tests, e.g., microbenchmarks.
-* Measuring performance in production is required to assess how users perceive the responsiveness of your services. However, this requires dealing with noisy environments and using statistical methods for analyzing results. 
-* It is beneficial to employ an automated performance tracking system to prevent performance regressions from leaking into production software. Such CI systems are supposed to run automated performance tests, visualize results, and alert on discovered performance anomalies.
-* Visualizing performance distributions helps compare performance results. It is a safe way of presenting performance results to a wide audience.
-* To benchmark execution time, engineers can use two different timers: the system-wide high-resolution timer and the Time Stamp Counter. The former is suitable for measuring events whose duration is more than a microsecond. The latter can be used for measuring short events with high accuracy.
-* Microbenchmarks are good for quick experiments, but you should always verify your ideas on a real application in practical conditions. Make sure that you are benchmarking the right code by checking performance profiles.
-* Always measure one level deeper, collect as many metrics as possible to support your conclusions, and be ready to explain the underlying technical reasons for the performance results you observe.
+* 现代系统的性能具有不确定性。消除系统中的不确定性有助于获得定义明确、稳定的性能测试结果，例如微基准测试（Microbenchmark）。
+* 在生产环境中测量性能是评估用户对服务响应速度感知的必要手段。然而，这需要应对嘈杂的环境，并使用统计方法来分析结果。
+* 部署自动化的性能追踪系统可以有效防止性能回归泄漏到生产软件中。这类 CI 系统应能运行自动化性能测试、可视化结果，并在发现性能异常时发出告警。
+* 可视化性能分布有助于比较性能结果。这是向广大受众展示性能结果的安全方式。
+* 为了测量执行时间，工程师可以使用两种不同的计时器：系统级高精度计时器和时间戳计时器（Time Stamp Counter）。前者适合测量持续时间超过一微秒的事件，后者可以高精度地测量短时间事件。
+* 微基准测试适合快速实验，但你始终应该在实际应用和真实条件下验证你的想法。通过检查性能分析结果，确保你测量的是正确的代码。
+* 始终深入一层测量，收集尽可能多的指标来支撑你的结论，并准备好为你观察到的性能结果解释底层技术原因。
 
 \sectionbreak
-
-
-

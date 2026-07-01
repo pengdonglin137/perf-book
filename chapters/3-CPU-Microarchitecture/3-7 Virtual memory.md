@@ -1,41 +1,41 @@
-## Virtual Memory {#sec:VirtMem}
+## 虚拟内存 {#sec:VirtMem}
 
-Virtual memory is the mechanism to share the physical memory attached to a CPU with all the processes executing on it. Virtual memory provides a protection mechanism that prevents access to the memory allocated to a given process from other processes. Virtual memory also provides relocation, which is the ability to load a program anywhere in physical memory without changing the addresses in the program. 
+虚拟内存（Virtual Memory）是一种将 CPU 附带的物理内存共享给其上运行的所有进程的机制。虚拟内存提供了保护机制，防止一个进程访问分配给其他进程的内存。虚拟内存还提供了重定位能力，即可以将程序加载到物理内存的任意位置，而无需修改程序中的地址。
 
-In a CPU that supports virtual memory, programs use virtual addresses for their accesses. But while user code operates on virtual addresses, retrieving data from memory requires physical addresses. Also, to effectively manage the scarce physical memory, it is divided into *pages*. Thus, applications operate on a set of pages that an operating system has provided.
+在支持虚拟内存的 CPU 中，程序使用虚拟地址进行访问。但用户代码操作的是虚拟地址，而从内存中检索数据需要物理地址。此外，为了有效管理有限的物理内存，内存被划分为*页面*。因此，应用程序操作的是操作系统提供的一组页面。
 
-![Virtual-to-physical address translation for 4KB pages.](../../img/uarch/VirtualMem.png){#fig:VirtualMem width=75%}
+![4KB 页面的虚拟地址到物理地址转换。](../../img/uarch/VirtualMem.png){#fig:VirtualMem width=75%}
 
-Virtual-to-physical address translation is required for accessing data as well as code (instructions). The translation mechanism for a system with a page size of 4KB is shown in Figure @fig:VirtualMem. The virtual address is split into two parts. The virtual page number (52 most significant bits) is used to index into the page table to produce a mapping between the virtual page number and the corresponding physical page. The 12 least significant bits are used to offset within a 4KB page. These bits do not require translation and are used "as-is" to access the physical memory location.
+访问数据和代码（指令）都需要进行虚拟地址到物理地址的转换。图 @fig:VirtualMem 展示了页面大小为 4KB 的系统的地址转换机制。虚拟地址被分为两部分。虚拟页号（最高的 52 位）用于索引页表，生成虚拟页号与对应物理页之间的映射。最低的 12 位用于 4KB 页面内的偏移。这些位不需要转换，直接"按原样"用于访问物理内存位置。
 
-![Example of a 2-level page table.](../../img/uarch/L2PageTables.png){#fig:L2PageTables width=90%}
+![两级页表示例。](../../img/uarch/L2PageTables.png){#fig:L2PageTables width=90%}
 
-The page table can be either single-level or nested. Figure @fig:L2PageTables shows one example of a 2-level page table. Notice how the address gets split into more pieces. The first thing to mention is that the 16 most significant bits are not used. This can seem like a waste of bits, but even with the remaining 48 bits we can address 256 TB of total memory (2^48^). Some applications use those unused bits to keep metadata, also known as *pointer tagging*.
+页表可以是单级的，也可以是多级嵌套的。图 @fig:L2PageTables 展示了一个两级页表的示例。注意地址被拆分成了更多部分。首先，最高的 16 位未被使用。这看起来像是浪费了比特位，但即使只用剩余的 48 位，我们也能寻址 256 TB 的总内存（2^48^）。有些应用会利用这些未使用的位来存储元数据，这种技术称为*指针标记*（Pointer Tagging）。
 
-A nested page table is a radix tree that keeps physical page addresses along with some metadata. To find a translation within a 2-level page table, we first use bits 32..47 as an index into the Level-1 page table also known as the *page table directory*. Every descriptor in the directory points to one of the 2^16^ blocks of Level-2 tables. Once we find the appropriate L2 block, we use bits 12..31 to find the physical page address. Concatenating it with the page offset (bits 0..11) gives us the physical address, which can be used to retrieve the data from the DRAM.
+多级页表是一个基数树（Radix Tree），其中存储了物理页地址以及一些元数据。要在两级页表中查找地址转换，我们首先使用第 32..47 位作为索引访问一级页表，也称为*页表目录*（Page Table Directory）。目录中的每个描述符指向一个二级表块（共 2^16^ 个）。找到对应的二级表块后，再使用第 12..31 位找到物理页地址。将其与页面偏移（第 0..11 位）拼接，就得到了物理地址，可用于从 DRAM 中检索数据。
 
-The exact format of the page table is dictated by the CPU for reasons we will discuss a few paragraphs later. Thus the variations of page table organization are limited by what a CPU supports. Modern CPUs support both 4-level page tables with 48-bit pointers (256 TB of total memory) and 5-level page tables with 57-bit pointers (128 PB of total memory).
+页表的具体格式由 CPU 决定，原因我们稍后会讨论。因此页表组织方式的变化受限于 CPU 的支持范围。现代 CPU 同时支持 48 位指针的四级页表（256 TB 总内存）和 57 位指针的五级页表（128 PB 总内存）。
 
-Breaking the page table into multiple levels doesn't change the total addressable memory. However, a nested approach does not require storing the entire page table as a contiguous array and does not allocate blocks that have no descriptors. This saves memory space but adds overhead when traversing the page table.
+将页表拆分为多级并不会改变总的可寻址内存范围。但嵌套方式不需要将整个页表存储为连续数组，也不会分配没有描述符的块。这节省了内存空间，但在遍历页表时增加了开销。
 
-Failure to provide a physical address mapping is called a *page fault*. It occurs if a requested page is invalid or is not currently in the main memory. The two most common reasons are: 1) the operating system committed to allocating a page but hasn't yet backed it with a physical page, and 2) an accessed page was swapped out to disk and is not currently stored in RAM.
+未能提供物理地址映射的情况称为*缺页*（Page Fault）。当请求的页面无效或当前不在主内存中时，就会发生缺页。最常见的两个原因是：1）操作系统承诺分配一个页面，但尚未用物理页面支撑它；2）被访问的页面已被换出到磁盘，当前不在 RAM 中。
 
-### Translation Lookaside Buffer (TLB) {#sec:TLBs}
+### 转换后备缓冲区（TLB） {#sec:TLBs}
 
-A search in a hierarchical page table could be expensive, requiring traversing through the hierarchy potentially making several indirect accesses. Such a traversal is called a *page walk*. To reduce the address translation time, CPUs support a hardware structure called a translation lookaside buffer (TLB) to cache the most recently used translations. Similar to regular caches, TLBs are often designed as a hierarchy of L1 ITLB (Instructions), and L1 DTLB (Data), followed by a shared (instructions and data) L2 STLB.
+在多级页表中进行搜索可能开销很大，需要遍历层级结构并可能产生多次间接访问。这种遍历称为*页表遍历*（Page Walk）。为了缩短地址转换时间，CPU 提供了一种称为转换后备缓冲区（Translation Lookaside Buffer，TLB）的硬件结构，用于缓存最近使用的地址转换。与常规缓存类似，TLB 通常被设计为层次结构：L1 ITLB（指令）和 L1 DTLB（数据），后接共享的（指令和数据）L2 STLB。
 
-To lower memory access latency, the L1 cache lookup can be partially overlapped with the DTLB lookup thanks to a constraint on the cache associativity and size that allows the L1 set selection without the physical address.[^1] However, higher level caches (L2 and L3) - which are also typically Physically Indexed and Physically Tagged (PIPT) but cannot benefit from this optimization - therefore require the address translation before the cache lookup.
+为了降低内存访问延迟，L1 缓存查找可以与 DTLB 查找部分重叠——这得益于缓存相联度和大小上的一个约束，使得 L1 组选择可以在不需要物理地址的情况下完成。[^1] 然而，更高层级的缓存（L2 和 L3）——它们通常也是物理索引、物理标记（PIPT）的——无法利用这种优化，因此需要在缓存查找之前完成地址转换。
 
-The TLB hierarchy keeps translations for a relatively large memory space. Still, misses in the TLB can be very costly. To speed up the handling of TLB misses, CPUs have a mechanism called a *hardware page walker*. Such a unit can perform a page walk directly in hardware by issuing the required instructions to traverse the page table, all without interrupting the kernel. This is the reason why the format of the page table is dictated by the CPU, to which operating systems must comply. High-end processors have several hardware page walkers that can handle multiple TLB misses simultaneously. However, even with all the acceleration offered by modern CPUs, TLB misses still cause performance bottlenecks for many applications.
+TLB 层次结构缓存了相对较大内存空间的地址转换。但 TLB 未命中的代价仍然很高。为了加速 TLB 未命中的处理，CPU 提供了一种称为*硬件页表遍历器*（Hardware Page Walker）的机制。该单元可以直接在硬件中执行页表遍历，通过发出必要的指令来遍历页表，而无需中断内核。这就是页表格式由 CPU 决定的原因——操作系统必须遵循这一格式。高端处理器有多个硬件页表遍历器，可以同时处理多个 TLB 未命中。然而，即使有了现代 CPU 提供的所有加速手段，TLB 未命中仍然是许多应用的性能瓶颈。
 
-### Huge Pages {#sec:ArchHugePages}
+### 大页 {#sec:ArchHugePages}
 
-Having a small page size makes it possible to manage the available memory more efficiently and reduce fragmentation. The drawback though is that it requires having more page table entries to cover the same memory region. Consider two page sizes: 4KB, which is a default on x86, and a 2MB *huge page* size. For an application that operates on 10MB of data, we need 2560 entries in the first case, but just 5 entries if we would map the address space onto huge pages. Those are named *Huge Pages* on Linux, *Super Pages* on FreeBSD, and *Large Pages* on Windows, but they all mean the same thing. Throughout the rest of this book, we will refer to them as Huge Pages.
+较小的页面大小可以更高效地管理可用内存并减少碎片。但缺点是需要更多的页表条目来覆盖相同的内存区域。考虑两种页面大小：x86 上默认的 4KB 和 2MB 的*大页*（Huge Page）。对于操作 10MB 数据的应用，第一种情况需要 2560 个条目，而如果将地址空间映射到大页上，只需要 5 个条目。Linux 上称它们为 *Huge Pages*，FreeBSD 上称为 *Super Pages*，Windows 上称为 *Large Pages*，但含义相同。在本书后续内容中，我们统一称为大页。
 
-An example of an address that points to data within a huge page is shown in Figure @fig:HugePageVirtualAddress. Just like with a default page size, the exact address format when using huge pages is dictated by the hardware, but luckily we as programmers usually don't have to worry about it.
+图 @fig:HugePageVirtualAddress 展示了一个指向大页内数据的地址示例。与默认页面大小一样，使用大页时的具体地址格式由硬件决定，但幸运的是，作为程序员我们通常无需关心这一点。
 
-![Virtual address that points within a 2MB page.](../../img/uarch/HugePageVirtualAddress.png){#fig:HugePageVirtualAddress width=90%}
+![指向 2MB 页面内数据的虚拟地址。](../../img/uarch/HugePageVirtualAddress.png){#fig:HugePageVirtualAddress width=90%}
 
-Using huge pages drastically reduces the pressure on the TLB hierarchy since fewer TLB entries are required. It greatly increases the chance of a TLB hit. We will discuss how to use huge pages to reduce the frequency of TLB misses in [@sec:secDTLB] and [@sec:FeTLB]. The downsides of using huge pages are memory fragmentation and, in some cases, nondeterministic page allocation latency because it is harder for the operating system to manage large blocks of memory and to ensure effective utilization of available memory. To satisfy a 2MB huge page allocation request at runtime, an OS needs to find a contiguous chunk of 2MB. If this cannot be found, the OS needs to reorganize the pages, resulting in a longer allocation latency.
+使用大页大幅减轻了 TLB 层次结构的压力，因为所需的 TLB 条目更少，TLB 命中的概率大大提高。我们将在 [@sec:secDTLB] 和 [@sec:FeTLB] 中讨论如何使用大页来减少 TLB 未命中的频率。使用大页的缺点是内存碎片化，以及在某些情况下页面分配延迟的不确定性——因为操作系统更难管理大块内存并确保有效利用可用内存。为了在运行时满足 2MB 大页的分配请求，操作系统需要找到一块连续的 2MB 内存区域。如果找不到，操作系统就需要重新组织页面，导致分配延迟增加。
 
-[^1]: Minimum associativity for a PIPT L1 cache to also be VIPT, accessing a set without translating the index to physical - [https://stackoverflow.com/a/59288185](https://stackoverflow.com/a/59288185).
+[^1]: PIPT L1 缓存要同时满足 VIPT 特性所需的最低相联度——无需将索引转换为物理地址即可访问组——参见 [https://stackoverflow.com/a/59288185](https://stackoverflow.com/a/59288185)。

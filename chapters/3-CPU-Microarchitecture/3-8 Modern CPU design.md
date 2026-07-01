@@ -1,133 +1,133 @@
-## Modern CPU Design
+## 现代 CPU 设计
 
-To see how all the concepts we talked about in this chapter are used in practice, let's take a look at the implementation of Intel’s 12th-generation core, Golden Cove, which became available in 2021. This core is used as the P-core inside the Alder Lake and Sapphire Rapids platforms. Figure @fig:Goldencove_diag shows the block diagram of the Golden Cove core. Notice that this section only describes a single core, not the entire processor. So, we will skip the discussion about frequencies, core counts, L3 caches, core interconnects, memory latency, and bandwidth.
+为了了解本章讨论的所有概念在实践中如何应用，让我们来看看 Intel 第 12 代核心 Golden Cove 的实现，它于 2021 年发布。该核心被用作 Alder Lake 和 Sapphire Rapids 平台中的 P-core（性能核心）。图 @fig:Goldencove_diag 展示了 Golden Cove 核心的框图。注意，本节只描述单个核心，而非整个处理器。因此，我们将跳过关于频率、核心数量、L3 缓存、核心互联、内存延迟和带宽的讨论。
 
-![Block diagram of a CPU core in the Intel Golden Cove Microarchitecture.](../../img/uarch/goldencove_block_diagram.png){#fig:Goldencove_diag width=100%}
+![Intel Golden Cove 微架构的 CPU 核心框图。](../../img/uarch/goldencove_block_diagram.png){#fig:Goldencove_diag width=100%}
 
-The core is split into an in-order frontend that fetches and decodes x86 instructions into $\mu$ops[^9] and a 6-wide superscalar, out-of-order backend. The Golden Cove core supports 2-way SMT. It has a 32KB first-level instruction cache (L1 I-cache), and a 48KB first-level data cache (L1 D-cache). The L1 caches are backed up by a unified 1.25MB (2MB in server chips) L2 cache. The L1 and L2 caches are private to each core. At the end of this section, we also take a look at the TLB hierarchy.
+核心分为负责取指和将 x86 指令解码为 $\mu$op[^9] 的有序前端，以及 6 宽度的乱序后端。Golden Cove 核心支持 2 路 SMT。它拥有 32KB 的一级指令缓存（L1 I-cache）和 48KB 的一级数据缓存（L1 D-cache）。L1 缓存由统一的 1.25MB（服务器芯片为 2MB）L2 缓存支撑。L1 和 L2 缓存是每个核心私有的。在本节末尾，我们还会介绍 TLB 层次结构。
 
-### CPU Frontend {#sec:uarchFE}
+### CPU 前端 {#sec:uarchFE}
 
-The CPU Frontend consists of several functional units that fetch and decode instructions from memory. Its main purpose is to feed prepared instructions to the CPU Backend, which is responsible for the actual execution of instructions.
+CPU 前端由若干功能单元组成，负责从内存中取指和解码指令。其主要目的是将准备好的指令输送给 CPU 后端，后者负责指令的实际执行。
 
-Technically, instruction fetch is the first stage to execute an instruction. But once a program reaches a steady state, the branch predictor unit (BPU) steers the work of the CPU Frontend. That is indicated by the arrow that goes from the BPU to the instruction cache. The BPU predicts the target of all branch instructions and steers the next instruction fetch based on this prediction.
+从技术上讲，取指是执行指令的第一阶段。但当程序进入稳态后，分支预测单元（BPU）主导着 CPU 前端的工作。这一点在图中由从 BPU 指向指令缓存的箭头表示。BPU 预测所有分支指令的目标，并基于预测结果引导下一次取指。
 
-The heart of the BPU is a branch target buffer (BTB) with 12K entries containing information about branches and their targets. This information is used by the prediction algorithms. Every cycle, the BPU generates the next fetch address and passes it to the CPU Frontend.
+BPU 的核心是一个包含 12K 条目的分支目标缓冲区（BTB），其中存储了分支及其目标的信息。预测算法利用这些信息工作。每个时钟周期，BPU 生成下一个取指地址并传递给 CPU 前端。
 
-The CPU Frontend fetches 32 bytes per cycle of x86 instructions from the L1 I-cache. This is shared among the two threads (if SMT is enabled), so each thread gets 32 bytes every other cycle. These are complex, variable-length x86 instructions. First, the pre-decode stage determines and marks the boundaries of the variable instructions by inspecting the chunk. In x86, the instruction length can range from 1 to 15 bytes. This stage also identifies branch instructions. The pre-decode stage moves up to 6 instructions (also referred to as *macroinstructions*) to the Instruction Queue that is split between the two threads. The instruction queue also supports a macro-op fusion unit that detects when two macroinstructions can be fused into a single micro-operation ($\mu$op). This optimization saves bandwidth in the rest of the pipeline.
+CPU 前端每个周期从 L1 I-cache 取指 32 字节的 x86 指令。如果启用了 SMT，这 32 字节由两个线程共享，因此每个线程每隔一个周期获得 32 字节。这些是复杂的变长 x86 指令。首先，预解码阶段通过检查指令块来确定并标记变长指令的边界。在 x86 中，指令长度可从 1 到 15 字节不等。此阶段还会识别分支指令。预解码阶段将最多 6 条指令（也称为*宏指令*）移入指令队列，指令队列在两个线程之间分配。指令队列还支持宏操作融合单元，用于检测两条宏指令是否可以融合为一条微操作（$\mu$op）。这种优化节省了流水线后续阶段的带宽。
 
-Later, up to six pre-decoded instructions are sent from the Instruction Queue to the decoder unit every cycle. The two SMT threads alternate every cycle to access this interface. The 6-way decoder converts the complex macro-Ops into fixed-length $\mu$ops. Decoded $\mu$ops are queued into the Instruction Decode Queue (IDQ), labeled as "$\mu$op Queue" on the diagram.
+随后，每个周期最多 6 条预解码指令从指令队列发送到解码单元。两个 SMT 线程交替访问该接口。6 路解码器将复杂的宏操作转换为固定长度的 $\mu$op。解码后的 $\mu$op 被排入指令解码队列（IDQ），在图中标记为"$\mu$op Queue"。
 
-A major performance-boosting feature of the Frontend is the $\mu$op Cache. Also, you could often see people call it Decoded Stream Buffer (DSB). The motivation is to cache the macro-ops to $\mu$ops conversion in a separate structure that works in parallel with the L1 I-cache. When the BPU generates a new address to fetch, the $\mu$op Cache is also checked to see if the $\mu$ops translations are already available. Frequently occurring macro-ops will hit in the $\mu$op Cache, and the pipeline will avoid repeating the expensive pre-decode and decode operations for the 32-byte bundle. The $\mu$op Cache can provide eight $\mu$ops per cycle and can hold up to 4K entries.
+前端的一个重要性能提升特性是 $\mu$op 缓存（$\mu$op Cache），你也可能经常看到人们称其为解码流缓冲区（Decoded Stream Buffer，DSB）。其动机是将宏操作到 $\mu$op 的转换缓存在一个独立的结构中，与 L1 I-cache 并行工作。当 BPU 生成新的取指地址时，$\mu$op 缓存也会被检查，看 $\mu$op 转换结果是否已经可用。频繁出现的宏操作会在 $\mu$op 缓存中命中，流水线将避免对 32 字节的指令块重复执行开销高昂的预解码和解码操作。$\mu$op 缓存每个周期可提供 8 个 $\mu$op，最多可容纳 4K 个条目。
 
-Some very complicated instructions may require more $\mu$ops than decoders can handle. $\mu$ops for such instruction are served from the Microcode Sequencer (MSROM). Examples of such instructions include hardware operation support for string manipulation, encryption, synchronization, and others. Also, MSROM keeps the microcode operations to handle exceptional situations like branch misprediction (which requires a pipeline flush), floating-point assist (e.g., when an instruction operates with a denormalized floating-point value), and others. MSROM can push up to 4 $\mu$ops per cycle into the IDQ.
+一些非常复杂的指令可能需要的 $\mu$op 数量超过解码器的处理能力。这类指令的 $\mu$op 由微码序列器（Microcode Sequencer，MSROM）提供。这类指令的例子包括字符串操作、加密、同步等的硬件操作支持。此外，MSROM 还保存着用于处理异常情况的微码操作，例如分支误预测（需要流水线刷新）、浮点辅助（例如，当指令操作非规格化浮点值时）等。MSROM 每周期可向 IDQ 推送最多 4 个 $\mu$op。
 
-The Instruction Decode Queue (IDQ) provides the interface between the in-order frontend and the out-of-order backend. The IDQ queues up the $\mu$ops in order and can hold 144 $\mu$ops per logical processor in single thread mode, or 72 $\mu$ops per thread when SMT is active. This is where the in-order CPU Frontend finishes and the out-of-order CPU Backend starts.
+指令解码队列（IDQ）提供了有序前端与乱序后端之间的接口。IDQ 按序排列 $\mu$op，在单线程模式下每个逻辑处理器可容纳 144 个 $\mu$op，SMT 激活时每个线程 72 个 $\mu$op。有序 CPU 前端到此结束，乱序 CPU 后端从这里开始。
 
-### CPU Backend {#sec:uarchBE}
+### CPU 后端 {#sec:uarchBE}
 
-The CPU Backend employs an OOO engine that executes instructions and stores results. I repeated a part of the diagram that depicts the Golden Cove OOO engine in Figure @fig:Goldencove_OOO.
+CPU 后端采用乱序执行引擎来执行指令并存储结果。我在图 @fig:Goldencove_OOO 中复制了描绘 Golden Cove 乱序引擎的部分框图。
 
-The heart of the OOO engine is the 512-entry ReOrder Buffer (ROB). It serves a few purposes. First, it provides register renaming.[^5] There are only 16 general-purpose integer and 32 floating-point/SIMD architectural registers, however, the number of physical registers is much higher.[^1] Physical registers are located in a structure called the Physical Register File (PRF). There are separate PRFs for integer and floating-point/SIMD registers. The mappings from architecture-visible registers to the physical registers are kept in the register alias table (RAT).
+乱序引擎的核心是 512 条目的重排序缓冲区（ReOrder Buffer，ROB）。它有以下几个用途。首先，它提供寄存器重命名（Register Renaming）[^5]。虽然只有 16 个通用整数寄存器和 32 个浮点/SIMD 架构寄存器，但物理寄存器的数量要多得多。[^1] 物理寄存器位于一个称为物理寄存器文件（Physical Register File，PRF）的结构中。整数和浮点/SIMD 寄存器各有独立的 PRF。架构可见寄存器到物理寄存器的映射保存在寄存器别名表（Register Alias Table，RAT）中。
 
-![Block diagram of the CPU Backend of the Intel Golden Cove Microarchitecture.](../../img/uarch/goldencove_OOO.png){#fig:Goldencove_OOO width=100%}
+![Intel Golden Cove 微架构的 CPU 后端框图。](../../img/uarch/goldencove_OOO.png){#fig:Goldencove_OOO width=100%}
 
-Second, the ROB allocates execution resources. When an instruction enters the ROB, a new entry is allocated and resources are assigned to it, mainly an execution unit and the destination physical register. The ROB can allocate up to 6 $\mu$ops per cycle.
+其次，ROB 分配执行资源。当一条指令进入 ROB 时，会分配一个新条目并为其分配资源，主要包括一个执行单元和目标物理寄存器。ROB 每周期最多可分配 6 个 $\mu$op。
 
-Third, the ROB tracks speculative execution. When an instruction has finished its execution, its status gets updated and it stays there until the previous instructions finish. It's done that way because instructions must retire in program order. Once an instruction retires, its ROB entry is deallocated and the results of the instruction become visible. The retiring stage is wider than the allocation: the ROB can retire 8 instructions per cycle.
+第三，ROB 追踪推测执行。当一条指令完成执行后，其状态会被更新，并保留在那里直到之前的指令全部完成。这样做是因为指令必须按程序顺序退休（Retire）。一旦指令退休，其 ROB 条目被释放，指令的结果变得可见。退休阶段比分配阶段更宽：ROB 每周期可退休 8 条指令。
 
-There are certain operations that processors handle in a specific manner, often called idioms, which require no or less costly execution. Processors recognize such cases and allow them to run faster than regular instructions. Here are some of such cases:
+某些操作处理器会以特殊方式处理，通常称为惯用法（Idiom），它们不需要执行或执行开销更低。处理器会识别这些情况并允许它们比常规指令更快完成。以下是一些例子：
 
-* **Zeroing**: to assign zero to a register, compilers often use `XOR / PXOR / XORPS / XORPD` instructions, e.g., `XOR EAX, EAX`, which are preferred by compilers instead of the equivalent `MOV EAX, 0x0` instruction as the XOR encoding uses fewer encoding bytes. Such zeroing idioms are not executed as any other regular instruction and are resolved in the CPU frontend, which saves execution resources. The instruction later retires as usual.
-* **Move elimination**: similar to the previous one, register-to-register `mov` operations, e.g., `MOV EAX, EBX`, are executed with zero cycle delay.
-* **NOP instruction**: `NOP` is often used for padding or alignment purposes. It simply gets marked as completed without allocating it to the reservation station.
-* **Other bypasses**: CPU architects also optimized certain arithmetic operations. For example, multiplying any number by one will always yield the same number. The same goes for dividing any number by one. Multiplying any number by zero always yields zero, etc. Some CPUs can recognize such cases at runtime and execute them with shorter latency than regular multiplication or divide.
+* **置零操作**：为了将寄存器置零，编译器通常使用 `XOR / PXOR / XORPS / XORPD` 指令，例如 `XOR EAX, EAX`，编译器更倾向于使用它而不是等效的 `MOV EAX, 0x0`，因为 XOR 编码使用更少的字节数。这种置零惯用法不会像其他常规指令那样被执行，而是在 CPU 前端中解析完成，从而节省了执行资源。指令随后照常退休。
+* **移动消除**（Move Elimination）：与前一种类似，寄存器到寄存器的 `mov` 操作，例如 `MOV EAX, EBX`，以零周期延迟执行。
+* **NOP 指令**：`NOP` 通常用于填充或对齐目的。它直接被标记为完成，无需分配到保留站。
+* **其他旁路优化**：CPU 架构师还优化了某些算术操作。例如，任何数乘以 1 总是得到该数本身。任何数除以 1 也是如此。任何数乘以 0 总是得到 0，等等。某些 CPU 可以在运行时识别这些情况，并以比常规乘法或除法更短的延迟执行它们。
 
-The "Scheduler / Reservation Station" (RS) is the structure that tracks the availability of all resources for a given $\mu$op and dispatches the $\mu$op to an *execution port* once it is ready. An execution port is a pathway that connects the scheduler to its execution units. Each execution port may be connected to multiple execution units. When an instruction enters the RS, the scheduler starts tracking its data dependencies. Once all the source operands become available, the RS attempts to dispatch the $\mu$op to a free execution port. The RS has fewer entries[^4] than the ROB. It can dispatch up to 6 $\mu$ops per cycle.
+"调度器/保留站"（Scheduler / Reservation Station，RS）是追踪给定 $\mu$op 所有资源可用性并在其就绪时将 $\mu$op 分派到*执行端口*的结构。执行端口是连接调度器与执行单元的通路。每个执行端口可连接多个执行单元。当一条指令进入 RS 时，调度器开始追踪其数据依赖关系。一旦所有源操作数可用，RS 就尝试将 $\mu$op 分派到空闲的执行端口。RS 的条目数比 ROB 少。[^4] 它每周期最多可分派 6 个 $\mu$op。
 
-I repeated a part of the diagram that depicts the Golden Cove execution engine and Load-Store unit in Figure @fig:Goldencove_BE_LSU. There are 12 execution ports:
+我在图 @fig:Goldencove_BE_LSU 中复制了描绘 Golden Cove 执行引擎和加载-存储单元的部分框图。共有 12 个执行端口：
 
-* Ports 0, 1, 5, 6, and 10 provide integer (INT) operations, and some of them handle floating-point and vector (FP/VEC) operations.
-* Ports 2, 3, and 11 are used for address generation (AGU) and for load operations. 
-* Ports 4 and 9 are used for store operations (STD).
-* Ports 7 and 8 are used for address generation.
+* 端口 0、1、5、6 和 10 提供整数（INT）操作，其中部分端口还处理浮点和向量（FP/VEC）操作。
+* 端口 2、3 和 11 用于地址生成（AGU）和加载操作。
+* 端口 4 和 9 用于存储操作（STD）。
+* 端口 7 和 8 用于地址生成。
 
-![Block diagram of the execution engine and the Load-Store unit in the Intel Golden Cove Microarchitecture.](../../img/uarch/goldencove_BE_LSU.png){#fig:Goldencove_BE_LSU width=100%}
+![Intel Golden Cove 微架构的执行引擎和加载-存储单元框图。](../../img/uarch/goldencove_BE_LSU.png){#fig:Goldencove_BE_LSU width=100%}
 
-Instructions that require memory operations are handled by the Load-Store unit (ports 2, 3, 11, 4, 9, 7, and 8) which we will discuss in the next section. If an operation does not involve loading or storing data, then it will be dispatched to the execution engine (ports 0, 1, 5, 6, and 10). Some instructions may require two $\mu$ops that must be executed on different execution ports, e.g., load and add.
+需要内存操作的指令由加载-存储单元（端口 2、3、11、4、9、7 和 8）处理，我们将在下一节讨论。如果操作不涉及加载或存储数据，则会被分派到执行引擎（端口 0、1、5、6 和 10）。某些指令可能需要两个 $\mu$op，且必须在不同的执行端口上执行，例如加载加法。
 
-For example, an `Integer Shift` operation can go only to either port 0 or 6, while a `Floating-Point Divide` operation can only be dispatched to port 0. In a situation when a scheduler has to dispatch two operations that require the same execution port, one of them will have to be delayed.
+例如，`Integer Shift` 操作只能分派到端口 0 或 6，而 `Floating-Point Divide` 操作只能分派到端口 0。当调度器需要分派两个要求同一执行端口的操作时，其中一个将不得不延迟。
 
-The FP/VEC stack does floating-point scalar and *all* packed (SIMD) operations. For instance, ports 0, 1, and 5 can handle ALU operations of the following types: packed integer, packed floating-point, and scalar floating-point. Integer and Vector/FP register files are located separately. Operations that move values from the INT stack to FP/VEC and vice-versa (e.g., convert, extract, or insert) incur additional penalties.
+浮点/向量（FP/VEC）栈执行浮点标量和*所有*打包（SIMD）操作。例如，端口 0、1 和 5 可以处理以下类型的 ALU 操作：打包整数、打包浮点和标量浮点。整数和向量/浮点寄存器文件是分开存放的。在 INT 栈和 FP/VEC 栈之间移动值的操作（例如转换、提取或插入）会产生额外的开销。
 
-### Load-Store Unit {#sec:uarchLSU}
+### 加载-存储单元 {#sec:uarchLSU}
 
-The Load-Store Unit (LSU) is responsible for operations with memory. The Golden Cove core can issue up to three loads (three 256-bit or two 512-bit) by using ports 2, 3, and 11. AGU stands for Address Generation Unit, which is required to access a memory location. It can also issue up to two stores (two 256-bit or one 512-bit) per cycle via ports 4, 9, 7, and 8. STD stands for Store Data.
+加载-存储单元（Load-Store Unit，LSU）负责内存操作。Golden Cove 核心通过端口 2、3 和 11 最多可发出三个加载操作（三个 256 位或两个 512 位）。AGU 是地址生成单元（Address Generation Unit），用于访问内存位置所需。它还可以通过端口 4、9、7 和 8 每周期最多发出两个存储操作（两个 256 位或一个 512 位）。STD 是存储数据（Store Data）。
 
-Notice that the AGU is required for both load and store operations to perform dynamic address calculation. For example, in the instruction `vmovss DWORD PTR [rsi+0x4],xmm0`, the AGU will be responsible for calculating `rsi+0x4`, which will be used to store data from xmm0.
+注意，加载和存储操作都需要 AGU 来执行动态地址计算。例如，在指令 `vmovss DWORD PTR [rsi+0x4],xmm0` 中，AGU 负责计算 `rsi+0x4`，该地址将用于存储 xmm0 中的数据。
 
-Once a load or a store leaves the scheduler, the LSU is responsible for accessing the data. Load operations save the fetched value in a register. Store operations transfer value from a register to a location in memory. LSU has a Load Buffer (also known as Load Queue) and a Store Buffer (also known as Store Queue); their sizes are not disclosed.[^2] Both Load Buffer and Store Buffer receive operations at dispatch from the scheduler.
+一旦加载或存储操作离开调度器，LSU 就负责访问数据。加载操作将取到的值保存到寄存器中。存储操作将寄存器中的值传输到内存位置。LSU 有一个加载缓冲区（Load Buffer，也称加载队列）和一个存储缓冲区（Store Buffer，也称存储队列）；它们的大小未公开。[^2] 加载缓冲区和存储缓冲区在调度器分派时接收操作。
 
-When a memory load request comes, the LSU queries the L1 cache using a virtual address and looks up the physical address translation in the TLB. Those two operations are initiated simultaneously. The size of the L1 D-cache is 48KB. If both operations result in a hit, the load delivers data to the integer or floating-point register and leaves the Load Buffer. Similarly, a store would write the data to the data cache and exit the Store Buffer.
+当内存加载请求到来时，LSU 使用虚拟地址查询 L1 缓存，同时在 TLB 中查找物理地址转换。这两个操作同时发起。L1 D-cache 的大小为 48KB。如果两个操作都命中，加载操作将数据传送到整数或浮点寄存器，并离开加载缓冲区。类似地，存储操作会将数据写入数据缓存并退出存储缓冲区。
 
-In case of an L1 miss, the hardware initiates a query of the (private) L2 cache tags. While the L2 cache is being queried, a 64-byte wide fill buffer (FB) entry is allocated, which will keep the cache line once it arrives. The Golden Cove core has 16 fill buffers. As a way to lower the latency, a speculative query is sent to the L3 cache in parallel with the L2 cache lookup. Also, if two loads access the same cache line, they will hit the same FB. Such two loads will be "glued" together and only one memory request will be initiated.
+如果 L1 未命中，硬件会发起对（私有）L2 缓存标签的查询。在查询 L2 缓存的同时，会分配一个 64 字节宽的填充缓冲区（Fill Buffer，FB）条目，用于在缓存行到达时保存它。Golden Cove 核心有 16 个填充缓冲区。为了降低延迟，还会在 L2 缓存查找的同时向 L3 缓存发送推测性查询。此外，如果两个加载访问同一个缓存行，它们会命中同一个 FB。这两个加载会被"粘合"在一起，只发起一次内存请求。
 
-In case the L2 miss is confirmed, the load continues to wait for the results of the L3 cache, which incurs much higher latency. From that point, the request leaves the core and enters the *uncore*, the term you may sometimes see in profiling tools. The outstanding misses from the core are tracked in the Super Queue (SQ, not shown on the diagram), which can track up to 48 uncore requests. In a scenario of L3 miss, the processor begins to set up a memory access. Further details are beyond the scope of this chapter.
+如果确认 L2 未命中，加载操作继续等待 L3 缓存的结果，这会带来更高的延迟。从这一刻起，请求离开核心，进入*非核心*（Uncore）——你有时可能在性能分析工具中看到这个术语。核心的未完成未命中由超级队列（Super Queue，SQ，图中未显示）追踪，它可以追踪最多 48 个非核心请求。在 L3 未命中的场景下，处理器开始准备内存访问。进一步的细节超出了本章的范围。
 
-When a store modifies a memory location, the processor needs to load the full cache line, change it, and then write it back to memory. If the address to write is not in the cache, it goes through a very similar mechanism as with loads to bring that data in. The store cannot be complete until the data is written to the cache hierarchy.
+当存储操作修改一个内存位置时，处理器需要先加载整条缓存行，修改它，然后写回内存。如果要写的地址不在缓存中，它会经历与加载非常类似的机制来将数据取入。存储操作在数据写入缓存层次结构之前无法完成。
 
-Of course, there are a few optimizations done for store operations as well. First, if we're dealing with a store or multiple adjacent stores (also known as *streaming stores*) that modify an entire cache line, there is no need to read the data first as all of the bytes will be clobbered anyway. So, the processor will try to combine writes to fill an entire cache line. If this succeeds no memory read operation is needed.
+当然，存储操作也有一些优化。首先，如果我们处理的是修改整条缓存行的存储或多个相邻存储（也称为*流式存储*），就不需要先读取数据，因为所有字节都会被覆盖。因此，处理器会尝试合并写操作以填满整条缓存行。如果成功，就不需要内存读取操作。
 
-Second, write combining enables multiple stores to be assembled and written further out in the cache hierarchy as a unit. So, if multiple stores modify the same cache line, only one memory write will be issued to the memory subsystem. All these optimizations are done inside the Store Buffer. A store instruction copies the data that will be written from a register into the Store Buffer. From there it may be written to the L1 cache or it may be combined with other stores to the same cache line. The Store Buffer capacity is limited, so it can hold requests for partial writing to a cache line only for some time. However, while the data sits in the Store Buffer waiting to be written, other load instructions can read the data straight from the store buffers (store-to-load forwarding). Also, the LSU supports store-to-load forwarding when there is an older store containing all of the load's bytes, and the store's data has been produced and is available in the store queue.
+其次，写合并（Write Combining）使得多个存储可以被组装在一起，作为一个单元写入更远的缓存层次结构。因此，如果多个存储修改同一条缓存行，只会向内存子系统发出一次内存写入。所有这些优化都在存储缓冲区内部完成。存储指令将要写入的数据从寄存器复制到存储缓冲区。从那里，数据可能被写入 L1 缓存，也可能与对同一缓存行的其他存储合并。存储缓冲区容量有限，因此它只能在一段时间内保存对缓存行的部分写入请求。然而，当数据在存储缓冲区中等待写入时，其他加载指令可以直接从存储缓冲区读取数据（存储到加载转发，Store-to-Load Forwarding）。此外，LSU 支持在存在较旧的存储包含加载所需全部字节且数据已产生并可用在存储队列中时进行存储到加载转发。
 
-Finally, there are cases when we can improve cache utilization by using so-called *non-temporal* memory accesses. If we execute a partial store (e.g., we overwrite 8 bytes in a cache line), we need to read the cache line first. This new cache line will displace another line in the cache. However, if we know that we won't need this data again, then it would be better not to allocate space in the cache for that line. Non-temporal memory accesses are special CPU instructions that do not keep the fetched line in the cache and drop it immediately after use.
+最后，在某些情况下，我们可以通过使用所谓的*非时间*（Non-temporal）内存访问来提高缓存利用率。如果我们执行部分存储（例如，覆盖缓存行中的 8 字节），就需要先读取整条缓存行。这条新缓存行会替换缓存中的另一条行。但如果我们知道不需要再次使用这些数据，那么最好不要在缓存中为该行分配空间。非时间内存访问是特殊的 CPU 指令，它们不会将取到的行保留在缓存中，使用后立即丢弃。
 
-During a typical program execution, there could be dozens of memory accesses in flight. In most high-performance processors, the order of load and store operations is not necessarily required to be the same as the program order, which is known as a _weakly ordered memory model_. For optimization purposes, the processor can reorder memory read and write operations. Consider a situation when a load runs into a cache miss and has to wait until the data comes from memory. The processor allows subsequent loads to proceed ahead of the load that is waiting for data. This allows later loads to finish before the earlier load and doesn't unnecessarily block the execution. Such load/store reordering enables memory units to process multiple memory accesses in parallel, which translates directly into higher performance.
+在典型的程序执行过程中，可能有数十个内存访问同时在进行中。在大多数高性能处理器中，加载和存储操作的顺序不一定与程序顺序相同，这称为*弱序内存模型*（Weakly Ordered Memory Model）。出于优化目的，处理器可以重新排序内存读写操作。考虑一种情况：当加载遇到缓存未命中，必须等待数据从内存返回时，处理器允许后续的加载在等待数据的加载之前继续执行。这使得后面的加载可以先于前面的加载完成，不会不必要地阻塞执行。这种加载/存储重排序使内存单元能够并行处理多个内存访问，直接转化为更高的性能。
 
-The LSU dynamically reorders operations, supporting both loads bypassing older loads and loads bypassing older non-conflicting stores. However, there are a few exceptions. Just like with dependencies through regular arithmetic instructions, there are memory dependencies through loads and stores. In other words, a load can depend on an earlier store and vice-versa. First of all, stores cannot be reordered with older loads:
+LSU 动态重排序操作，支持加载旁路较旧的加载，以及加载旁路较旧的非冲突存储。但有几个例外。与常规算术指令之间的依赖关系一样，加载和存储之间也存在内存依赖关系。换句话说，加载可能依赖于较早的存储，反之亦然。首先，存储不能与较旧的加载重排序：
 
 ```
 Load R1, MEM_LOC_X
 Store MEM_LOC_X, 0
 ```
 
-If we allow the store to go before the load, then the `R1` register may read the wrong value from the memory location `MEM_LOC_X`.
+如果我们允许存储在加载之前执行，那么 `R1` 寄存器可能会从内存位置 `MEM_LOC_X` 读取到错误的值。
 
-Another interesting situation happens when a load consumes data from an earlier store:
+另一种有趣的情况是加载消费了较早存储的数据：
 
 ```
 Store MEM_LOC, 0
 Load R1, MEM_LOC
 ```
 
-If a load consumes data from a store that hasn't yet finished, we should not allow the load to proceed. But what if we don't yet know the address of the store? In this case, the processor predicts whether there will be any potential data forwarding between the load and the store and if reordering is safe. This is known as _memory disambiguation_. When a load starts executing, it has to be checked against all older stores for potential store forwarding. There are four possible scenarios:
+如果加载消费了一个尚未完成的存储的数据，我们不应允许该加载继续执行。但如果我们还不知道存储的地址呢？在这种情况下，处理器预测加载和存储之间是否存在潜在的数据转发，以及重排序是否安全。这就是*内存消歧*（Memory Disambiguation）。当加载开始执行时，它必须与所有较旧的存储进行检查，看是否存在潜在的存储转发。有四种可能的场景：
 
-* Prediction: Not dependent; Outcome: Not dependent. This is a case of a successful memory disambiguation, which yields optimal performance.
-* Prediction: Dependent; Outcome: Not dependent. In this case, the processor was overly conservative and did not let the load go ahead of the store. This is a missed opportunity for performance optimization.
-* Prediction: Not dependent; Outcome: Dependent. This is a _memory order violation_. Similar to the case of a branch misprediction, the processor has to flush the pipeline, roll back the execution, and start over. It is very costly.
-* Prediction: Dependent; Outcome: Dependent. There is a memory dependency between the load and the store, and the processor predicted it correctly. No missed opportunities.
+* 预测：不依赖；结果：不依赖。这是内存消歧成功的情况，产生最优性能。
+* 预测：依赖；结果：不依赖。处理器过于保守，没有让加载在存储之前执行。这是性能优化的遗漏机会。
+* 预测：不依赖；结果：依赖。这是*内存顺序违例*（Memory Order Violation）。与分支误预测类似，处理器必须刷新流水线、回滚执行并重新开始。代价非常高。
+* 预测：依赖；结果：依赖。加载和存储之间存在内存依赖，处理器正确预测了它。没有遗漏机会。
 
-It's worth mentioning that forwarding from a store to a load occurs in real code quite often. In particular, any code that uses read-modify-write accesses to its data structures is likely to trigger these sorts of problems. Due to the large out-of-order window, the CPU can easily attempt to process multiple read-modify-write sequences at once, so the read of one sequence can occur before the write of the previous sequence is complete. One such example is presented in [@sec:UarchSpecificIssues].
+值得一提的是，从存储到加载的转发在实际代码中相当常见。特别是任何对其数据结构使用读-修改-写访问的代码，都可能触发这类问题。由于乱序窗口很大，CPU 可以轻松地同时处理多个读-修改-写序列，因此一个序列的读操作可能在前一个序列的写操作完成之前就发生。这类示例见 [@sec:UarchSpecificIssues]。
 
-### TLB Hierarchy
+### TLB 层次结构
 
-Recall from [@sec:TLBs] that translations from virtual to physical addresses are cached in the TLB. Golden Cove's TLB hierarchy is presented in Figure @fig:GLC_TLB. Similar to a regular data cache, it has two levels, where level 1 has separate instances for instructions (ITLB) and data (DTLB). L1 ITLB has 256 entries for regular 4K pages and covers 1MB of memory, while L1 DTLB has 96 entries that cover 384 KB. 
+回顾 [@sec:TLBs] 中的内容，虚拟地址到物理地址的转换被缓存在 TLB 中。Golden Cove 的 TLB 层次结构如图 @fig:GLC_TLB 所示。与常规数据缓存类似，它有两级，其中一级为指令（ITLB）和数据（DTLB）分别设有独立实例。L1 ITLB 有 256 个条目用于常规 4K 页面，覆盖 1MB 内存；L1 DTLB 有 96 个条目，覆盖 384 KB。
 
-![TLB hierarchy of Intel's Golden Cove microarchitecture.](../../img/uarch/GLC_TLB_hierarchy.png){#fig:GLC_TLB width=60%}
+![Intel Golden Cove 微架构的 TLB 层次结构。](../../img/uarch/GLC_TLB_hierarchy.png){#fig:GLC_TLB width=60%}
 
-The second level of the hierarchy (STLB) caches translations for both instructions and data. It is a larger storage for serving requests that missed in the L1 TLBs. L2 STLB can accommodate 2048 recent data and instruction page address translations, which covers a total of 8MB of memory space. There are fewer entries available for 2MB huge pages: L1 ITLB has 32 entries, L1 DTLB has 32 entries, and L2 STLB can only use 1024 entries that are also shared with regular 4KB pages.
+层次结构的第二级（STLB）同时缓存指令和数据的地址转换。它是一个更大的存储，用于服务在 L1 TLB 中未命中的请求。L2 STLB 可容纳 2048 个最近的数据和指令页面地址转换，总共覆盖 8MB 的内存空间。2MB 大页可用的条目更少：L1 ITLB 有 32 个条目，L1 DTLB 有 32 个条目，L2 STLB 只能使用 1024 个条目，且与常规 4KB 页面共享。
 
-In case a translation was not found in the TLB hierarchy, it has to be retrieved from the DRAM by "walking" the kernel page tables. Recall that the page table is built as a radix tree of subtables, with each entry of the subtable holding a pointer to the next level of the tree. 
+如果在 TLB 层次结构中未找到地址转换，就必须通过"遍历"内核页表从 DRAM 中检索。回顾一下，页表是作为子表的基数树构建的，子表的每个条目保存着指向树下一级的指针。
 
-The key element to speed up the page walk procedure is a set of Paging-Structure Caches[^3] that cache the hot entries in the page table structure. For the 4-level page table, we have the least significant twelve bits (11:0) for page offset (not translated), and bits 47:12 for the page number. While each entry in a TLB is an individual complete translation, Paging-Structure Caches cover only the upper 3 levels (bits 47:21). The idea is to reduce the number of loads required to execute in case of a TLB miss. For example, without such caches, we would have to execute 4 loads, which would add latency to the instruction completion. But with the help of the Paging-Structure Caches, if we find a translation for levels 1 and 2 of the address (bits 47:30), we only have to do the remaining 2 loads.
+加速页表遍历过程的关键要素是一组页结构缓存（Paging-Structure Caches）[^3]，它们缓存了页表结构中的热点条目。对于四级页表，最低 12 位（11:0）用于页面偏移（不进行转换），第 47:12 位用于页号。TLB 中的每个条目都是一个完整的转换，而页结构缓存只覆盖上面三级（第 47:21 位）。其思想是减少 TLB 未命中时需要执行的加载次数。例如，如果没有这类缓存，我们需要执行 4 次加载，这会增加指令完成的延迟。但借助页结构缓存，如果我们找到了地址一级和二级的转换（第 47:30 位），就只需要执行剩余的 2 次加载。
 
-The Golden Cove microarchitecture has four dedicated page walkers, which allows it to process 4 page walks simultaneously. In the event of a TLB miss, these hardware units will issue the required loads into the memory subsystem and populate the TLB hierarchy with new entries. The page-table loads generated by the page walkers can hit in L1, L2, or L3 caches (details are not disclosed). Finally, page walkers can anticipate a future TLB miss and speculatively do a page walk to update TLB entries before a miss actually happens.
+Golden Cove 微架构有四个专用的页表遍历器，可以同时处理 4 个页表遍历。在 TLB 未命中时，这些硬件单元会向内存子系统发出所需的加载操作，并用新条目填充 TLB 层次结构。页表遍历器产生的页表加载可以命中 L1、L2 或 L3 缓存（细节未公开）。最后，页表遍历器可以预判未来的 TLB 未命中，并在未命中实际发生之前推测性地执行页表遍历来更新 TLB 条目。
 
-The Golden Cove specification doesn't disclose how resources are shared between two SMT threads. But in general, caches, TLBs, and execution units are fully shared to improve the dynamic utilization of those resources. On the other hand, buffers for staging instructions between major pipe stages are either replicated or partitioned. These buffers include IDQ, ROB, RAT, RS, Load Buffer, and the Store Buffer. PRF is also replicated.
+Golden Cove 的规格说明未公开两个 SMT 线程之间如何共享资源。但通常来说，缓存、TLB 和执行单元是完全共享的，以提高这些资源的动态利用率。另一方面，用于在主要流水线阶段之间暂存指令的缓冲区要么是复制的，要么是分区的。这些缓冲区包括 IDQ、ROB、RAT、RS、加载缓冲区和存储缓冲区。PRF 也是复制的。
 
-[^1]: There are around 300 physical general-purpose registers (GPRs) and a similar number of vector registers. The actual number of registers is not disclosed.
-[^2]: Load Buffer and Store Buffer sizes are not disclosed, but people have measured 192 and 114 entries respectively.
-[^3]: AMD's equivalent is called Page Walk Caches.
-[^4]: People have measured  ~200 entries in the RS, however the actual number of entries is not disclosed.
-[^5]: Renaming must be done in program order.
-[^9]: Complex CISC instructions are translated into simple RISC microoperations, see [@sec:sec_UOP].
+[^1]: 约有 300 个物理通用寄存器（GPR），向量寄存器的数量类似。实际寄存器数量未公开。
+[^2]: 加载缓冲区和存储缓冲区的大小未公开，但人们测量到分别有 192 和 114 个条目。
+[^3]: AMD 的等价物称为页表遍历缓存（Page Walk Caches）。
+[^4]: 人们测量到 RS 中约有 200 个条目，但实际条目数未公开。
+[^5]: 重命名必须按程序顺序进行。
+[^9]: 复杂的 CISC 指令被转换为简单的 RISC 微操作，参见 [@sec:sec_UOP]。

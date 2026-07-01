@@ -1,9 +1,9 @@
 \phantomsection
-# Support This Book {.unlisted .unnumbered}
+# 支持本书 {.unlisted .unnumbered}
 
 \markboth{}{}
 
-If you enjoyed this book and would like to support it, there are a few options.
+如果你喜欢这本书并愿意支持它，有以下几种方式。
 
 \hfill \break 
 
