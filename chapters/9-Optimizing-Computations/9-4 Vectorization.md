@@ -37,3 +37,171 @@
 #### 向量化是非法的。
 
 在某些情况下，遍历数组元素的代码根本不可向量化。优化报告非常有效地解释了出了什么问题以及为什么编译器无法向量化代码。[@lst:VectDep] 显示了阻止向量化的循环内依赖的示例。[^31]
+
+Listing: 向量化：写后读依赖。
+
+~~~~ {#lst:VectDep .cpp}
+void vectorDependence(int *A, int n) {
+  for (int i = 1; i < n; i++)
+    A[i] = A[i-1] * 2;
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+虽然某些循环由于硬性限制（如写后读依赖）无法向量化，但当某些约束被放宽时，其他循环可以被向量化。例如，[@lst:VectIllegal] 中的代码无法被编译器自动向量化，因为它会改变浮点运算的顺序并可能导致不同的舍入和略微不同的结果。浮点加法是可交换的，这意味着你可以交换左边和右边而不改变结果：`(a + b == b + a)`。然而，它不是可结合的，因为舍入在不同时间发生：`((a + b) + c) != (a + (b + c))`。
+
+Listing: 向量化：浮点算术。
+
+~~~~ {#lst:VectIllegal .cpp .numberLines}
+// a.cpp
+float calcSum(float* a, unsigned N) {
+  float sum = 0.0f;
+  for (unsigned i = 0; i < N; i++) {
+    sum += a[i];
+  }
+  return sum;
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+如果你告诉编译器你可以容忍最终结果的微小变化，它将为你自动向量化代码。Clang 和 GCC 编译器有一个标志 `-ffast-math`，[^29] 允许这种转换，即使结果程序可能给出略微不同的结果：
+
+```bash
+$ clang++ -c a.cpp -O3 -march=core-avx2 -Rpass-analysis=.*
+...
+a.cpp:5:9: remark: loop not vectorized: cannot prove it is safe to reorder floating-point operations; allow reordering by specifying '#pragma clang loop vectorize(enable)' before the loop or by providing the compiler option '-ffast-math'. [-Rpass-analysis=loop-vectorize]
+...
+$ clang++ -c a.cpp -O3 -march=core-avx2 -ffast-math -Rpass=.*
+...
+a.cpp:4:3: remark: vectorized loop (vectorization width: 4, interleaved count: 2) [-Rpass=loop-vectorize]
+...
+```
+
+不幸的是，此标志涉及微妙且可能危险的行为更改，包括对于非数字（NaN）、有符号零、无穷大和非规格化数。因为第三方代码可能没有为这些影响做好准备，所以不应在没有仔细验证结果（包括边缘情况）的情况下在大段代码上启用此标志。从 Clang 18 开始，你可以使用专用 pragma 限制转换范围，例如 `#pragma clang fp reassociate(on)`。[^4]
+
+让我们看另一种典型情况，编译器可能需要开发人员的支持来执行向量化。当编译器无法证明循环在非重叠内存区域的数组上操作时，它们通常选择安全的一边。给定 [@lst:OverlappingMemRefions] 中的代码，编译器应该考虑数组 `a`、`b` 和 `c` 的内存区域重叠的情况。
+
+Listing: a.c
+
+~~~~ {#lst:OverlappingMemRefions .cpp .numberLines}
+void foo(float* a, float* b, float* c, unsigned N) {
+  for (unsigned i = 1; i < N; i++) {
+    c[i] = b[i];
+    a[i] = c[i-1];
+  }
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+以下是 GCC 10.2 提供的优化报告（使用 `-fopt-info` 启用）：
+
+```bash
+$ gcc -O3 -march=core-avx2 -fopt-info
+a.cpp:2:26: optimized: loop vectorized using 32-byte vectors
+a.cpp:2:26: optimized:  loop versioned for vectorization because of possible aliasing
+```
+
+GCC 已识别内存区域之间的潜在重叠，并创建了循环的多个版本。编译器插入了运行时检查[^36]来检测内存区域是否重叠。基于这些检查，它在向量化和标量版本之间调度。在这种情况下，向量化伴随着插入可能昂贵的运行时检查的代价。如果开发人员知道数组 `a`、`b` 和 `c` 的内存区域不重叠，可以在循环前插入 `#pragma GCC ivdep`[^37] 或使用 `__restrict__` 关键字，如 [@sec:compilerOptReports] 所示。此类编译器提示将消除 GCC 编译器插入上述运行时检查的需要。
+
+一些动态工具，如 Intel Advisor，可以检测循环中是否出现跨迭代依赖或访问具有重叠内存区域的数组等问题。但请注意，此类工具仅提供建议。随意插入编译器提示可能会导致真正的问题。
+
+#### 向量化无益。
+
+在某些情况下，编译器可以向量化循环，但认为这样做不划算。在 [@lst:VectNotProfit] 中展示的代码中，编译器可以向量化对数组 `A` 的内存访问，但需要将对数组 `B` 的访问拆分为多个标量加载。scatter/gather 模式相对昂贵，能够模拟操作成本的编译器通常决定避免向量化具有此类模式的代码。
+
+Listing: 向量化：无益。
+
+~~~~ {#lst:VectNotProfit .cpp .numberLines}
+// a.cpp
+void stridedLoads(int *A, int *B, int n) {
+  for (int i = 0; i < n; i++)
+    A[i] += B[i * 3];
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+以下是 [@lst:VectNotProfit] 中代码的编译器优化报告：
+
+```bash
+$ clang -c -O3 -march=core-avx2 a.cpp -Rpass-missed=loop-vectorize
+a.cpp:3:3: remark: the cost-model indicates that vectorization is not beneficial [-Rpass-missed=loop-vectorize]
+  for (int i = 0; i < n; i++)
+  ^
+```
+
+用户可以使用 `#pragma` 提示强制 Clang 编译器向量化循环，如 [@lst:VectNotProfitOverriden] 所示。但请记住，向量化是否有利在很大程度上取决于运行时数据，例如循环的迭代次数。编译器没有这些可用信息，[^1] 因此它们往往倾向于保守。不过你可以将此类提示用于性能实验。
+
+Listing: 向量化：无益。
+
+~~~~ {#lst:VectNotProfitOverriden .cpp .numberLines}
+// a.cpp
+void stridedLoads(int *A, int *B, int n) {
+#pragma clang loop vectorize(enable)
+  for (int i = 0; i < n; i++)
+    A[i] += B[i * 3];
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+开发人员应该意识到使用向量化代码的隐藏成本。使用 AVX 尤其是 AVX-512 向量指令可能导致频率降频或启动开销，在某些 CPU 上这也可能影响后续代码数微秒。代码的向量化部分应该足够热以证明使用 AVX-512 是合理的。[^38] 例如，已发现排序 80 KiB 足以分摊此开销并使向量化值得。[^39]
+
+#### 循环已向量化但使用了标量版本。
+
+在某些场景中，编译器成功向量化了代码，但在分析器中没有显示为正在执行。检查循环的相应汇编时，通常很容易找到循环体的向量化版本，因为它使用了程序其他部分不常用的向量寄存器。
+
+如果向量代码没有执行，一个可能的原因是生成的代码假设的循环迭代次数高于程序实际使用的。例如，编译器可能决定以每次迭代处理 64 个元素的方式向量化和展开循环。输入数组可能没有足够的元素甚至无法执行循环的一次迭代。在这种情况下，将使用循环的标量版本（余数）。检测这些情况很容易，因为标量循环会在分析器中亮起来，而向量化代码将保持冷态。
+
+此问题的解决方案是强制向量化器使用更低的向量化因子或展开计数，以减少循环处理的元素数量。你可以使用 `#pragma` 提示来实现。对于 Clang 编译器，你可以使用 `#pragma clang loop vectorize_width(N)`，如 Easyperf 博客文章所示。[^30]
+
+#### 循环以次优方式向量化。
+
+当你看到循环被自动向量化并在运行时执行时，程序的这部分很可能已经表现良好。然而，也有例外。有些情况下，循环的标量未向量化版本比向量化版本性能更好。这可能是由于昂贵的向量操作，如 `gather/scatter` 加载、掩码、`inserting/extracting` 元素、数据混洗等，如果编译器被要求使用它们来使向量化发生。性能工程师也可以尝试以不同方式禁用向量化。对于 Clang 编译器，可以通过编译器选项 `-fno-vectorize` 和 `-fno-slp-vectorize` 完成，或使用特定于特定循环的提示，例如 `#pragma clang loop vectorize(disable)`。
+
+需要注意的是，有一系列问题是 SIMD 重要的，但自动向量化不起作用且在不久的将来也不太可能起作用。一个例子可以在 [@Mula_Lemire_2019] 中找到。另一个例子是外循环自动向量化，编译器目前没有尝试。向量化浮点代码是有问题的，因为重新排序算术浮点运算会导致不同的舍入和略微不同的值。
+
+自动向量化还有一个微妙的问题。随着编译器的发展，它们所做的优化也在变化。在前一个编译器版本中成功自动向量化的代码可能在下一个版本中停止工作，反之亦然。此外，在代码维护或重构期间，代码结构可能发生变化，导致自动向量化突然开始失败。这可能在原始软件编写后很长时间才发生，因此此时修复或重新实现的成本会更高。
+
+#### 具有显式向量化的语言。{#sec:ISPC}
+
+向量化也可以通过将程序的部分重写为专用并行计算的编程语言来实现。这些语言使用特殊构造和程序数据的知识来将代码高效地编译为并行程序。最初，此类语言主要用于将工作卸载到特定处理单元，如图形处理单元（GPU）、数字信号处理器（DSP）或现场可编程门阵列（FPGA）。然而，其中一些编程模型也可以针对你的 CPU（如 OpenCL 和 OpenMP）。
+
+其中一种并行语言是 Intel 隐式 SPMD 程序编译器 [(ISPC)](https://ispc.github.io/)，[^33] 我将在本节中简要介绍。ISPC 语言基于 C 编程语言，使用 LLVM 编译器基础设施为许多不同的架构生成优化代码。ISPC 的关键特性是"接近底层"的编程模型和跨 SIMD 架构的性能可移植性。它需要从传统的编写程序思维转变，但给程序员更多对 CPU 资源利用的控制。
+
+ISPC 的另一个优势是其互操作性和易用性。ISPC 编译器生成标准目标文件，可以与传统 C/C++ 编译器生成的代码链接。ISPC 代码可以轻松插入任何原生项目，因为用 ISPC 编写的函数可以像 C 代码一样被调用。
+
+[@lst:ISPC_code] 展示了我之前在 [@lst:VectIllegal] 中展示的函数的 ISPC 版本。ISPC 考虑程序将基于目标指令集在并行实例中运行。例如，当使用 SSE 处理 `float` 时，它可以并行计算 4 个操作。每个程序实例将操作 `i` 的向量值为 `(0,1,2,3)`，然后是 `(4,5,6,7)`，依此类推，有效地一次计算 4 个求和。如你所见，使用了几个对 C 和 C++ 不典型的关键字：
+
+* `export` 关键字表示该函数可以从 C 兼容语言调用。
+
+* `uniform` 关键字表示变量在程序实例之间共享。
+
+* `varying` 关键字表示每个程序实例有自己的变量本地副本。
+
+* `foreach` 与经典的 `for` 循环相同，只是它将在不同的程序实例之间分配工作。
+
+Listing: ISPC 版本的数组元素求和。
+
+~~~~ {#lst:ISPC_code .cpp}
+export uniform float calcSum(const uniform float array[], 
+                             uniform ptrdiff_t count)
+{
+    varying float sum = 0;
+    foreach (i = 0 ... count)
+        sum += array[i];
+    return reduce_add(sum);
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+由于函数 `calcSum` 必须返回单个值（`uniform` 变量），而我们的 `sum` 变量是 `varying` 的，我们需要使用 `reduce_add` 函数*收集*每个程序实例的值。ISPC 还负责根据需要生成剥离和余数循环，以考虑未正确对齐或不是向量宽度倍数的数据。
+
+**"接近底层"的编程模型**：传统 C 和 C++ 语言的问题之一是编译器并不总是向量化代码的关键部分。ISPC 通过假设每个操作默认是 SIMD 来帮助解决此问题。例如，ISPC 语句 `sum += array[i]` 被隐式视为并行执行多次加法的 SIMD 操作。ISPC 不是自动向量化编译器，它不会自动发现向量化机会。由于 ISPC 语言与 C 和 C++ 非常相似，它比内置函数（参见 [@sec:secIntrinsics]）更具可读性，因为它允许你专注于算法而不是低级指令。此外，据报道它已匹配 [@ISPC_Paper] 或超越[^34]手写内置函数代码的性能。
+
+**性能可移植性**：ISPC 可以自动检测 CPU 的功能以充分利用所有可用资源。程序员可以编写一次 ISPC 代码并编译到多种向量指令集，如 SSE4、AVX2 和 ARM NEON。
+
+[^1]: 除了 Profile Guided Optimizations（参见 [@sec:secPGO]）。
+[^2]: 例如，编译器优化报告，参见 [@sec:compilerOptReports]。
+[^29]: 编译器标志 `-Ofast` 启用 `-ffast-math` 以及 `-O3` 编译模式。
+[^30]: 使用 Clang 的优化 pragma - [https://easyperf.net/blog/2017/11/09/Multiversioning_by_trip_counts](https://easyperf.net/blog/2017/11/09/Multiversioning_by_trip_counts)
+[^31]: 一旦你展开循环的几次迭代，就很容易发现写后读依赖。参见 [@sec:compilerOptReports] 中的示例。
+[^33]: ISPC 编译器：[https://ispc.github.io/](https://ispc.github.io/)。
+[^34]: Unreal Engine 中使用 SIMD 内置函数的部分已使用 ISPC 重写，这带来了加速：[https://software.intel.com/content/www/us/en/develop/articles/unreal-engines-new-chaos-physics-system-screams-with-in-depth-intel-cpu-optimizations.html](https://software.intel.com/content/www/us/en/develop/articles/unreal-engines-new-chaos-physics-system-screams-with-in-depth-intel-cpu-optimizations.html)。
+[^36]: 参见 Easyperf 博客上的示例：[https://easyperf.net/blog/2017/11/03/Multiversioning_by_DD](https://easyperf.net/blog/2017/11/03/Multiversioning_by_DD)。
+[^37]: 这是 GCC 特定的 pragma。对于其他编译器，请检查相应手册。
+[^38]: 更多详情请阅读此博客文章：[https://travisdowns.github.io/blog/2020/01/17/avxfreq1.html](https://travisdowns.github.io/blog/2020/01/17/avxfreq1.html)。
+[^39]: AVX-512 降频研究：见 [VQSort readme](https://github.com/google/highway/blob/master/hwy/contrib/sort/README.md#study-of-avx-512-downclocking)
+[^4]: LLVM 扩展以指定浮点标志 - [https://clang.llvm.org/docs/LanguageExtensions.html#extensions-to-specify-floating-point-flags](https://clang.llvm.org/docs/LanguageExtensions.html#extensions-to-specify-floating-point-flags)
