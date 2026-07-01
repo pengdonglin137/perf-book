@@ -38,3 +38,51 @@ unsigned int sum; // 在所有线程之间共享
 ### 假共享 {#sec:secFalseSharing}
 
 如果不小心，你可能会尝试如 [@lst:FalseSharing] 所示解决真共享问题。此解决方案引入了另一个问题：*假共享*。当两个不同的核心修改恰好位于同一缓存行上的不同变量时，就会发生这种情况。在 [@lst:FalseSharing] 中显示的代码示例中，即使线程 `A` 和 `B` 更新结构体 `S` 的不同字段，它们也很可能位于同一缓存行上，这将触发假共享问题。@fig:FalseSharing 说明了这个问题。
+
+Listing: 假共享示例。
+
+~~~~ {#lst:FalseSharing .cpp}
+struct S {
+  int sumA; // sumA 和 sumB 很可能
+  int sumB; // 位于同一缓存行上
+};
+S s;
+
+{ // 由线程 A 执行的代码     │     { // 由线程 B 执行的代码
+  for (int i = 0; i < N; i++)      │       for (int i = 0; i < N; i++)
+    s.sumA += a[i];                │         s.sumB += b[i];
+}                                  │     }
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+![假共享：两个线程访问同一缓存行。](../../img/mt-perf/FalseSharing.jpg){#fig:FalseSharing width=60%}
+
+假共享是多线程应用程序性能问题的常见来源。因此，现代分析工具内置了对检测此类情况的支持。对于经历真/假共享的应用程序，TMA 可能会显示较高的 `Memory Bound` &rarr; `L3 Bound` &rarr; `Contested Accesses` 指标。[^18]
+
+使用 Intel VTune Profiler 时，我建议运行两种类型的分析来查找和消除假共享问题。首先，运行*微架构探索*分析，该分析实现 TMA 方法论以检测应用程序中是否存在假共享。如前所述，*Contested Accesses* 指标的高值促使我们更深入地挖掘，并运行启用*分析动态内存对象*复选框的*内存访问*分析。此分析有助于找出导致争用问题的数据结构的内存访问。通常，此类内存访问具有高延迟，分析将揭示这一点。有关使用 Intel VTune Profiler 修复假共享问题的示例，请参见 [Intel Developer Zone](https://software.intel.com/en-us/vtune-cookbook-false-sharing)。[^20]
+
+Linux `perf` 也支持查找假共享。与 Intel VTune Profiler 一样，首先运行 TMA（参见 [@sec:secTMA_Intel]）以查看程序是否存在假/真共享问题。如果是这样，请使用 `perf c2c` 工具检测具有高缓存一致性成本的内存访问。`perf c2c` 匹配不同线程的存储/加载地址，并检查是否发生了对已修改缓存行的命中。读者可以在专门的 [博客文章](https://joemario.github.io/blog/2016/09/01/c2c-blog/)[^21] 中找到该过程的详细解释以及如何使用该工具。
+
+可以通过对齐/填充内存对象来消除假共享。[@sec:secTrueSharing] 中的示例可以通过确保 `sumA` 和 `sumB` 不共享同一缓存行来修复，如 [@lst:PadFalseSharing] 所示。[^32]
+
+Listing: 数据填充以避免假共享。
+
+~~~~ {#lst:PadFalseSharing .cpp}
+                              constexpr int CacheLineAlign = 64;
+struct S {                    struct S {
+  int sumA;        =>           int sumA; 
+  int sumB;                     alignas(CacheLineAlign) int sumB;
+};                            };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+假共享不仅可以在 C 和 C++ 等原生语言中观察到，也可以在 Java 和 C# 等托管语言中观察到。从一般性能角度来看，最重要的考虑因素是可能的状态转换成本。在所有缓存状态中，唯一在 CPU 读/写操作期间不涉及昂贵的跨缓存子系统通信和数据传输的是已修改（M）和独占（E）状态。因此，缓存行保持 `M` 或 `E` 状态的时间越长（即跨缓存的数据共享越少），多线程应用程序产生的相干性成本就越低。Nitsan Wakart 的博客文章 "[Diving Deeper into Cache Coherency](http://psy-lob-saw.blogspot.com/2013/09/diving-deeper-into-cache-coherency.html)"[^28] 中可以找到演示如何使用此属性的示例。
+
+[^18]: 有关 *Contested Accesses* 指标的描述，请参阅 Intel VTune 用户指南。
+[^20]: VTune cookbook: false-sharing - [https://software.intel.com/en-us/vtune-cookbook-false-sharing](https://software.intel.com/en-us/vtune-cookbook-false-sharing)。
+[^21]: 关于 `perf c2c` 的文章 - [https://joemario.github.io/blog/2016/09/01/c2c-blog/](https://joemario.github.io/blog/2016/09/01/c2c-blog/)。
+[^25]: 有一个 MESI 协议的动画演示 - [https://www.scss.tcd.ie/Jeremy.Jones/vivio/caches/MESI.htm](https://www.scss.tcd.ie/Jeremy.Jones/vivio/caches/MESI.htm)。
+[^26]: MESIF - [https://en.wikipedia.org/wiki/MESIF_protocol](https://en.wikipedia.org/wiki/MESIF_protocol)
+[^27]: MOESI - [https://en.wikipedia.org/wiki/MOESI_protocol](https://en.wikipedia.org/wiki/MOESI_protocol)
+[^28]: 博客文章 "Diving Deeper into Cache Coherency" - [http://psy-lob-saw.blogspot.com/2013/09/diving-deeper-into-cache-coherency.html](http://psy-lob-saw.blogspot.com/2013/09/diving-deeper-into-cache-coherency.html)
+[^30]: Clang 的线程消毒器工具：[https://clang.llvm.org/docs/ThreadSanitizer.html](https://clang.llvm.org/docs/ThreadSanitizer.html)。
+[^31]: Helgrind，线程错误检测器工具：[https://www.valgrind.org/docs/manual/hg-manual.html](https://www.valgrind.org/docs/manual/hg-manual.html)。
+[^32]: 不要将缓存行大小视为常量值。例如，在 Apple 处理器如 M1、M2 及更高版本中，L2 缓存以 128B 缓存行运行。
