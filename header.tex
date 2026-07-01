@@ -132,6 +132,8 @@
 \usepackage{multicol}
 
 \usepackage{footnotebackref}
+% Ensure \BackrefFootnoteTag is defined (compatibility fix)
+\providecommand{\BackrefFootnoteTag}{}
 \interfootnotelinepenalty=10000
 \usepackage{bookmark}
 \usepackage{etoolbox}
@@ -161,9 +163,10 @@
 \counterwithin{table}{section}
 \counterwithin{codelisting}{section}
 
-% I added this line to help resolve color printing issue by removing image transparency.
-% Not sure if it helps though.
-\pdfpageattr {/Group << /S /Transparency /I true /CS /DeviceRGB>>} 
+% Remove image transparency for color printing (pdfTeX only)
+\ifx\XeTeXversion\undefined
+  \pdfpageattr {/Group << /S /Transparency /I true /CS /DeviceRGB>>}
+\fi
 
 % this one to skip adding the title and the author
 \AtBeginDocument{\let\maketitle\relax}
