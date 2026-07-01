@@ -38,3 +38,127 @@ for (int i = 0; i < N; ++i)       =>      hist2.fill(0);
 [@lst:MemOrderViolation] 右边显示了内存顺序违规问题的治愈方法。如你所见，我复制了直方图，现在像素的处理在两个部分直方图之间交替。最后，我们组合两个部分直方图以获得最终结果。这个具有两个部分直方图的新版本仍然容易出现潜在的问题模式，例如 `0xFF 0x00 0xFF 0x00 0xFF ...`。但是，通过此更改，原始最坏情况（例如 `0xFF 0xFF 0xFF ...`）将比以前快两倍。根据输入图像的颜色模式，创建四个或八个部分直方图可能是有益的。这段确切的代码出现在 Performance Ninja 课程的 [mem_order_violation_1](https://github.com/dendibakh/perf-ninja/tree/main/labs/memory_bound/mem_order_violation_1)[^2] 实验室作业中，所以请随意实验。
 
 在少量输入图像上，我在各种平台上观察到 10% 到 50% 的加速。值得一提的是，右边的版本消耗了 1 KB 的额外内存，在这种情况下可能不是很大，但需要注意。
+
+### 未对齐内存访问 {#sec:MisalignedMemoryAccesses}
+
+如果变量存储在可被变量大小整除的内存地址上，则访问效率最高。例如，`int` 需要 4 字节对齐，意味着其地址应该是 4 的倍数。在 C++ 中，这称为*自然对齐*，对于基本数据类型（如整数、浮点或双精度）默认发生。当你声明这些类型的变量时，编译器确保它们存储在大小倍数的内存地址上。相比之下，数组、结构体和类可能需要特殊对齐，你将在本节中了解到。
+
+数据对齐很重要的一个典型情况是 SIMD 代码，其中加载和存储通过单次操作访问大块数据。在大多数处理器中，L1 缓存设计为能够在任何对齐方式下读/写数据。通常，即使加载/存储未对齐但不跨越缓存行边界，也不会有任何性能惩罚。
+
+然而，当加载或存储跨越缓存行边界时，这样的访问需要两次缓存行读取（*分裂加载/存储*）。它需要使用*分裂寄存器*，该寄存器保存两个部分，一旦两部分都被获取，它们就被组合成单个寄存器。分裂寄存器的数量是有限的。当偶尔执行时，分裂访问完成时对整体执行没有可观察到的性能影响。但是，如果频繁发生，未对齐的内存访问将遭受延迟。
+
+如果内存地址是特定大小的倍数，则称其为*对齐*。例如，当 16 字节对象在 64 字节边界上对齐时，其地址的低 6 位为零。否则，当 16 字节对象跨越 64 字节边界时，称其为*未对齐*。在文献中，你也可以遇到术语*分裂加载/存储*来描述这种情况。如果连续多个分裂加载/存储消耗了所有可用的分裂寄存器，它们可能会导致性能惩罚。Intel 的 TMA 方法论通过 `Memory_Bound` &rarr; `L1_Bound` &rarr; `Split Loads` 指标来跟踪这一点。
+
+例如，AVX2 内存操作最多可以访问 32 字节。如果数组从偏移 `0x30`（48 字节）开始，第一次 AVX2 加载将从 `0x30` 到 `0x4F` 获取数据，第二次加载将从 0x50 到 0x6F 获取数据，依此类推。第一次加载跨越缓存行边界（`0x40`）。事实上，每隔一次加载都会跨越缓存行边界，这可能会减慢执行速度。@fig:SplitLoads 说明了这一点。将数据向前推 16 字节将使数组对齐到缓存行边界并消除分裂加载。[@lst:AligningData] 展示了如何使用 C++11 的 `alignas` 关键字修复此示例。
+
+![未对齐数组中的 AVX2 加载。每隔一次加载跨越缓存行边界。](../../img/memory-access-opts/SplitLoads.png){#fig:SplitLoads width=50%}
+
+Listing: 使用 "alignas" 关键字对齐数据。
+
+~~~~ {#lst:AligningData .cpp}
+// Array of 16-bit integers aligned at a 64-byte boundary
+#define CACHELINE_ALIGN alignas(64) 
+CACHELINE_ALIGN int16_t a[N];
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+当涉及动态分配时，C++17 使其变得更加容易。运算符 `new` 现在接受一个额外的参数，你可以用它来控制动态分配内存的对齐。使用标准容器（如 `std::vector`）时，你可以定义自定义分配器。[@lst:AlignedStdVector] 展示了一个在缓存行边界上对齐内存缓冲区的自定义分配器的最小示例。
+
+Listing: 定义在缓存行边界上对齐的 std::vector。
+
+~~~~ {#lst:AlignedStdVector .cpp}
+// Returns aligned pointers when allocations are requested. 
+template <typename T>
+class CacheLineAlignedAllocator {
+public:
+  using value_type = T;
+  static std::align_val_t constexpr ALIGNMENT{64};
+  [[nodiscard]] T* allocate(std::size_t N) {
+    return reinterpret_cast<T*>(::operator new[](N * sizeof(T), ALIGNMENT));
+  }
+  void deallocate(T* allocPtr, [[maybe_unused]] std::size_t N) {
+    ::operator delete[](allocPtr, ALIGNMENT);
+  }
+};
+template<typename T> 
+using AlignedVector = std::vector<T, CacheLineAlignedAllocator<T> >;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+为了演示未对齐内存访问的效果，我在 Performance Ninja 在线课程中创建了 [mem_alignment_1](https://github.com/dendibakh/perf-ninja/tree/main/labs/memory_bound/mem_alignment_1)[^5] 实验室作业。它展示了一个非常简单的矩阵乘法示例，其中初始版本没有考虑矩阵的对齐。该作业要求将矩阵对齐到缓存行边界并测量性能差异。请随意尝试代码并在你的平台上测量效果。
+
+在此作业中缓解分裂加载/存储的第一步是对齐矩阵的起始偏移。操作系统可能会为矩阵分配已对齐到缓存行边界的内存。但是，你不应该依赖此行为，因为它不保证。一个简单的修复方法是使用 [@lst:AlignedStdVector] 中的 `AlignedVector` 为矩阵分配内存。
+
+然而，仅对齐矩阵的起始偏移是不够的。考虑 @fig:MemAlignment 中所示的 `9x9` `float` 值矩阵的示例。如果缓存行为 64 字节，它可以存储 16 个 `float` 值。使用 AVX2 指令时，程序将一次加载/存储 8 个元素（256 位）。在每一行中，前八个元素将以 SIMD 方式处理，而最后一个元素将由循环余数以标量方式处理。第二个向量加载/存储（元素 10-17）跨越缓存行边界，许多后续向量加载/存储也是如此。@fig:MemAlignment 中突出显示的问题影响任何列数不是 8 的倍数的矩阵（对于 AVX2 向量化）。SSE 和 ARM Neon 向量化需要 16 字节对齐；AVX-512 需要 64 字节对齐。
+
+![使用 AVX2 向量化时 9x9 矩阵内的分裂加载/存储。分裂内存访问以黄色突出显示。](../../img/memory-access-opts/MemAlignment.png){#fig:MemAlignment width=80%}
+
+因此，除了对齐起始偏移外，矩阵的每一行也应该对齐。例如在 @fig:MemAlignment 中，可以通过在矩阵中插入七个虚拟列来实现，有效地将其变为 `9x16` 矩阵。这将使第二行（元素 10-18）在偏移 `0x40` 处对齐。类似地，所有其他行也将对齐。虚拟列不会被算法处理，但它们将确保实际数据在缓存行边界上对齐。在我的测试中，此更改的性能影响高达 30%，具体取决于矩阵大小和平台配置。
+
+对齐和填充会产生未使用字节的空洞，这可能会降低内存带宽利用率。对于小矩阵，如我们的 9x9 矩阵，填充将导致每行几乎一半未使用。然而，对于大矩阵，如 1025x1025，填充的影响并不大。尽管如此，对于某些算法，例如 AI 中的算法，内存带宽可能是更大的问题。谨慎使用这些技术，并始终测量以查看对齐的性能增益是否值得未使用字节的成本。
+
+跨越 4 KB 边界的访问引入了更多复杂性，因为虚拟到物理地址转换通常在 4 KB 页面中处理。处理此类访问还需要访问两个 TLB 条目。除非 TLB 支持每周期多次查找，否则此类加载可能导致显著的减速。
+
+### 缓存混叠 {#sec:CacheTrashing}
+
+特定的数据访问模式可能导致令人不快的性能问题。这些边缘情况与缓存组织紧密相关，例如缓存中的组数和路数。我们在 [@sec:CacheHierarchy] 中讨论了缓存组织，如果你想重新审视的话。内存位置在缓存中的放置由其地址决定。根据地址位，缓存控制器进行组选择，即确定获取的内存位置的缓存行将进入哪个组。
+
+如果两个内存位置映射到同一组，它们将竞争组中有限数量的可用槽（路）。当程序重复访问映射到同一组的内存位置时，它们将不断相互驱逐。这可能导致缓存中一个组的饱和和其他组的利用不足。这被称为*缓存混叠*，尽管你可能会发现人们使用术语*缓存争用*、*缓存冲突*或*缓存抖动*来描述这种效果。
+
+缓存混叠的一个简单示例可以在矩阵转置中观察到，如 [@fogOptimizeCpp, section 9.10 Cache contentions in large data structures] 中详细解释的那样。我鼓励读者研究此手册以了解更多关于为什么会发生这种情况。我在几个现代处理器上重复了该实验，并确认它仍然是一个相关问题。@fig:CacheAliasing 显示了在 Intel 第 12 代 core i7-1260P 处理器上转置 32 位浮点值矩阵的性能。
+
+![在 Intel 第 12 代处理器上运行的矩阵转置中观察到的缓存混叠效应。二的幂或 128 的倍数的矩阵大小导致超过 10 倍的性能下降。](../../img/memory-access-opts/CacheAliasing.png){#fig:CacheAliasing width=100%}
+
+图表中有几个尖峰，对应于导致缓存混叠的矩阵大小。当矩阵大小是二的幂（例如 256、512）或是 128 的倍数（例如 384、640、768、896）时，性能显著下降。[^6] 这是因为属于同一列的内存位置映射到 L1D 和 L2 缓存中的同一组。这些内存位置竞争组中有限数量的路，这导致在处理此行上的每个元素之前，同一缓存行被多次重新加载。
+
+在 Intel 处理器上，可以借助 `L1D.REPLACEMENT` 性能事件来诊断此问题，该事件计算 L1 缓存行替换次数。例如，矩阵大小 `256x256` 的缓存行替换次数是大小 `255x255` 的 17 倍。我测试了从 `64x64` 到 `10,000x10,000` 的所有大小，发现该模式非常一致地重复。我还在基于 Intel Skylake 的处理器以及 Apple M1 芯片上运行了相同的实验，并确认这些芯片容易受到缓存混叠效应的影响。
+
+要缓解缓存混叠，你可以使用我们在 [@sec:LoopOptsHighLevel] 中讨论的缓存分块。其思想是以适合缓存的较小块处理矩阵。这样你将避免缓存行驱逐，因为缓存中将有足够的空间。另一种解决方法是用额外的列填充矩阵，例如，不是 `256x256` 矩阵，而是分配 `256x264` 矩阵；类似于我们在上一节中的做法。但要小心不要遇到未对齐内存访问问题。
+
+### 慢浮点运算 {#sec:SlowFloatingPointArithmetic}
+
+一些对浮点（FP）值进行大量计算的应用程序容易出现一个非常微妙的问题，可能导致性能下降。当应用程序遇到*非正规* FP 值时，就会出现此问题，我们将在本节中讨论。你也可以找到术语*非规格化* FP 值，它指的是同一事物。根据 IEEE 标准 754，[^4] 非正规数是指数小于最小正规数的非零数。[^3] [@lst:Subnormals] 展示了非正规值的一个非常简单的实例化。
+
+在实际应用中，非正规值通常表示一个非常小以至于无法与零区分的信号。在音频中，它可以意味着一个安静到超出人类听觉范围的信号。在图像处理中，它可以意味着像素的任何 RGB 颜色分量非常接近零，等等。有趣的是，非正规值存在于许多生产软件包中，包括天气预报、光线追踪、物理模拟等。
+
+Listing: 实例化正规和非正规 FP 值
+
+~~~~ {#lst:Subnormals .cpp}
+unsigned usub = 0x80200000; // -2.93873587706e-39 (subnormal)
+unsigned unorm = 0x411a428e; // 9.641248703 (normal)
+float sub = *((float*)&usub);
+float norm = *((float*)&unorm);
+assert(std::fpclassify(sub) == FP_SUBNORMAL);
+assert(std::fpclassify(norm) != FP_SUBNORMAL);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+没有非正规值，两个 FP 值 `a - b` 的减法可能下溢并产生零，即使值不相等。非正规值允许计算逐渐失去精度而不将结果舍入为零。尽管如此，它可能带来成本，我们稍后会看到。当值在循环中通过减法或除法持续减小时，非正规值也可能出现在生产软件中。
+
+从硬件角度来看，处理非正规数比处理正规 FP 值更困难，因为它需要特殊处理，通常被认为是异常情况。应用程序不会崩溃，但会受到性能惩罚。产生或使用非正规数的计算比正规数上的类似计算慢，可能慢 10 倍或更多。例如，Intel 处理器目前通过微码*辅助*处理非正规操作。当处理器识别出非正规 FP 值时，微码定序器（MSROM）将提供必要的微操作（$\mu$ops）来计算结果。
+
+在许多情况下，非正规值由算法自然生成，因此是不可避免的。大多数处理器提供了将非正规值刷新为零的选项，而不是首先生成非正规值。性能关键应用程序的开发人员可能宁愿有稍微不太准确的结果，也不愿减慢代码速度。
+
+假设你的应用程序不需要非正规值，你如何检测和缓解相关成本？虽然你可以使用 [@lst:Subnormals] 中所示的运行时检查，但在整个代码库中插入它们并不实用。有一种更好的方法可以使用 PMU（性能监控单元）检测你的应用程序是否正在产生非正规值。在 Intel CPU 上，你可以收集 `FP_ASSIST.ANY` 性能事件，每次使用或产生非正规值时该事件都会递增。TMA 方法论将此类瓶颈归类在 `Retiring` 类别下，是的，这是高 `Retiring` 不意味着好事的另一种情况。
+
+一旦你确认存在非正规值，你可以启用 FTZ 和 DAZ 模式：
+
+* __DAZ__（非正规数为零）。任何非正规输入在使用前被替换为零。
+* __FTZ__（刷新到零）。任何非正规输出被替换为零。
+
+启用后，CPU 浮点运算中无需进行成本高昂的非正规值处理。在基于 x86 的平台中，`MXCSR` 全局控制和状态寄存器中有两个单独的位字段。在 ARM Aarch64 中，两种模式由 `FPCR` 控制寄存器的 `FZ` 和 `AH` 位控制。如果你使用 `-ffast-math` 编译应用程序，则无需担心，编译器将自动插入所需代码以在程序开始时启用两个标志。`-ffast-math` 编译器选项有点超载，因此 GCC 开发人员创建了一个单独的 `-mdaz-ftz` 选项，仅控制非正规值的行为。如果你更愿意从源代码控制它，[@lst:EnableFTZDAZ] 展示了一个你可以使用的示例。如果你选择此选项，请避免频繁更改 `MXCSR` 寄存器，因为该操作相对昂贵。读取 MXCSR 寄存器具有相当长的延迟，写入寄存器是一条序列化指令。
+
+Listing: 手动启用 FTZ 和 DAZ 模式
+
+~~~~ {#lst:EnableFTZDAZ .cpp}
+unsigned FTZ = 0x8000;
+unsigned DAZ = 0x0040;
+unsigned MXCSR = _mm_getcsr();
+_mm_setcsr(MXCSR | FTZ | DAZ);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+请记住，`FTZ` 和 `DAZ` 模式与 IEEE 标准 754 不兼容。它们在硬件中实现是为了提高下溢常见且不需要生成非规格化结果的应用程序的性能。我在一些使用非正规值的生产浮点应用程序上观察到 3%-5% 的性能惩罚。
+
+[^1]: Otsu 阈值方法 - [https://en.wikipedia.org/wiki/Otsu%27s_method](https://en.wikipedia.org/wiki/Otsu%27s_method)
+[^2]: Performance Ninja 实验室作业：内存顺序违规 - [https://github.com/dendibakh/perf-ninja/tree/main/labs/memory_bound/mem_order_violation_1](https://github.com/dendibakh/perf-ninja/tree/main/labs/memory_bound/mem_order_violation_1)
+[^3]: 非正规数 - [https://en.wikipedia.org/wiki/Subnormal_number](https://en.wikipedia.org/wiki/Subnormal_number)
+[^4]: IEEE 标准 754 - [https://ieeexplore.ieee.org/document/8766229](https://ieeexplore.ieee.org/document/8766229)
+[^5]: Performance Ninja 实验室作业：内存对齐 - [https://github.com/dendibakh/perf-ninja/tree/main/labs/memory_bound/mem_alignment_1](https://github.com/dendibakh/perf-ninja/tree/main/labs/memory_bound/mem_alignment_1)
+[^6]: 此外，在大小 341、683 和 819 处也有一些尖峰。据推测，这些大小也受到相同的缓存混叠效应影响，但我没有进一步调查。
