@@ -73,7 +73,7 @@ elif args.pdf:
   pandoc_cmd = pandoc_cmd + "-V geometry:bottom=2cm "
   pandoc_cmd = pandoc_cmd + "-V fontsize:8pt "
 
-pandoc_cmd = pandoc_cmd + "--filter pandoc-fignos --filter pandoc-tablenos --filter pandoc-crossref --natbib -o book.tex metadata.txt "
+pandoc_cmd = pandoc_cmd + "--filter pandoc-crossref --natbib -o book.tex metadata.txt "
 
 files_string = " ".join(file_list)
 files_string += " footer.tex"

@@ -28,12 +28,16 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install natsort pandoc-fignos pandoc-tablenos
+        python3 -m pip install natsort
 
-    - name: Install pandoc
+    - name: Install pandoc and pandoc-crossref
       run: |
         sudo apt-get update
-        sudo apt-get install -y pandoc texlive-xetex texlive-lang-chinese fonts-noto-cjk
+        sudo apt-get install -y texlive-xetex texlive-lang-chinese fonts-noto-cjk
+        curl -fsSL https://github.com/jgm/pandoc/releases/download/3.9.0.2/pandoc-3.9.0.2-1-amd64.deb -o pandoc.deb
+        sudo dpkg -i pandoc.deb
+        curl -fsSL https://github.com/lierdakil/pandoc-crossref/releases/download/v0.3.24a/pandoc-crossref-Linux-X64.tar.xz | tar xJ
+        sudo mv pandoc-crossref /usr/local/bin/
 
     - name: Build PDF
       run: |
