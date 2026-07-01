@@ -4,7 +4,7 @@
 
 [@lst:strace] 提供了使用 Linux `strace` 工具跟踪系统调用的示例，显示了运行 `git status` 命令时的前几行输出。通过使用 `strace` 跟踪系统调用，可以知道每个系统调用的时间戳（最左列）、退出状态（`=` 号后）和每个系统调用的持续时间（以尖括号为单位）。
 
-清单：使用 strace 跟踪系统调用。
+Listing: 使用 strace 跟踪系统调用。
 
 ~~~~ {#lst:strace .bash}
 $ strace -tt -T -- git status

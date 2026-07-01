@@ -9,7 +9,7 @@
 
 随着每一代新 CPU 的设计演进，其 PMU 也在不断发展。在 Linux 上，可以使用 `cpuid` 命令确定 CPU 中 PMU 的版本，如 [@lst:QueryPMU] 所示。类似的信息也可以通过检查 `dmesg` 命令输出的内核消息缓冲区来获取。每个 Intel PMU 版本的特性以及与前一版本的变更，可以在 [@IntelOptimizationManual, Volume 3B, Chapter 20] 中找到。
 
-代码清单：查询你的 PMU
+Listing: 查询你的 PMU
 
 ~~~~ {#lst:QueryPMU .bash}
 $ cpuid

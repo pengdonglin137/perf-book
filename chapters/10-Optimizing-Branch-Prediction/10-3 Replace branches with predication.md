@@ -2,7 +2,7 @@
 
 某些分支可以通过执行分支的两个部分然后选择正确的结果来有效消除。[@lst:ReplaceBranchesWithSelection] 中显示了这种转换可能有益的代码示例。如果 TMA 建议 `if (cond)` 分支具有非常多的预测错误，你可以尝试通过右边所示的转换来消除分支。
 
-清单：用选择替换分支。
+Listing: 用选择替换分支。
 
 ~~~~ {#lst:ReplaceBranchesWithSelection .cpp}
 int a;                                             int x = computeX();
@@ -16,7 +16,7 @@ foo(a);
 
 对于右边的代码，编译器可以替换来自三元运算符的分支，并生成 `CMOV` x86 指令。`CMOVcc` 指令检查 `EFLAGS` 寄存器中一个或多个状态标志（`CF`、`OF`、`PF`、`SF` 和 `ZF`）的状态，并在标志处于指定状态或条件时执行移动操作。类似的转换可以使用 `FCMOVcc` 和 `VMAXSS/VMINSS` 指令对浮点数完成。在 ARM ISA 中，有 `CSEL`（条件选择）指令，但也有 `CSINC`（选择并递增）、`CSNEG`（选择并取反）和其他一些条件指令。
 
-清单：用选择替换分支 - x86 汇编代码。
+Listing: 用选择替换分支 - x86 汇编代码。
 
 ~~~~ {#lst:ReplaceBranchesWithSelectionAsm .bash}
 # 原始版本              # 无分支版本

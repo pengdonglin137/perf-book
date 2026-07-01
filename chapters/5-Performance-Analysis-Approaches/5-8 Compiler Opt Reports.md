@@ -6,7 +6,7 @@
 
 让我们看看 [@lst:optReport]，它显示了一个未被 `clang 16.0` 向量化的循环示例。
 
-清单：a.c
+Listing: a.c
 
 ~~~~ {#lst:optReport .cpp .numberLines}
 void foo(float* __restrict__ a, 

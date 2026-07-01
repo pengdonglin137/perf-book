@@ -22,7 +22,7 @@
 
 为了模拟 Tracy 可以帮助诊断问题根本原因的典型场景，我们手动修改了代码，使某些帧比其他帧消耗更多时间。[@lst:TracyInstrumentation] 显示了代码大纲以及添加的 Tracy 检测。注意，我们随机选择帧来减慢速度。我们还包含了 Tracy 的头文件，并在我们要跟踪的函数中添加了 `ZoneScoped` 和 `FrameMark` 宏。`FrameMark` 宏可以插入以在分析器中识别各个帧。每帧的持续时间将在时间线上可见，这非常有用。
 
-清单：Tracy 检测
+Listing: Tracy 检测
 
 ~~~~ {#lst:TracyInstrumentation .cpp}
 #include "tracy/Tracy.hpp"

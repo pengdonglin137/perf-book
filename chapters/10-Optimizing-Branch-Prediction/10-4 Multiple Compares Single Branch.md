@@ -4,7 +4,7 @@
 
 [@lst:LongestLineNaive] 显示了一个通过逐个测试字符来查找输入字符串中最长行的函数。我们遍历输入字符串并搜索换行符（`eol`）（`\n`，ASCII 中的 0x0A）。对于每个找到的 `eol` 字符，我们检查当前行是否是最长的，并将当前行的长度重置为零。此代码将为每个字符执行一条分支指令。[^1]
 
-清单：查找最长行（逐个字符）。
+Listing: 查找最长行（逐个字符）。
 
 ~~~~ {#lst:LongestLineNaive .cpp}
 uint32_t longestLine(const std::string &str) {
@@ -26,7 +26,7 @@ uint32_t longestLine(const std::string &str) {
 
 考虑 [@lst:LongestLineSIMD] 中显示的替代实现，它一次测试八个字符。你通常会看到使用编译器内置函数（参见 [@sec:secIntrinsics]）实现的这个想法，但是，为了清晰起见，我决定展示标准 C++ 代码。这个确切的案例出现在 Performance Ninja 的一个实验室作业中，[^2] 所以你可以自己尝试编写 SIMD 代码。请记住，我展示的代码是不完整的，因为它缺少一些角落情况；我提供它只是为了说明这个想法。
 
-清单：查找最长行（一次 8 个字符）。
+Listing: 查找最长行（一次 8 个字符）。
 
 ~~~~ {#lst:LongestLineSIMD .cpp .numberLines}
 uint32_t longestLine(const std::string &str) {

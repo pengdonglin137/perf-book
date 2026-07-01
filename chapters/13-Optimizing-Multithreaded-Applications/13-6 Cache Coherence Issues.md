@@ -21,7 +21,7 @@
 
 当两个不同的核心访问同一个变量时，就会发生真共享（参见 [@lst:TrueSharing]）。
 
-清单：真共享示例。
+Listing: 真共享示例。
 
 ~~~~ {#lst:TrueSharing .cpp}
 unsigned int sum; // 在所有线程之间共享

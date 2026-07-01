@@ -10,7 +10,7 @@
 
 你可能会想："但循环的下一次迭代应该开始并行推测执行"。这是正确的，事实上，它在图 @fig:SWmemprefetch1 中有所反映。`doSomeExtensiveComputation` 函数需要大量工作，当执行接近第一次迭代结束时，CPU 推测地开始执行下一次迭代的指令。这在迭代之间创建了正的执行重叠。事实上，我们提出了一个乐观场景，其中处理器能够生成下一个随机数并与循环的上一次迭代并行发出加载。但是，CPU 无法完全隐藏加载的延迟，因为它无法向前查看当前迭代那么远来提前发出加载。也许未来的处理器将具有更强大的 OOO 引擎，但目前，存在需要程序员干预的情况。
 
-清单：随机数是后续加载的索引。
+Listing: 随机数是后续加载的索引。
 
 ~~~~ {#lst:MemPrefetch1 .cpp}
 for (int i = 0; i < N; ++i) {
@@ -24,7 +24,7 @@ for (int i = 0; i < N; ++i) {
 
 幸运的是，这不是死胡同，因为有一种方法可以通过将加载与 `doSomeExtensiveComputation` 的执行完全重叠来加速此代码，这将隐藏缓存未命中的延迟。我们可以通过称为*软件流水线*和*显式内存预取*的技术来实现这一点。[@lst:MemPrefetch2] 中展示了此思想的实现。我们流水线化随机数的生成，并在与 `doSomeExtensiveComputation` 并行时开始为下一次迭代预取内存位置。
 
-清单：利用显式软件内存预取提示。
+Listing: 利用显式软件内存预取提示。
 
 ~~~~ {#lst:MemPrefetch2 .cpp}
 size_t idx = random_distribution(generator);

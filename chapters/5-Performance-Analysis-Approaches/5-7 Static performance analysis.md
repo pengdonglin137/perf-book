@@ -22,7 +22,7 @@
 
 让我们看看 [@lst:FMAthroughput] 中的代码。我故意尝试使示例尽可能简单。当然，现实世界的代码通常比这更复杂。该代码将数组 `a` 的每个元素缩放浮点值 `B`，并将乘积累加到 `sum` 中。在右边，我展示了 Clang-16 在使用 `-O3 -ffast-math -march=core-avx2` 编译时生成的循环的机器代码。
 
-清单：FMA 吞吐量
+Listing: FMA 吞吐量
 
 ~~~~ {#lst:FMAthroughput .cpp}
 float foo(float * a, float B, int N){  │ .loop:

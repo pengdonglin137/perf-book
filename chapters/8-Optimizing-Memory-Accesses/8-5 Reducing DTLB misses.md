@@ -18,7 +18,7 @@ Windows 和 Linux 都允许应用程序建立大页内存区域。如何在 Wind
 
 在 Linux 应用程序中使用 EHP 的最简单方法是使用 `MAP_HUGETLB` 调用 `mmap`，如 [@lst:ExplicitHugepages1] 所示。在此代码中，指针 `ptr` 将指向为 EHP 显式保留的 2MB 内存区域。注意，如果 EHP 没有提前保留，分配可能会失败。在用户代码中使用 EHP 的其他不太流行的方式在附录 B 中提供。此外，开发人员可以编写自己的基于 arena 的分配器来使用 EHP。
 
-清单：从未分配的大页映射内存区域。
+Listing: 从未分配的大页映射内存区域。
 
 ~~~~ {#lst:ExplicitHugepages1 .cpp}
 void ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE,

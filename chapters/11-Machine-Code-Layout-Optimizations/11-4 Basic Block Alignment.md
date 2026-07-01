@@ -2,7 +2,7 @@
 
 有时性能可能会根据指令在内存中放置的偏移量而发生显著变化。考虑 [@lst:LoopAlignment] 中显示的一个简单函数，以及使用 `-O3 -march=core-avx2 -fno-unroll-loops`（禁用循环展开以说明该思想）编译时相应的机器代码。
 
-清单：基本块对齐
+Listing: 基本块对齐
 
 ~~~~ {#lst:LoopAlignment .cpp}
 void benchmark_func(int* a) {    │ 00000000004046a0 <_Z14benchmark_funcPi>:

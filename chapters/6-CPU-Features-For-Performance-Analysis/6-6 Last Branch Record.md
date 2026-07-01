@@ -8,7 +8,7 @@ Intel、AMD 和 Arm 设计的处理器都宣布了它们的分支记录扩展。
 
 重要的是要记住，只有被采取的分支才会被记录。[@lst:LogBranches] 显示了分支结果如何被跟踪的示例。此代码表示一个具有三条可能改变程序执行路径的指令的循环，即循环回边 `JNE` (1)、条件分支 `JNS` (2)、函数 `CALL` (3) 和从此函数返回的地址 (4)。
 
-清单：记录分支的示例。
+Listing: 记录分支的示例。
 
 ~~~~ {#lst:LogBranches .asm}
 ----> 4eda10:  mov   edi,DWORD PTR [rbx]
@@ -26,7 +26,7 @@ Intel、AMD 和 Arm 设计的处理器都宣布了它们的分支记录扩展。
 
 [@lst:BranchHistory] 显示了使用分支记录机制可以记录的一个可能的分支历史。它显示了在执行 `CALL` 指令时最后 7 个分支结果（未显示更多）。因为在循环的最新迭代中，`JNS` 分支（`4eda14` &rarr; `4eda1e`）未被采取，所以它没有被记录，因此不出现在历史中。
 
-清单：可能的分支历史。
+Listing: 可能的分支历史。
 
 ~~~~ {#lst:BranchHistory .asm}
     Source Address    Destination Address

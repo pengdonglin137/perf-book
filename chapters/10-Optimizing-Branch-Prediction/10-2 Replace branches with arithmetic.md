@@ -2,7 +2,7 @@
 
 在某些场景中，可以用算术替换分支。[@lst:LookupBranches] 中的代码也可以使用简单的算术公式重写，如 [@lst:ArithmeticBranches] 所示。注意，对于此代码，Clang-17 编译器将昂贵的除法替换为更便宜的乘法和右移操作。
 
-清单：用算术替换分支。
+Listing: 用算术替换分支。
 
 ~~~~ {#lst:ArithmeticBranches .cpp}
 int8_t mapToBucket(unsigned v) {             │    mov al, -1

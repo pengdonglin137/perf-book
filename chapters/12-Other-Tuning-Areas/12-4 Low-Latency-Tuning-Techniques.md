@@ -14,7 +14,7 @@
 
 如何检测应用程序中的运行时小页面错误？一个简单的方法是使用 `top` 工具（添加 `-H` 选项以获取线程级视图）。将 `vMn` 字段添加到显示列的默认选择中，以查看每次显示刷新间隔内发生的小页面错误数量。[@lst:DumpTopWithMinorFaults] 显示了在编译大型 C++ 项目时 `top` 命令的转储，其中包含前 10 个进程。额外的 `vMn` 列显示在最后 3 秒内发生的小页面错误数量。
 
-清单：编译大型 C++ 项目时带有额外 vMn 字段的 Linux top 命令转储。
+Listing: 编译大型 C++ 项目时带有额外 vMn 字段的 Linux top 命令转储。
 
 ~~~~ {#lst:DumpTopWithMinorFaults .cpp}
    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND  vMn

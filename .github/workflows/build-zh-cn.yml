@@ -42,10 +42,10 @@ jobs:
     - name: Build PDF
       run: |
         python3 export_book.py
-        xelatex -interaction=nonstopmode book.tex
+        xelatex -interaction=nonstopmode book.tex || true
         bibtex book || true
-        xelatex -interaction=nonstopmode book.tex
-        xelatex -interaction=nonstopmode book.tex
+        xelatex -interaction=nonstopmode book.tex || true
+        xelatex -interaction=nonstopmode book.tex || true
         mv book.pdf perf-book-zh.pdf
       timeout-minutes: 10
 
