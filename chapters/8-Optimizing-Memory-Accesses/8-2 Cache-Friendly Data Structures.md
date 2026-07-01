@@ -38,3 +38,107 @@ for (row = 0; row < NROWS; row++)                  for (row = 0; row < NROWS; ro
 ### 数据打包
 
 数据缓存的利用率也可以通过使数据更紧凑来提高。打包数据有许多方法。经典的例子之一是使用位字段。[@lst:DataPacking] 中显示了数据打包可能有益的代码示例。如果我们知道 `a`、`b` 和 `c` 表示需要一定位数来编码的枚举值，我们可以减少结构体 `S` 的存储。
+
+Listing: 数据打包
+
+~~~~ {#lst:DataPacking .cpp}
+// S is 3 bytes                         // S is 1 byte
+struct S {                              struct S {
+  unsigned char a;                        unsigned char a:4;
+  unsigned char b;                =>      unsigned char b:2;
+  unsigned char c;                        unsigned char c:2;
+};                                      };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+注意打包版本的 `S` 所需空间减少了三倍。这大大减少了来回传输的内存量并节省了缓存空间。然而，使用位字段有额外的成本。[^15] 由于 `a`、`b` 和 `c` 的位被打包到单个字节中，编译器需要执行额外的位操作来提取和插入它们。例如，要加载 `b`，你需要将字节值右移（`>>`）2 位并与 `0x3` 进行逻辑与（`&`）。类似地，需要左移（`<<`）和逻辑或（`|`）操作来将更新后的值存回打包格式。在额外计算比低效内存传输造成的延迟更便宜的地方，数据打包是有益的。
+
+此外，程序员可以通过重新排列结构体或类中的字段来减少内存使用，避免编译器添加的填充。插入未使用的内存字节（填充）可以有效地存储和获取结构体的各个成员。在 [@lst:AvoidPadding] 的示例中，如果按大小递减的顺序声明成员，`S` 的大小可以减小。@fig:AvoidPadding 说明了重新排列结构体 `S` 中字段的效果。
+
+Listing: 避免编译器填充。
+
+~~~~ {#lst:AvoidPadding .cpp}
+// S is `sizeof(int) * 3` bytes          // S is `sizeof(int) * 2` bytes
+struct S {                               struct S {
+  bool b;                                  int i;
+  int i;                         =>        short s;
+  short s;                                 bool b;
+};                                       };
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+![通过重新排列字段避免编译器填充。空白单元格代表编译器填充。](../../img/memory-access-opts/AvoidPadding.png){#fig:AvoidPadding width=90%}
+
+### 字段重排序
+
+重新排列数据结构中的字段也可能因另一个原因而有益。考虑 [@lst:FieldReordering] 中的示例。假设 `Soldier` 结构体用于跟踪游戏中战场上数千个单位中的每一个。游戏有三个阶段：战斗、移动和交易。在战斗阶段，使用 `attack`、`defense` 和 `health` 字段。在移动阶段，使用 `coords` 和 `speed` 字段。在交易阶段，仅使用 `money` 字段。
+
+左侧代码中 `Soldier` 结构体的组织问题是字段没有按照游戏的阶段进行分组。例如，在战斗阶段，程序需要访问两个不同的缓存行来获取所需的字段。`attack` 和 `defense` 字段很可能驻留在同一个缓存行上，但 `health` 字段总是被推到下一个缓存行上。移动阶段也是如此（`speed` 和 `coords` 字段）。
+
+我们可以通过按照 [@lst:FieldReordering] 右侧所示重新排列字段，使 `Soldier` 结构体更缓存友好。通过此更改，一起访问的字段被分组在一起。
+
+Listing: 字段重排序。
+
+~~~~ {#lst:FieldReordering .cpp}
+struct Soldier {                                 struct Soldier {
+  2DCoords coords;   /*  8 bytes */                unsigned attack;  // 1. battle
+  unsigned attack;                                 unsigned defense; // 1. battle
+  unsigned defense;                     =>         unsigned health;  // 1. battle
+  /* other fields */ /* 64 bytes */                2DCoords coords;  // 2. move
+  unsigned speed;                                  unsigned speed;   // 2. move
+  unsigned money;                                  // other fields
+  unsigned health;                                 unsigned money;   // 3. trade
+};                                                };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+自 Linux 内核 6.8 起，`perf` 工具中有新功能，允许你找到数据结构重排序的机会。`perf mem record` 命令现在可用于分析数据结构访问模式。`perf annotate --data-type` 命令将显示数据结构布局以及归因于数据结构每个字段的分析样本。使用此信息，你可以识别一起访问的字段。[^5]
+
+数据类型分析在发现提高缓存利用率的机会方面非常有效。最近的 Linux 内核历史包含许多提交，这些提交重新排列结构体、[^1] 填充字段、[^3] 或打包[^2] 它们以提高性能。
+
+### 其他数据结构重组技术
+
+为了结束缓存友好数据结构的主题，我们将简要提及其他两种可用于提高缓存利用率的技术：*结构体拆分*和*指针内联*。
+
+**结构体拆分**。将大型结构体拆分为较小的结构体可以提高缓存利用率。例如，如果你有一个包含大量字段的结构体，但其中只有少数字段一起访问，你可以将结构体拆分为两个或更多较小的结构体。这样，你可以避免将不必要的数据加载到缓存中。[@lst:StructureSplitting] 中展示了结构体拆分的示例。通过将 `Point` 结构体拆分为 `PointCoords` 和 `PointInfo`，当只需要 `PointCoords` 时，我们可以避免将 `PointInfo` 数据加载到缓存中。这样，我们可以在单个缓存行上容纳更多的点。
+
+Listing: 结构体拆分。
+
+~~~~ {#lst:StructureSplitting .cpp}
+struct Point {                                struct PointCoords {
+  int X;                                        int X;
+  int Y;                                        int Y;
+  int Z;                                        int Z;
+  /*many other fields*/            =>         };
+};                                            struct PointInfo {
+std::vector<Point> points;                      /*many other fields*/
+                                              };
+                                              std::vector<PointCoords> pointCoords;
+                                              std::vector<PointInfo> pointInfos;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**指针内联**。将指针内联到结构体中可以提高缓存利用率。例如，如果你有一个包含指向另一个结构体的指针的结构体，你可以将指针内联到第一个结构体中。这样，你可以避免额外的内存访问来获取第二个结构体。[@lst:PointerInlining] 中展示了指针内联的示例。`weight` 参数在许多图算法中使用，因此经常被访问。然而，在左侧的原始版本中，获取边权重需要额外的内存访问，这可能导致缓存未命中。通过将 `weight` 参数移入 `GraphEdge` 结构体，我们避免了此类问题。
+
+Listing: 将 `weight` 参数移入父结构体。
+
+~~~~ {#lst:PointerInlining .cpp}
+struct GraphEdge {                            struct GraphEdge {
+  unsigned int from;                            unsigned int from;
+  unsigned int to;                              unsigned int to;
+  GraphEdgeProperties* prop;                    float weight;
+};                                 =>           GraphEdgeProperties* prop;
+struct GraphEdgeProperties {                  };
+  float weight;                               struct GraphEdgeProperties {
+  std::string label;                            std::string label;
+  // ...                                        // ...
+};                                            };
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[^1]: Linux commit [54ff8ad69c6e93c0767451ae170b41c000e565dd](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=54ff8ad69c6e93c0767451ae170b41c000e565dd)
+[^2]: Linux commit [e5598d6ae62626d261b046a2f19347c38681ff51](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=e5598d6ae62626d261b046a2f19347c38681ff51)
+[^3]: Linux commit [aee79d4e5271cee4ffa89ed830189929a6272eb8](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=aee79d4e5271cee4ffa89ed830189929a6272eb8)
+
+[^5]: Linux `perf` 数据类型分析 - [https://lwn.net/Articles/955709/](https://lwn.net/Articles/955709/)
+
+[^12]: aligned_alloc - [https://en.cppreference.com/w/c/memory/aligned_alloc](https://en.cppreference.com/w/c/memory/aligned_alloc)
+[^13]: Linux 手册页 `memalign` - [https://linux.die.net/man/3/memalign](https://linux.die.net/man/3/memalign)
+[^14]: 生成对齐内存 - [https://embeddedartistry.com/blog/2017/02/22/generating-aligned-memory/](https://embeddedartistry.com/blog/2017/02/22/generating-aligned-memory/)
+[^15]: 此外，你不能获取位字段的地址。
